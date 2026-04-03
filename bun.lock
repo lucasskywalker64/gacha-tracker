@@ -29,6 +29,7 @@
       "dependencies": {
         "@better-auth/passkey": "^1.4.0",
         "@elysiajs/bearer": "^1.4.3",
+        "@gacha-tracker/shared": "workspace:*",
         "@libsql/client": "latest",
         "better-auth": "latest",
         "drizzle-orm": "latest",
@@ -52,6 +53,7 @@
         "zod": "^4.3.6",
       },
       "devDependencies": {
+        "bun-types": "^1.3.11",
         "typescript": "latest",
       },
     },

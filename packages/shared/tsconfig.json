@@ -5,7 +5,8 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "noEmit": true,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "types": ["bun-types"]
   },
   "include": ["src"]
 }

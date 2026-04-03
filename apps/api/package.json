@@ -14,7 +14,8 @@
     "drizzle-orm": "latest",
     "elysia": "latest",
     "ioredis": "^5.4.1",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@gacha-tracker/shared": "workspace:*"
   },
   "devDependencies": {
     "drizzle-kit": "latest",
