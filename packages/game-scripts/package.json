@@ -1,0 +1,6 @@
+{
+  "name": "@gacha-tracker/game-scripts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Extraction scripts for pulling gacha history from game log files"
+}

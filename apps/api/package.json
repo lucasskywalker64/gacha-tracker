@@ -1,0 +1,23 @@
+{
+  "name": "api",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@better-auth/passkey": "^1.4.0",
+    "@elysiajs/bearer": "^1.4.3",
+    "@libsql/client": "latest",
+    "better-auth": "latest",
+    "drizzle-orm": "latest",
+    "elysia": "latest",
+    "ioredis": "^5.4.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "drizzle-kit": "latest",
+    "typescript": "latest"
+  }
+}

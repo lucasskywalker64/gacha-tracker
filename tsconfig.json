@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["src/**/*","apps/**/*/src","packages/**/*/src"],
+  "exclude": ["node_modules","dist",".turbo"]
+}
