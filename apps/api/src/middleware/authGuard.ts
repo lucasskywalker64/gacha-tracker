@@ -18,12 +18,11 @@ import { auth } from "../modules/auth/auth";
  */
 export const authGuard = new Elysia({ name: "auth-guard" }).derive(
   { as: "scoped" },
-  async ({ request: { headers }, set }) => {
+  async ({ request: { headers }, status }) => {
     const session = await auth.api.getSession({ headers });
 
     if (!session) {
-      set.status = 401;
-      throw new Error("Unauthorized");
+      return status(401, "Unauthorized")
     }
 
     const user = session.user as typeof session.user & {
@@ -33,8 +32,7 @@ export const authGuard = new Elysia({ name: "auth-guard" }).derive(
     };
 
     if (user.deletedAt !== null && user.deletedAt !== undefined) {
-      set.status = 401;
-      throw new Error("Unauthorized: account deleted");
+      return status(401, "Unauthorized: account deleted");
     }
 
     return { user, session: session.session };

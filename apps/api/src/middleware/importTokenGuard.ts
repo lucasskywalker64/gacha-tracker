@@ -20,10 +20,9 @@ import { redis } from "../lib/redis";
  */
 export const importTokenGuard = new Elysia({ name: "import-token-guard" })
   .use(bearer())
-  .derive({ as: "scoped" }, async ({ bearer, set }) => {
+  .derive({ as: "scoped" }, async ({ bearer, status }) => {
     if (!bearer) {
-      set.status = 401;
-      throw new Error("Unauthorized: missing or empty bearer token");
+      return status(401, "Unauthorized: missing or empty bearer token");
     }
 
     // Atomically consume the Redis key — single-use guarantee.
@@ -37,8 +36,7 @@ export const importTokenGuard = new Elysia({ name: "import-token-guard" })
     )) as string | null;
 
     if (!userId) {
-      set.status = 401;
-      throw new Error("Unauthorized: invalid or expired import token");
+      return status(401, "Unauthorized: invalid or expired import token");
     }
 
     return { importUserId: userId };
