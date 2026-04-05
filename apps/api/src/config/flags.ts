@@ -29,20 +29,18 @@ export type Flags = z.infer<typeof flagSchema>;
  * On a cache miss, reads from Turso and warms the cache.
  */
 export async function getFlags(): Promise<Flags> {
-  const cached = await redis.get(REDIS_FLAGS_KEY);
-  if (cached) {
-    const parsed = flagSchema.safeParse(JSON.parse(cached));
-    if (parsed.success) return parsed.data;
-  }
+    const cached = await redis.get(REDIS_FLAGS_KEY);
+    if (cached) {
+        const parsed = flagSchema.safeParse(JSON.parse(cached));
+        if (parsed.success) return parsed.data;
+    }
 
-  const rows = await db.select().from(featureFlags);
-  const obj = Object.fromEntries(
-    rows.map((r) => [r.key, r.enabled === 1]),
-  );
-  const flags = flagSchema.parse(obj);
+    const rows = await db.select().from(featureFlags);
+    const obj = Object.fromEntries(rows.map((r) => [r.key, r.enabled === 1]));
+    const flags = flagSchema.parse(obj);
 
-  await redis.set(REDIS_FLAGS_KEY, JSON.stringify(flags));
-  return flags;
+    await redis.set(REDIS_FLAGS_KEY, JSON.stringify(flags));
+    return flags;
 }
 
 /**
@@ -50,5 +48,5 @@ export async function getFlags(): Promise<Flags> {
  * Must be called after every write to the feature_flags table.
  */
 export async function invalidateFlags(): Promise<void> {
-  await redis.del(REDIS_FLAGS_KEY);
+    await redis.del(REDIS_FLAGS_KEY);
 }

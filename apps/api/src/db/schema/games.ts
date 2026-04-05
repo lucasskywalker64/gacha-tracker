@@ -12,10 +12,12 @@ import { sql } from "drizzle-orm";
  * them from the database.
  */
 export const games = sqliteTable("games", {
-  id: text("id").primaryKey(),
-  displayName: text("display_name").notNull(),
-  iconUrl: text("icon_url"),
-  isActive: integer("is_active").notNull().default(1),
-  config: text("config").notNull().default("{}"),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
+    id: text("id").primaryKey(),
+    displayName: text("display_name").notNull(),
+    iconUrl: text("icon_url"),
+    isActive: integer("is_active").notNull().default(1),
+    config: text("config").notNull().default("{}"),
+    createdAt: integer("created_at")
+        .notNull()
+        .default(sql`(unixepoch())`),
 });

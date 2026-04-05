@@ -19,25 +19,25 @@ import { redis } from "../lib/redis";
  * All other API routes use the session-cookie-based authGuard instead.
  */
 export const importTokenGuard = new Elysia({ name: "import-token-guard" })
-  .use(bearer())
-  .derive({ as: "scoped" }, async ({ bearer, status }) => {
-    if (!bearer) {
-      return status(401, "Unauthorized: missing or empty bearer token");
-    }
+    .use(bearer())
+    .derive({ as: "scoped" }, async ({ bearer, status }) => {
+        if (!bearer) {
+            return status(401, "Unauthorized: missing or empty bearer token");
+        }
 
-    // Atomically consume the Redis key — single-use guarantee.
-    // Returns the stored userId on the first call, null on all subsequent ones.
-    const userId = (await redis.eval(
-      `local v = redis.call('GET', KEYS[1])
+        // Atomically consume the Redis key — single-use guarantee.
+        // Returns the stored userId on the first call, null on all subsequent ones.
+        const userId = (await redis.eval(
+            `local v = redis.call('GET', KEYS[1])
        if v then redis.call('DEL', KEYS[1]) end
        return v`,
-      1,
-      `import_token:${bearer}`,
-    )) as string | null;
+            1,
+            `import_token:${bearer}`
+        )) as string | null;
 
-    if (!userId) {
-      return status(401, "Unauthorized: invalid or expired import token");
-    }
+        if (!userId) {
+            return status(401, "Unauthorized: invalid or expired import token");
+        }
 
-    return { importUserId: userId };
-  });
+        return { importUserId: userId };
+    });

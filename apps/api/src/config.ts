@@ -1,15 +1,15 @@
 import { z } from "zod";
 
 const configSchema = z.object({
-  DATABASE_URL: z.url(),
-  DATABASE_AUTH_TOKEN: z.string(),
-  REDIS_URL: z.url().default("redis://localhost:6379"),
-  BETTER_AUTH_URL: z.url(),
-  BETTER_AUTH_SECRET: z.string().min(32),
-  DISCORD_CLIENT_ID: z.string(),
-  DISCORD_CLIENT_SECRET: z.string(),
-  GOOGLE_CLIENT_ID: z.string(),
-  GOOGLE_CLIENT_SECRET: z.string(),
+    DATABASE_URL: z.url(),
+    DATABASE_AUTH_TOKEN: z.string(),
+    REDIS_URL: z.url().default("redis://localhost:6379"),
+    BETTER_AUTH_URL: z.url(),
+    BETTER_AUTH_SECRET: z.string().min(32),
+    DISCORD_CLIENT_ID: z.string(),
+    DISCORD_CLIENT_SECRET: z.string(),
+    GOOGLE_CLIENT_ID: z.string(),
+    GOOGLE_CLIENT_SECRET: z.string(),
 });
 
 /**

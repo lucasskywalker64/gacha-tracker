@@ -1,3 +1,3 @@
+bunx lint-staged
 bun test
-bun lint
 bun typecheck

@@ -28,36 +28,34 @@ import type { anonymousAuthPlugin } from "./anonymous";
  * The database is the single source of truth between generate/confirm/login.
  */
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: "sqlite" }),
+    database: drizzleAdapter(db, { provider: "sqlite" }),
 
-  baseURL: config.BETTER_AUTH_URL,
-  secret: config.BETTER_AUTH_SECRET,
+    baseURL: config.BETTER_AUTH_URL,
+    secret: config.BETTER_AUTH_SECRET,
 
-  user: {
-    additionalFields: {
-      /*
-       * Custom columns (deletedAt, codeHash, isAnonymous, isAdmin) are defined
-       * directly in the Drizzle schema as INTEGER/TEXT columns to enforce the
-       * project-wide conventions. Declaring them here would cause Better-Auth
-       * to override the column types.
-       */
+    user: {
+        additionalFields: {
+            /*
+             * Custom columns (deletedAt, codeHash, isAnonymous, isAdmin) are defined
+             * directly in the Drizzle schema as INTEGER/TEXT columns to enforce the
+             * project-wide conventions. Declaring them here would cause Better-Auth
+             * to override the column types.
+             */
+        },
     },
-  },
 
-  socialProviders: {
-    discord: {
-      clientId: config.DISCORD_CLIENT_ID,
-      clientSecret: config.DISCORD_CLIENT_SECRET,
+    socialProviders: {
+        discord: {
+            clientId: config.DISCORD_CLIENT_ID,
+            clientSecret: config.DISCORD_CLIENT_SECRET,
+        },
+        google: {
+            clientId: config.GOOGLE_CLIENT_ID,
+            clientSecret: config.GOOGLE_CLIENT_SECRET,
+        },
     },
-    google: {
-      clientId: config.GOOGLE_CLIENT_ID,
-      clientSecret: config.GOOGLE_CLIENT_SECRET,
-    },
-  },
 
-  plugins: [
-    passkey(),
-  ],
+    plugins: [passkey()],
 });
 
 export type Auth = typeof auth;
