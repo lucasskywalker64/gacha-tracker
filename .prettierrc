@@ -4,6 +4,7 @@
   "tabWidth": 4,
   "trailingComma": "es5",
   "printWidth": 100,
+  "endOfLine": "lf",
   "plugins": ["prettier-plugin-svelte", "prettier-plugin-packagejson"],
   "overrides": [
     {
@@ -13,4 +14,4 @@
       }
     }
   ]
-}
+}
