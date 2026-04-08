@@ -5,12 +5,12 @@ Extraction scripts live in per-game subdirectories. Each game has a Windows
 
 ## Supported Games
 
-| Game | Directory | Status |
-|---|---|---|
-| Honkai: Star Rail | `hsr/` | Phase 1 |
-| Genshin Impact | `genshin/` | Phase 2 |
-| Zenless Zone Zero | `zzz/` | Phase 2 |
-| Wuthering Waves | `wuwa/` | Phase 2 (feature-flagged) |
+| Game              | Directory  | Status                    |
+| ----------------- | ---------- | ------------------------- |
+| Honkai: Star Rail | `hsr/`     | Phase 1                   |
+| Genshin Impact    | `genshin/` | Phase 2                   |
+| Zenless Zone Zero | `zzz/`     | Phase 2                   |
+| Wuthering Waves   | `wuwa/`    | Phase 2 (feature-flagged) |
 
 ## Usage
 

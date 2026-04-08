@@ -8,11 +8,11 @@ import { config } from "../config";
  * ioredis handles reconnection automatically.
  */
 export const redis = new Redis(config.REDIS_URL, {
-  enableOfflineQueue: false,
-  maxRetriesPerRequest: 3,
-  lazyConnect: false,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 3,
+    lazyConnect: false,
 });
 
 redis.on("error", (err) => {
-  console.error("[redis] connection error:", err.message);
+    console.error("[redis] connection error:", err.message);
 });
