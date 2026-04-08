@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+	--font-sans:
+		'Outfit', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+		'Segoe UI Symbol', 'Noto Color Emoji';
+
+	--color-background: #0a0a0a;
+	--color-foreground: #ffffff;
+
+	--color-surface-1: #111111;
+	--color-surface-2: #1a1a1a;
+
+	--color-accent: #6366f1; /* Indigo-500 */
+	--color-accent-hover: #4f46e5; /* Indigo-600 */
+
+	--color-rarity-3: #60a5fa; /* Blue-400 */
+	--color-rarity-4: #a855f7; /* Purple-500 */
+	--color-rarity-5: #eab308; /* Yellow-500 / Gold */
+}
+
+@layer base {
+	:root {
+		background-color: var(--color-background);
+		color: var(--color-foreground);
+		font-family: var(--font-sans);
+	}
+}
