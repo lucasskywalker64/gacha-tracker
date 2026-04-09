@@ -18,6 +18,9 @@
 	--color-rarity-3: #60a5fa; /* Blue-400 */
 	--color-rarity-4: #a855f7; /* Purple-500 */
 	--color-rarity-5: #eab308; /* Yellow-500 / Gold */
+
+	--color-border: #27272a; /* zinc-800 */
+	--sidebar-border: #27272a;
 }
 
 @layer base {

@@ -12,6 +12,7 @@
     "dependencies": {
         "@better-auth/passkey": "^1.4.0",
         "@elysiajs/bearer": "^1.4.3",
+        "@elysiajs/cors": "^1.4.1",
         "@gacha-tracker/shared": "workspace:*",
         "@libsql/client": "^0.17.2",
         "better-auth": "^1.6.1",

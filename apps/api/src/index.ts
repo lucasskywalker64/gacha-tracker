@@ -6,8 +6,15 @@ import { queryRouter } from "./modules/pulls/query";
 import { statsRouter } from "./modules/stats";
 import { db } from "./db/client";
 import { redis } from "./lib/redis";
+import { cors } from "@elysiajs/cors";
 
 const app = new Elysia()
+    .use(
+        cors({
+            origin: true, // During development, true dynamically allows the requester origin
+            credentials: true, // Essential for Better Auth to set session cookies securely via cross-origin fetch
+        })
+    )
     /**
      * Auth plugin: mounts Better-Auth at /api/auth/* and exposes the auth macro.
      * Also includes the anonymous auth endpoints at /api/auth/anonymous/*.
