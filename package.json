@@ -17,11 +17,11 @@
         "typecheck": "turbo run typecheck"
     },
     "lint-staged": {
-        "*.{ts,svelte,js,json}": [
+        "*.{ts,svelte,js}": [
             "eslint --fix",
             "prettier --write"
         ],
-        "*.{md}": [
+        "*.{json,md}": [
             "prettier --write"
         ]
     },
