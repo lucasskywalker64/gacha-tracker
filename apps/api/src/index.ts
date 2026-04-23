@@ -7,6 +7,7 @@ import { statsRouter } from "./modules/stats";
 import { db } from "./db/client";
 import { redis } from "./lib/redis";
 import { cors } from "@elysiajs/cors";
+import { runMigrations } from "./db/migrate";
 
 const app = new Elysia()
     .use(
@@ -91,9 +92,10 @@ const app = new Elysia()
                 }),
             },
         }
-    )
+    );
+await runMigrations();
 
-    .listen(3000);
+app.listen(3000);
 
 console.log(`Gacha Tracker API is running at ${app.server?.hostname}:${app.server?.port}`);
 

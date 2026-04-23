@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "../db/client";
-import { featureFlags } from "../db/schema";
+import { featureFlag } from "../db/schema";
 import { redis } from "../lib/redis";
 
 const REDIS_FLAGS_KEY = "flags";
@@ -35,7 +35,7 @@ export async function getFlags(): Promise<Flags> {
         if (parsed.success) return parsed.data;
     }
 
-    const rows = await db.select().from(featureFlags);
+    const rows = await db.select().from(featureFlag);
     const obj = Object.fromEntries(rows.map((r) => [r.key, r.enabled === 1]));
     const flags = flagSchema.parse(obj);
 

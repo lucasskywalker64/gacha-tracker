@@ -47,25 +47,25 @@ describe("HSR Pull Import E2E", () => {
             `CREATE TABLE IF NOT EXISTS user (id TEXT PRIMARY KEY, name TEXT, email TEXT, email_verified INTEGER, image TEXT, created_at INTEGER, updated_at INTEGER, deleted_at INTEGER, code_hash TEXT, is_anonymous INTEGER, is_admin INTEGER)`
         );
         await sqlite.execute(
-            `CREATE TABLE IF NOT EXISTS games (id TEXT PRIMARY KEY, display_name TEXT, icon_url TEXT, is_active INTEGER, config TEXT, created_at INTEGER)`
+            `CREATE TABLE IF NOT EXISTS game (id TEXT PRIMARY KEY, display_name TEXT, icon_url TEXT, is_active INTEGER, config TEXT, created_at INTEGER)`
         );
         await sqlite.execute(
-            `CREATE TABLE IF NOT EXISTS user_games (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, last_import INTEGER, latest_pull_ids TEXT, created_at INTEGER)`
+            `CREATE TABLE IF NOT EXISTS user_game (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, last_import INTEGER, latest_pull_ids TEXT, created_at INTEGER)`
         );
         await sqlite.execute(
-            `CREATE TABLE IF NOT EXISTS pulls (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, game_uid TEXT, pull_id TEXT, banner_type TEXT, banner_id TEXT, item_id TEXT, item_name TEXT, item_type TEXT, rarity INTEGER, pulled_at INTEGER, pity_at_pull INTEGER, was_guaranteed INTEGER, pity_version INTEGER, extra TEXT, created_at INTEGER)`
+            `CREATE TABLE IF NOT EXISTS pull (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, game_uid TEXT, pull_id TEXT, banner_type TEXT, banner_id TEXT, item_id TEXT, item_name TEXT, item_type TEXT, rarity INTEGER, pulled_at INTEGER, pity_at_pull INTEGER, was_guaranteed INTEGER, pity_version INTEGER, extra TEXT, created_at INTEGER)`
         );
 
         // Add required indexes for ON CONFLICT
         await sqlite.execute(
-            `CREATE UNIQUE INDEX IF NOT EXISTS user_games_user_game_idx ON user_games (user_id, game_id)`
+            `CREATE UNIQUE INDEX IF NOT EXISTS user_game_user_game_idx ON user_game (user_id, game_id)`
         );
         await sqlite.execute(
-            `CREATE UNIQUE INDEX IF NOT EXISTS pulls_dedup_idx ON pulls (user_id, game_id, pull_id)`
+            `CREATE UNIQUE INDEX IF NOT EXISTS pull_dedup_idx ON pull (user_id, game_id, pull_id)`
         );
 
         await sqlite.execute(
-            `INSERT INTO games (id, display_name, is_active, config, created_at) VALUES ('starrail', 'Honkai: Star Rail', 1, '{}', 0)`
+            `INSERT INTO game (id, display_name, is_active, config, created_at) VALUES ('starrail', 'Honkai: Star Rail', 1, '{}', 0)`
         );
         console.log("[TEST] Tables created and game seeded.");
 
@@ -136,7 +136,7 @@ describe("HSR Pull Import E2E", () => {
         expect(result.success).toBe(true);
 
         // 3. Verify Database
-        const dbPulls = await testDb.query.pulls.findMany();
+        const dbPulls = await testDb.query.pull.findMany();
         expect(dbPulls.length).toBe(1);
         expect(dbPulls[0].itemName).toBe("Seele");
         expect(dbPulls[0].pityAtPull).toBe(1);
@@ -180,7 +180,7 @@ describe("HSR Pull Import E2E", () => {
         const result = (await response.json()) as { success: boolean };
         expect(result.success).toBe(true);
 
-        const allPulls = await testDb.query.pulls.findMany();
+        const allPulls = await testDb.query.pull.findMany();
         const pullCount = allPulls.filter((p) => p.pullId === "P1001").length;
         expect(pullCount).toBe(1); // Should still be 1
     });

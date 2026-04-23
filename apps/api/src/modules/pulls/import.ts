@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db/client";
-import { pulls, userGames } from "../../db/schema";
+import { pull, userGame } from "../../db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { redis } from "../../lib/redis";
 import { getAdapter } from "../games/registry";
@@ -19,12 +19,12 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             const token = crypto.randomUUID();
             await redis.set(`import_token:${token}`, user!.id, "EX", IMPORT_TOKEN_TTL);
 
-            const userGame = await db.query.userGames.findFirst({
-                where: and(eq(userGames.userId, user!.id), eq(userGames.gameId, gameId)),
+            const existingUserGame = await db.query.userGame.findFirst({
+                where: and(eq(userGame.userId, user!.id), eq(userGame.gameId, gameId)),
             });
 
-            const latestPullIds = userGame?.latestPullIds
-                ? JSON.parse(userGame.latestPullIds)
+            const latestPullIds = existingUserGame?.latestPullIds
+                ? JSON.parse(existingUserGame.latestPullIds)
                 : null;
 
             return status(200, {
@@ -86,26 +86,26 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
 
             await db.transaction(async (tx) => {
                 // Find existing userGame
-                let userGame = await tx.query.userGames.findFirst({
-                    where: and(eq(userGames.userId, userId), eq(userGames.gameId, payload.gameId)),
+                let currentUserGame = await tx.query.userGame.findFirst({
+                    where: and(eq(userGame.userId, userId), eq(userGame.gameId, payload.gameId)),
                 });
 
-                if (!userGame) {
+                if (!currentUserGame) {
                     const userGameId = crypto.randomUUID();
-                    await tx.insert(userGames).values({
+                    await tx.insert(userGame).values({
                         id: userGameId,
                         userId,
                         gameId: payload.gameId,
                         latestPullIds: "{}",
                     });
 
-                    userGame = {
+                    currentUserGame = {
                         id: userGameId,
                         userId,
                         gameId: payload.gameId,
                         lastImport: null,
                         latestPullIds: "{}",
-                        createdAt: Math.floor(Date.now() / 1000),
+                        createdAt: new Date(),
                     };
                 }
 
@@ -115,9 +115,9 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 // For Phase 1, we can just fetch existing pulls for this user/game,
                 // compute pity on the combined array, and then upsert everything.
 
-                const existingDbPulls = await tx.query.pulls.findMany({
-                    where: and(eq(pulls.userId, userId), eq(pulls.gameId, payload.gameId)),
-                    orderBy: (pulls, { asc }) => [asc(pulls.pulledAt)], // Needs to be sorted properly
+                const existingDbPulls = await tx.query.pull.findMany({
+                    where: and(eq(pull.userId, userId), eq(pull.gameId, payload.gameId)),
+                    orderBy: (pull, { asc }) => [asc(pull.pulledAt)], // Needs to be sorted properly
                 });
 
                 // Convert existing DB pulls to NormalizedPull format
@@ -130,7 +130,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     itemName: p.itemName,
                     itemType: p.itemType,
                     rarity: p.rarity,
-                    pulledAt: new Date(p.pulledAt * 1000),
+                    pulledAt: new Date(p.pulledAt),
                     pityAtPull: p.pityAtPull,
                     wasGuaranteed: p.wasGuaranteed === 1,
                     extra: p.extra ? JSON.parse(p.extra) : undefined,
@@ -187,7 +187,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                             itemName: p.itemName,
                             itemType: p.itemType,
                             rarity: p.rarity,
-                            pulledAt: Math.floor(p.pulledAt.getTime() / 1000),
+                            pulledAt: p.pulledAt,
                             pityAtPull: p.pityAtPull,
                             wasGuaranteed: p.wasGuaranteed ? 1 : 0,
                             extra: p.extra ? JSON.stringify(p.extra) : null,
@@ -205,10 +205,10 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 for (let i = 0; i < pullsToUpsert.length; i += CHUNK_SIZE) {
                     const chunk = pullsToUpsert.slice(i, i + CHUNK_SIZE);
                     await tx
-                        .insert(pulls)
+                        .insert(pull)
                         .values(chunk)
                         .onConflictDoUpdate({
-                            target: [pulls.userId, pulls.gameId, pulls.pullId],
+                            target: [pull.userId, pull.gameId, pull.pullId],
                             set: {
                                 pityAtPull: sql`excluded.pity_at_pull`,
                                 wasGuaranteed: sql`excluded.was_guaranteed`,
@@ -217,14 +217,14 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                         });
                 }
 
-                // Update userGames
+                // Update userGame
                 await tx
-                    .update(userGames)
+                    .update(userGame)
                     .set({
-                        lastImport: Math.floor(Date.now() / 1000),
+                        lastImport: new Date(),
                         latestPullIds: JSON.stringify(latestIds),
                     })
-                    .where(eq(userGames.id, userGame.id));
+                    .where(eq(userGame.id, currentUserGame.id));
             });
 
             if (newCount === 0) {

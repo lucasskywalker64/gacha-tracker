@@ -14,7 +14,7 @@
 		"format": "prettier --write ."
 	},
 	"dependencies": {
-		"@better-auth/passkey": "^1.6.1",
+		"@better-auth/passkey": "^1.6.4",
 		"@elysiajs/eden": "^1.4.9",
 		"api": "workspace:*",
 		"better-auth": "^1.6.1"

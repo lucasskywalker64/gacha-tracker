@@ -28,11 +28,16 @@ export const authGuard = new Elysia({ name: "auth-guard" }).derive(
         const user = session.user as typeof session.user & {
             deletedAt: number | null;
             isAnonymous: boolean;
-            isAdmin: boolean;
+            role: string;
+            banned: boolean;
         };
 
         if (user.deletedAt !== null && user.deletedAt !== undefined) {
             return status(401, "Unauthorized: account deleted");
+        }
+
+        if (user.banned) {
+            return status(403, "Forbidden: account banned");
         }
 
         return { user, session: session.session };
@@ -47,5 +52,6 @@ export type AuthenticatedUser = {
     image?: string | null | undefined;
     deletedAt: number | null;
     isAnonymous: boolean;
-    isAdmin: boolean;
+    role: string;
+    banned: boolean;
 };

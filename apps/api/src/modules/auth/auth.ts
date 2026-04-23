@@ -1,8 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { passkey } from "@better-auth/passkey";
+import { admin, magicLink } from "better-auth/plugins";
 import { db } from "../../db/client";
 import { config } from "../../config";
+import * as schema from "../../db/schema";
+import { sendMagicLinkEmail } from "../../lib/email";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { anonymousAuthPlugin } from "./anonymous";
 
@@ -28,7 +30,10 @@ import type { anonymousAuthPlugin } from "./anonymous";
  * The database is the single source of truth between generate/confirm/login.
  */
 export const auth = betterAuth({
-    database: drizzleAdapter(db, { provider: "sqlite" }),
+    database: drizzleAdapter(db, {
+        provider: "sqlite",
+        schema,
+    }),
 
     baseURL: config.BETTER_AUTH_URL,
     secret: config.BETTER_AUTH_SECRET,
@@ -36,12 +41,8 @@ export const auth = betterAuth({
 
     user: {
         additionalFields: {
-            /*
-             * Custom columns (deletedAt, codeHash, isAnonymous, isAdmin) are defined
-             * directly in the Drizzle schema as INTEGER/TEXT columns to enforce the
-             * project-wide conventions. Declaring them here would cause Better-Auth
-             * to override the column types.
-             */
+            isAnonymous: { type: "boolean", required: false, input: true },
+            codeHash: { type: "string", required: false, input: true },
         },
     },
 
@@ -56,7 +57,16 @@ export const auth = betterAuth({
         },
     },
 
-    plugins: [passkey()],
+    emailAndPassword: {
+        enabled: true,
+    },
+    plugins: [
+        admin(),
+        magicLink({
+            sendMagicLink: sendMagicLinkEmail,
+            expiresIn: 300, // 5 minutes
+        }),
+    ],
 });
 
 export type Auth = typeof auth;

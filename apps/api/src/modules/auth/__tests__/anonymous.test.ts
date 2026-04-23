@@ -10,7 +10,7 @@ const redisMock = {
         return "OK";
     }),
     exists: mock(async (key: string) => (redisStore.has(key) ? 1 : 0)),
-    eval: mock(async (_script: string, _numKeys: number, key: string) => {
+    getdel: mock(async (key: string) => {
         const value = redisStore.get(key) ?? null;
         if (value) redisStore.delete(key);
         return value;
@@ -30,13 +30,16 @@ const dbUsers: Array<{
 mock.module("../../../db/client", () => ({
     db: {
         query: {
-            users: {
+            user: {
                 findFirst: mock(async () => null),
                 findMany: mock(async () => dbUsers.filter((u) => u.isAnonymous)),
             },
         },
         update: mock(() => ({
             set: mock(() => ({ where: mock(async () => undefined) })),
+        })),
+        insert: mock(() => ({
+            values: mock(async () => undefined),
         })),
     },
 }));
@@ -58,14 +61,25 @@ mock.module("../../../config", () => ({
 mock.module("../auth", () => ({
     auth: {
         api: {
-            signUpEmail: mock(async (opts: { body: { email: string } }) => ({
-                user: {
-                    id: `user_${Date.now()}`,
-                    email: opts.body.email,
-                    name: "Anonymous User",
-                },
-                session: null,
-            })),
+            signUpEmail: mock(async (opts: { body: { email: string } }) => {
+                const data = {
+                    user: {
+                        id: `user_${Date.now()}`,
+                        email: opts.body.email,
+                        name: "Anonymous User",
+                    },
+                    session: {
+                        token: "test_session_token",
+                        expiresAt: new Date(Date.now() + 100000),
+                    },
+                };
+                return new Response(JSON.stringify(data), {
+                    headers: {
+                        "set-cookie":
+                            "better-auth.session_token=test_signed_token; Path=/; HttpOnly",
+                    },
+                });
+            }),
             signInEmail: mock(async () => ({ user: null, session: null })),
         },
     },
@@ -124,14 +138,12 @@ describe("anonymousAuthPlugin — /generate", () => {
 describe("anonymousAuthPlugin — /confirm", () => {
     beforeEach(() => {
         redisStore.clear();
-        redisMock.eval.mockReset();
-        redisMock.eval.mockImplementation(
-            async (_script: string, _numKeys: number, key: string) => {
-                const value = redisStore.get(key) ?? null;
-                if (value) redisStore.delete(key);
-                return value;
-            }
-        );
+        redisMock.getdel.mockReset();
+        redisMock.getdel.mockImplementation(async (key: string) => {
+            const value = redisStore.get(key) ?? null;
+            if (value) redisStore.delete(key);
+            return value;
+        });
     });
 
     it("returns 400 when the code key is not in Redis (expired or never issued)", async () => {
@@ -146,7 +158,7 @@ describe("anonymousAuthPlugin — /confirm", () => {
 
     it("returns 400 on double-confirm (key already consumed)", async () => {
         let callCount = 0;
-        redisMock.eval.mockImplementation(async () => {
+        redisMock.getdel.mockImplementation(async () => {
             callCount++;
             return callCount === 1 ? "1" : null;
         });
@@ -167,7 +179,7 @@ describe("anonymousAuthPlugin — /confirm", () => {
     });
 
     it("creates an account successfully when the code key exists in Redis", async () => {
-        redisMock.eval.mockResolvedValueOnce("1");
+        redisMock.getdel.mockResolvedValueOnce("1");
 
         const app = await buildApp();
         const res = await app.handle(

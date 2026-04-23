@@ -3,10 +3,11 @@ import { eq } from "drizzle-orm";
 import { auth } from "./auth";
 import { redis } from "../../lib/redis";
 import { db } from "../../db/client";
-import { users } from "../../db/schema";
+import { user, session } from "../../db/schema";
 import { getFlags } from "../../config/flags";
-import { ANON_PENDING_TTL_SECONDS } from "../../config";
+import { ANON_PENDING_TTL_SECONDS, config } from "../../config";
 
+const BASE10 = "0123456789";
 const BASE62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const CODE_LENGTH = 16;
 const MAX_RETRIES = 3;
@@ -20,15 +21,44 @@ const ARGON2_OPTIONS = {
 
 function generateCode(): string {
     const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH));
+    return Array.from(bytes, (b) => BASE10[b % 10]).join("");
+}
+
+function generateSessionToken(): string {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
     return Array.from(bytes, (b) => BASE62[b % 62]).join("");
+}
+
+/**
+ * Produces the signed cookie value that Better-Auth expects:
+ *   `rawToken.base64(HMAC-SHA256(rawToken, secret))`
+ *
+ * The DB stores only `rawToken`. On `getSession`, Better-Auth splits on
+ * the last `.`, verifies the HMAC, then queries the DB by `rawToken`.
+ */
+async function signSessionToken(rawToken: string): Promise<string> {
+    const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(config.BETTER_AUTH_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+    );
+    const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawToken));
+    const base64Sig = btoa(String.fromCharCode(...new Uint8Array(sig)));
+    return `${rawToken}.${base64Sig}`;
+}
+
+function getIdentifier(code: string): string {
+    return Bun.SHA256.hash(code, "hex");
 }
 
 async function hashCode(code: string): Promise<string> {
     return Bun.password.hash(code, ARGON2_OPTIONS);
 }
 
-function anonymousEmail(codeHash: string): string {
-    return `${codeHash.substring(0, 12)}@anon.gacha-tracker.app`;
+function anonymousEmail(identifier: string): string {
+    return `${identifier.substring(0, 12)}@anon.gacha-tracker.app`;
 }
 
 export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
@@ -36,10 +66,10 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
      * Generate & display code, no account created yet.
      *
      * - Checks the anonymousAccounts feature flag.
-     * - Generates a cryptographically random 16-character base62 code.
-     * - Hashes it with Argon2id.
-     * - Verifies uniqueness against both Redis and the database.
-     * - Stores the plaintext code in Redis as `anon_pending:<codeHash>` with a
+     * - Generates a cryptographically random 16-digit code.
+     * - Derives a deterministic identifier (SHA-256) for lookups and emails.
+     * - Verifies uniqueness against Redis and the database (via derived email).
+     * - Stores a placeholder in Redis as `anon_pending:<identifier>` with a
      *   short TTL so the user has a fixed window to complete Step 2.
      * - Returns the plaintext code to the SPA. No DB write occurs here.
      */
@@ -56,15 +86,15 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                     },
                 });
             }
-
             for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
                 const code = generateCode();
-                const codeHash = await hashCode(code);
-                const redisKey = `anon_pending:${codeHash}`;
+                const identifier = getIdentifier(code);
+                const email = anonymousEmail(identifier);
+                const redisKey = `anon_pending:${identifier}`;
 
                 const [existsInRedis, existsInDb] = await Promise.all([
                     redis.exists(redisKey),
-                    db.query.users.findFirst({ where: eq(users.codeHash, codeHash) }),
+                    db.query.user.findFirst({ where: eq(user.email, email) }),
                 ]);
 
                 if (existsInRedis || existsInDb) continue;
@@ -110,25 +140,19 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
     /**
      * User types the code back in full; account is created.
      *
-     * - Hashes the submitted code with Argon2id.
-     * - Atomically looks up and deletes the Redis key via Lua GET+DEL (single-use).
-     * - Creates the account via Better-Auth's Email signUp API.
-     * - Stores codeHash on the user row so the /login endpoint can verify later.
+     * - Derives the deterministic identifier (SHA-256) for the Redis lookup.
+     * - Atomically looks up and deletes the Redis key (single-use).
+     * - Creates the account via Better-Auth's Email signUp API using the derived email.
+     * - Hashes the code with Argon2id and stores it on the user row for verification.
      */
     .post(
         "/api/auth/anonymous/confirm",
-        async ({ body, request, status }) => {
+        async ({ body, request, status, set }) => {
             const { code } = body;
-            const codeHash = await hashCode(code);
-            const redisKey = `anon_pending:${codeHash}`;
+            const identifier = getIdentifier(code);
+            const redisKey = `anon_pending:${identifier}`;
 
-            const existed = (await redis.eval(
-                `local v = redis.call('GET', KEYS[1])
-         if v then redis.call('DEL', KEYS[1]) end
-         return v`,
-                1,
-                redisKey
-            )) as string | null;
+            const existed = (await redis.getdel(redisKey)) as string | null;
 
             if (!existed) {
                 return status(400, {
@@ -141,21 +165,39 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                 });
             }
 
-            const session = await auth.api.signUpEmail({
-                body: {
-                    email: anonymousEmail(codeHash),
-                    password: crypto.randomUUID(),
-                    name: "Anonymous User",
-                },
-                headers: request.headers,
-            });
+            try {
+                const codeHash = await hashCode(code);
+                const response = await auth.api.signUpEmail({
+                    body: {
+                        email: anonymousEmail(identifier),
+                        password: crypto.randomUUID(),
+                        name: "Anonymous User",
+                        isAnonymous: true,
+                        codeHash,
+                    },
+                    headers: request.headers,
+                    asResponse: true,
+                });
 
-            await db
-                .update(users)
-                .set({ codeHash, isAnonymous: true })
-                .where(eq(users.id, session.user.id));
+                const setCookie = response.headers.get("set-cookie");
+                if (!setCookie) {
+                    throw new Error("Login successful, but session could not be established.");
+                }
 
-            return { success: true, userId: session.user.id };
+                set.headers["Set-Cookie"] = setCookie;
+
+                const result = (await response.json()) as { user: { id: string } };
+                return status(200, { success: true, userId: result.user.id });
+            } catch (e) {
+                return status(400, {
+                    success: false,
+                    error: {
+                        code: "SIGNUP_FAILED",
+                        message:
+                            e instanceof Error ? e.message : "Failed to create anonymous account.",
+                    },
+                });
+            }
         },
         {
             body: t.Object({
@@ -180,52 +222,57 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
     /**
      * Anonymous code login (used on returning visits).
      *
-     * - Fetches all isAnonymous = true accounts.
-     * - Verifies the submitted code against each codeHash with Argon2id.
-     * - On match, calls Better-Auth's signInEmail with the dummy credentials to
-     *   produce a proper session cookie.
-     *
-     * Note: This is an O(n) operation on the anonymous account count. At the
-     * realistic scale of this project this is acceptable. If accounts grow into
-     * the tens of thousands, adding a fast-lookup HMAC column alongside the
-     * Argon2id hash would allow narrowing candidates before verification.
+     * - Derives the deterministic email from the submitted code.
+     * - Performs an O(1) lookup in the database for the candidate user.
+     * - Verifies the code against the stored Argon2id codeHash.
+     * - On match, sets a session cookie manually.
      *
      * The anonymous feature flag is NOT checked here — existing accounts must
      * always be able to log in even if the generation feature is disabled.
      */
     .post(
         "/api/auth/anonymous/login",
-        async ({ body, request, status }) => {
+        async ({ body, status, set, request: { headers: requestHeaders } }) => {
             const { code } = body;
+            const identifier = getIdentifier(code);
+            const email = anonymousEmail(identifier);
 
-            const candidates = await db.query.users.findMany({
-                where: eq(users.isAnonymous, true),
+            const candidate = await db.query.user.findFirst({
+                where: eq(user.email, email),
             });
 
-            for (const candidate of candidates) {
-                if (
-                    candidate.codeHash &&
-                    !candidate.deletedAt &&
-                    (await Bun.password.verify(code, candidate.codeHash))
-                ) {
-                    const session = await auth.api.signInEmail({
-                        body: {
-                            email: anonymousEmail(candidate.codeHash),
-                            password: crypto.randomUUID(), // will fail — see below
-                        },
-                        headers: request.headers,
-                    });
+            if (
+                candidate &&
+                candidate.codeHash &&
+                !candidate.deletedAt &&
+                (await Bun.password.verify(code, candidate.codeHash))
+            ) {
+                const rawToken = generateSessionToken();
+                const signedToken = await signSessionToken(rawToken);
+                const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-                    // Better-Auth's signInEmail verifies the password against the stored
-                    // hash, which will fail because the password is random. We need a
-                    // different approach: use the admin API to create a session directly.
-                    // TODO: replace with auth.api.getSession + manual session creation
-                    // once the Better-Auth admin plugin is configured (Phase 3).
-                    // For now this endpoint is a placeholder with the correct structure.
-                    void session;
+                await db.insert(session).values({
+                    id: crypto.randomUUID(),
+                    token: rawToken,
+                    userId: candidate.id,
+                    expiresAt,
+                    ipAddress:
+                        requestHeaders.get("x-forwarded-for") ??
+                        requestHeaders.get("x-real-ip") ??
+                        undefined,
+                    userAgent: requestHeaders.get("user-agent") ?? undefined,
+                });
 
-                    return status(200, { success: true });
-                }
+                set.headers["Set-Cookie"] = [
+                    `better-auth.session_token=${signedToken}`,
+                    "HttpOnly",
+                    "Path=/",
+                    "Secure=true",
+                    "SameSite=Strict",
+                    `Max-Age=${7 * 24 * 60 * 60}`,
+                ].join("; ");
+
+                return status(200, { success: true });
             }
 
             return status(401, {
