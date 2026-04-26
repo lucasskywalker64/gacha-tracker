@@ -7,6 +7,7 @@
 	import * as Separator from '$lib/components/ui/separator';
 	import { Mail, UserKey, Ghost, Loader2 } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { authStore } from '$lib/stores/auth';
 
 	let email = $state('');
@@ -59,7 +60,7 @@
 			}
 			if (data) {
 				authStore.set(data);
-				await goto(`${PUBLIC_FRONTEND_URL}/`);
+				await goto(resolve('/'));
 			}
 		} catch (e) {
 			console.error(e);
@@ -79,7 +80,7 @@
 				// @ts-expect-error - Eden Treaty error union might not contain .error.message
 				errorMessage = error.value?.error?.message || 'Invalid code.';
 			} else {
-				await goto(`${PUBLIC_FRONTEND_URL}/`);
+				await goto(resolve('/'));
 			}
 		} catch (e) {
 			console.error(e);

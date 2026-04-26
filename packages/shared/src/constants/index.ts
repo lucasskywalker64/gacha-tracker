@@ -14,10 +14,10 @@ export const HSR_BANNERS = {
 } as const;
 
 export const HSR_BANNER_NAMES: Record<number, string> = {
-    [HSR_BANNERS.STANDARD]: "Stellar Warp",
-    [HSR_BANNERS.BEGINNER]: "Departure Warp",
     [HSR_BANNERS.CHARACTER]: "Character Event Warp",
     [HSR_BANNERS.WEAPON]: "Light Cone Event Warp",
+    [HSR_BANNERS.STANDARD]: "Stellar Warp",
+    [HSR_BANNERS.BEGINNER]: "Departure Warp",
 };
 
 export const HSR_RARITY_TIERS = [3, 4, 5] as const;
@@ -109,3 +109,257 @@ export const RARITY_TIERS = {
 } as const;
 
 export type GameId = keyof typeof BANNER_NAMES;
+
+import type { GameConfig } from "../types";
+
+// ---------------------------------------------------------------------------
+// Game Configurations (Single Source of Truth)
+// ---------------------------------------------------------------------------
+
+export const GAME_CONFIGS: Record<string, GameConfig> = {
+    starrail: {
+        gameId: "starrail",
+        displayName: "Honkai: Star Rail",
+        pityConfig: {
+            rarityTiers: [3, 4, 5],
+            pityTriggerRarity: 5,
+            softPity: {
+                [HSR_BANNERS.STANDARD]: 74,
+                [HSR_BANNERS.BEGINNER]: 40,
+                [HSR_BANNERS.CHARACTER]: 74,
+                [HSR_BANNERS.WEAPON]: 64,
+            },
+            hardPity: {
+                [HSR_BANNERS.STANDARD]: 90,
+                [HSR_BANNERS.BEGINNER]: 50,
+                [HSR_BANNERS.CHARACTER]: 90,
+                [HSR_BANNERS.WEAPON]: 80,
+            },
+            guaranteeAfterFailed: true,
+            bannerOrder: [
+                String(HSR_BANNERS.CHARACTER),
+                String(HSR_BANNERS.WEAPON),
+                String(HSR_BANNERS.STANDARD),
+                String(HSR_BANNERS.BEGINNER),
+            ],
+        },
+        rarityDisplay: [
+            {
+                value: 5,
+                label: "5★",
+                textColor: "text-yellow-400",
+                bgColor: "bg-yellow-400/10",
+                borderColor: "border-yellow-400/30",
+                triggersPity: true,
+                sortOrder: 3,
+            },
+            {
+                value: 4,
+                label: "4★",
+                textColor: "text-violet-400",
+                bgColor: "bg-violet-400/10",
+                borderColor: "border-violet-400/30",
+                triggersPity: false,
+                sortOrder: 2,
+            },
+            {
+                value: 3,
+                label: "3★",
+                textColor: "text-blue-400",
+                bgColor: "bg-blue-400/10",
+                borderColor: "border-blue-400/30",
+                triggersPity: false,
+                sortOrder: 1,
+            },
+        ],
+    },
+    genshin: {
+        gameId: "genshin",
+        displayName: "Genshin Impact",
+        pityConfig: {
+            rarityTiers: [3, 4, 5],
+            pityTriggerRarity: 5,
+            softPity: {
+                [GENSHIN_BANNERS.STANDARD]: 74,
+                [GENSHIN_BANNERS.NOVICE]: 8,
+                [GENSHIN_BANNERS.CHARACTER]: 74,
+                [GENSHIN_BANNERS.WEAPON]: 63,
+                [GENSHIN_BANNERS.CHARACTER_2]: 74,
+                [GENSHIN_BANNERS.CHRONICLED]: 74,
+            },
+            hardPity: {
+                [GENSHIN_BANNERS.STANDARD]: 90,
+                [GENSHIN_BANNERS.NOVICE]: 10,
+                [GENSHIN_BANNERS.CHARACTER]: 90,
+                [GENSHIN_BANNERS.WEAPON]: 80,
+                [GENSHIN_BANNERS.CHARACTER_2]: 90,
+                [GENSHIN_BANNERS.CHRONICLED]: 90,
+            },
+            guaranteeAfterFailed: true,
+            bannerOrder: [
+                String(GENSHIN_BANNERS.NOVICE),
+                String(GENSHIN_BANNERS.STANDARD),
+                String(GENSHIN_BANNERS.CHARACTER),
+                String(GENSHIN_BANNERS.WEAPON),
+                String(GENSHIN_BANNERS.CHARACTER_2),
+                String(GENSHIN_BANNERS.CHRONICLED),
+            ],
+        },
+        rarityDisplay: [
+            {
+                value: 5,
+                label: "5★",
+                textColor: "text-yellow-400",
+                bgColor: "bg-yellow-400/10",
+                borderColor: "border-yellow-400/30",
+                triggersPity: true,
+                sortOrder: 3,
+            },
+            {
+                value: 4,
+                label: "4★",
+                textColor: "text-violet-400",
+                bgColor: "bg-violet-400/10",
+                borderColor: "border-violet-400/30",
+                triggersPity: false,
+                sortOrder: 2,
+            },
+            {
+                value: 3,
+                label: "3★",
+                textColor: "text-blue-400",
+                bgColor: "bg-blue-400/10",
+                borderColor: "border-blue-400/30",
+                triggersPity: false,
+                sortOrder: 1,
+            },
+        ],
+    },
+    zzz: {
+        gameId: "zzz",
+        displayName: "Zenless Zone Zero",
+        pityConfig: {
+            rarityTiers: [2, 3, 4, 5],
+            pityTriggerRarity: 5,
+            softPity: {
+                [ZZZ_BANNERS.STANDARD]: 74,
+                [ZZZ_BANNERS.CHARACTER]: 74,
+                [ZZZ_BANNERS.WEAPON]: 64,
+                [ZZZ_BANNERS.BANGBOO]: 65,
+            },
+            hardPity: {
+                [ZZZ_BANNERS.STANDARD]: 90,
+                [ZZZ_BANNERS.CHARACTER]: 90,
+                [ZZZ_BANNERS.WEAPON]: 80,
+                [ZZZ_BANNERS.BANGBOO]: 80,
+            },
+            guaranteeAfterFailed: true,
+            bannerOrder: [
+                String(ZZZ_BANNERS.STANDARD),
+                String(ZZZ_BANNERS.CHARACTER),
+                String(ZZZ_BANNERS.WEAPON),
+                String(ZZZ_BANNERS.BANGBOO),
+            ],
+        },
+        rarityDisplay: [
+            {
+                value: 5,
+                label: "S",
+                textColor: "text-yellow-400",
+                bgColor: "bg-yellow-400/10",
+                borderColor: "border-yellow-400/30",
+                triggersPity: true,
+                sortOrder: 4,
+            },
+            {
+                value: 4,
+                label: "A",
+                textColor: "text-violet-400",
+                bgColor: "bg-violet-400/10",
+                borderColor: "border-violet-400/30",
+                triggersPity: false,
+                sortOrder: 3,
+            },
+            {
+                value: 3,
+                label: "B",
+                textColor: "text-blue-400",
+                bgColor: "bg-blue-400/10",
+                borderColor: "border-blue-400/30",
+                triggersPity: false,
+                sortOrder: 2,
+            },
+            {
+                value: 2,
+                label: "C",
+                textColor: "text-gray-400",
+                bgColor: "bg-gray-400/10",
+                borderColor: "border-gray-400/30",
+                triggersPity: false,
+                sortOrder: 1,
+            },
+        ],
+    },
+    wuwa: {
+        gameId: "wuwa",
+        displayName: "Wuthering Waves",
+        pityConfig: {
+            rarityTiers: [3, 4, 5],
+            pityTriggerRarity: 5,
+            softPity: {
+                [WUWA_BANNERS.CHARACTER]: 64,
+                [WUWA_BANNERS.WEAPON]: 64,
+                [WUWA_BANNERS.STANDARD_CHARACTER]: 64,
+                [WUWA_BANNERS.STANDARD_WEAPON]: 64,
+                [WUWA_BANNERS.BEGINNER]: 40,
+                [WUWA_BANNERS.BEGINNER_CHOICE]: 64,
+            },
+            hardPity: {
+                [WUWA_BANNERS.CHARACTER]: 80,
+                [WUWA_BANNERS.WEAPON]: 80,
+                [WUWA_BANNERS.STANDARD_CHARACTER]: 80,
+                [WUWA_BANNERS.STANDARD_WEAPON]: 80,
+                [WUWA_BANNERS.BEGINNER]: 50,
+                [WUWA_BANNERS.BEGINNER_CHOICE]: 80,
+            },
+            guaranteeAfterFailed: true,
+            bannerOrder: [
+                String(WUWA_BANNERS.CHARACTER),
+                String(WUWA_BANNERS.WEAPON),
+                String(WUWA_BANNERS.STANDARD_CHARACTER),
+                String(WUWA_BANNERS.STANDARD_WEAPON),
+                String(WUWA_BANNERS.BEGINNER),
+                String(WUWA_BANNERS.BEGINNER_CHOICE),
+            ],
+        },
+        rarityDisplay: [
+            {
+                value: 5,
+                label: "5★",
+                textColor: "text-yellow-400",
+                bgColor: "bg-yellow-400/10",
+                borderColor: "border-yellow-400/30",
+                triggersPity: true,
+                sortOrder: 3,
+            },
+            {
+                value: 4,
+                label: "4★",
+                textColor: "text-violet-400",
+                bgColor: "bg-violet-400/10",
+                borderColor: "border-violet-400/30",
+                triggersPity: false,
+                sortOrder: 2,
+            },
+            {
+                value: 3,
+                label: "3★",
+                textColor: "text-blue-400",
+                bgColor: "bg-blue-400/10",
+                borderColor: "border-blue-400/30",
+                triggersPity: false,
+                sortOrder: 1,
+            },
+        ],
+    },
+};

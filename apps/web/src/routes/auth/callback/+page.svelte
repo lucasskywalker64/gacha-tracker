@@ -3,23 +3,24 @@
 	import { authClient } from '$lib/api/auth';
 	import { authStore } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Loader2 } from 'lucide-svelte';
 
 	onMount(async () => {
 		try {
 			// Small delay to ensure cookies are processed by the browser
-			await new Promise((resolve) => setTimeout(resolve, 500));
+			await new Promise((res) => setTimeout(res, 500));
 
 			const { data: session } = await authClient.getSession();
 			if (session) {
 				authStore.set(session);
-				await goto('/dashboard');
+				await goto(resolve('/(app)/dashboard'));
 			} else {
-				await goto('/login?error=unauthorized');
+				await goto(resolve('/(auth)/login?error=unauthorized'));
 			}
 		} catch (e) {
 			console.error('Session verification failed:', e);
-			await goto('/login?error=callback_failed');
+			await goto(resolve('/(auth)/login?error=callback_failed'));
 		}
 	});
 </script>

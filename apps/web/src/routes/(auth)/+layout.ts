@@ -1,10 +1,4 @@
-import { redirect } from '@sveltejs/kit';
-import type { LayoutLoad } from './$types';
+import { createGuard } from '$lib/utils/auth-guards';
 
-export const load: LayoutLoad = async ({ parent }) => {
-	const { session } = await parent();
-
-	if (session) {
-		throw redirect(303, '/');
-	}
-};
+// Redirect to dashboard if the user is ALREADY logged in
+export const load = createGuard((session) => !!session, '/dashboard');

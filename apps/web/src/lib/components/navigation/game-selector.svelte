@@ -3,6 +3,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { selectedGame, type SupportedGame } from '$lib/stores/game';
 	import { ChevronDown, Gamepad2 } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	const games: Record<SupportedGame, { name: string }> = {
 		genshin: { name: 'Genshin Impact' },
@@ -15,6 +17,7 @@
 
 	function selectGame(game: SupportedGame) {
 		$selectedGame = game;
+		goto(resolve('/(app)/[game]', { game }));
 	}
 </script>
 

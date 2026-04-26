@@ -132,7 +132,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     rarity: p.rarity,
                     pulledAt: new Date(p.pulledAt),
                     pityAtPull: p.pityAtPull,
-                    wasGuaranteed: p.wasGuaranteed === 1,
+                    wasGuaranteed: p.wasGuaranteed,
                     extra: p.extra ? JSON.parse(p.extra) : undefined,
                 }));
 
@@ -189,7 +189,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                             rarity: p.rarity,
                             pulledAt: p.pulledAt,
                             pityAtPull: p.pityAtPull,
-                            wasGuaranteed: p.wasGuaranteed ? 1 : 0,
+                            wasGuaranteed: p.wasGuaranteed,
                             extra: p.extra ? JSON.stringify(p.extra) : null,
                             pityVersion: 1, // hardcoded for phase 1
                         });

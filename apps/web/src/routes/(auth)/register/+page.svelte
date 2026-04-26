@@ -7,6 +7,7 @@
 	import * as Separator from '$lib/components/ui/separator';
 	import { Mail, Ghost, Loader2, Copy, Check, TriangleAlert } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	let email = $state('');
 	let isLoading = $state(false);
@@ -91,7 +92,7 @@
 				// @ts-expect-error - Eden Treaty error union might not contain .error.message
 				errorMessage = error.value?.error?.message || 'Confirmation failed.';
 			} else {
-				await goto(`${PUBLIC_FRONTEND_URL}/`);
+				await goto(resolve('/'));
 			}
 		} catch (e) {
 			console.error(e);

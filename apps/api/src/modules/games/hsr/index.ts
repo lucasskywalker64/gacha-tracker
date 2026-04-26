@@ -2,29 +2,12 @@ import type {
     GameAdapter,
     NormalizedImportResult,
     NormalizedPull,
-    PityConfig,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { HSR_BANNERS } from "@gacha-tracker/shared";
+import { HSR_BANNERS, GAME_CONFIGS } from "@gacha-tracker/shared";
 import { computeGenericPity } from "../pity";
 
-const hsrPityConfig: PityConfig = {
-    rarityTiers: [3, 4, 5],
-    pityTriggerRarity: 5,
-    softPity: {
-        [HSR_BANNERS.STANDARD]: 74,
-        [HSR_BANNERS.BEGINNER]: 40,
-        [HSR_BANNERS.CHARACTER]: 74,
-        [HSR_BANNERS.WEAPON]: 64,
-    },
-    hardPity: {
-        [HSR_BANNERS.STANDARD]: 90,
-        [HSR_BANNERS.BEGINNER]: 50,
-        [HSR_BANNERS.CHARACTER]: 90,
-        [HSR_BANNERS.WEAPON]: 80,
-    },
-    guaranteeAfterFailed: true,
-};
+const { pityConfig: hsrPityConfig } = GAME_CONFIGS["starrail"];
 
 export const HSR_STANDARD_ITEMS = {
     CHARACTER_HIMEKO: "1003",
@@ -66,7 +49,7 @@ export const hsrAdapter: GameAdapter = {
                 rarity: rawPull.rarity,
                 pulledAt: new Date(rawPull.pulledAt),
                 pityAtPull: 0,
-                wasGuaranteed: false,
+                wasGuaranteed: 0,
                 extra: rawPull.extra,
             };
         });

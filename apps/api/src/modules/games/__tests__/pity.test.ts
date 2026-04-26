@@ -20,7 +20,7 @@ function createMockPulls(ids: string[], startId = 1): NormalizedPull[] {
         rarity: ["1003", "1006", "1214"].includes(id) ? 5 : 3,
         pulledAt: new Date(),
         pityAtPull: 0,
-        wasGuaranteed: false,
+        wasGuaranteed: 0,
     }));
 }
 
@@ -32,7 +32,7 @@ describe("Pity System (HSR Adapter)", () => {
         expect(computed[0].pityAtPull).toBe(1);
         expect(computed[1].pityAtPull).toBe(2);
         expect(computed[2].pityAtPull).toBe(3);
-        expect(computed[2].wasGuaranteed).toBe(false);
+        expect(computed[2].wasGuaranteed).toBe(0);
 
         expect(computed[3].pityAtPull).toBe(1);
     });
@@ -42,29 +42,27 @@ describe("Pity System (HSR Adapter)", () => {
         const computed = hsrAdapter.computePity(mockPulls, "11");
 
         expect(computed[1].pityAtPull).toBe(2);
-        expect(computed[1].wasGuaranteed).toBe(false);
-
+        expect(computed[1].wasGuaranteed).toBe(0);
         expect(computed[2].pityAtPull).toBe(1);
-        expect(computed[2].wasGuaranteed).toBe(true);
-
+        expect(computed[2].wasGuaranteed).toBe(1);
         expect(computed[3].pityAtPull).toBe(2);
-        expect(computed[3].wasGuaranteed).toBe(true);
+        expect(computed[3].wasGuaranteed).toBe(1);
     });
 
     it("handles consecutive 5-stars properly with guarantees", () => {
         const mockPulls = createMockPulls(["1003", "1006", "1214", "1006"]);
         const computed = hsrAdapter.computePity(mockPulls, "11");
 
-        expect(computed[0].wasGuaranteed).toBe(false);
+        expect(computed[0].wasGuaranteed).toBe(0);
         expect(computed[0].pityAtPull).toBe(1);
 
-        expect(computed[1].wasGuaranteed).toBe(true);
+        expect(computed[1].wasGuaranteed).toBe(1);
         expect(computed[1].pityAtPull).toBe(1);
 
-        expect(computed[2].wasGuaranteed).toBe(false);
+        expect(computed[2].wasGuaranteed).toBe(0);
         expect(computed[2].pityAtPull).toBe(1);
 
-        expect(computed[3].wasGuaranteed).toBe(true);
+        expect(computed[3].wasGuaranteed).toBe(1);
         expect(computed[3].pityAtPull).toBe(1);
     });
 
@@ -72,8 +70,8 @@ describe("Pity System (HSR Adapter)", () => {
         const mockPulls = createMockPulls(["1", "1003", "2", "1006"]);
         const computed = hsrAdapter.computePity(mockPulls, "1");
 
-        expect(computed[1].wasGuaranteed).toBe(false);
-        expect(computed[2].wasGuaranteed).toBe(false);
-        expect(computed[3].wasGuaranteed).toBe(false);
+        expect(computed[1].wasGuaranteed).toBe(0);
+        expect(computed[2].wasGuaranteed).toBe(0);
+        expect(computed[3].wasGuaranteed).toBe(0);
     });
 });

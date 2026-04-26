@@ -23,7 +23,7 @@ export function computeGenericPity(
         const computedPull = {
             ...pull,
             pityAtPull: currentPity,
-            wasGuaranteed: has5050 ? isGuaranteed : false,
+            wasGuaranteed: has5050 ? (isGuaranteed ? 1 : 0) : 0,
         };
 
         if (pull.rarity === config.pityTriggerRarity) {
