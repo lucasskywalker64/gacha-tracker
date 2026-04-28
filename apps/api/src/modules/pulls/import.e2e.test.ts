@@ -13,6 +13,12 @@ const mockRedis = {
         redisStore.set(key, value);
         return Promise.resolve("OK");
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    publish: (channel: string, message: string) => Promise.resolve(1),
+    del: (key: string) => {
+        redisStore.delete(key);
+        return Promise.resolve(1);
+    },
     ping: () => Promise.resolve("PONG"),
 };
 

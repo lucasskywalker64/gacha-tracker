@@ -212,6 +212,16 @@ export interface RarityDisplayConfig {
     sortOrder: number;
 }
 
+/** Wizard-specific configurations for automated imports. */
+export interface WizardConfig {
+    /** The name of the game's pull history menu (e.g. "Warp", "Wish", "Convene"). */
+    historyName: string;
+    /** The name of the records/history button (e.g. "Records", "History"). */
+    recordsName: string;
+    /** Relative path to the extraction script from the repository root. */
+    scriptPath: string;
+}
+
 /** Full game-level config used by both the API adapter and the frontend. */
 export interface GameConfig {
     gameId: string;
@@ -219,4 +229,6 @@ export interface GameConfig {
     pityConfig: PityConfig;
     /** Ordered list of rarity tiers, from lowest to highest. */
     rarityDisplay: RarityDisplayConfig[];
+    /** Wizard-specific configurations. Optional if the game does not support automated imports yet. */
+    wizard?: WizardConfig;
 }

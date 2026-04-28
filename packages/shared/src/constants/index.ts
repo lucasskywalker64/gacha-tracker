@@ -143,6 +143,11 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(HSR_BANNERS.BEGINNER),
             ],
         },
+        wizard: {
+            historyName: "Warp",
+            recordsName: "Records",
+            scriptPath: "packages/game-scripts/hsr/extract.ps1",
+        },
         rarityDisplay: [
             {
                 value: 5,
@@ -363,3 +368,19 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
         ],
     },
 };
+
+// ---------------------------------------------------------------------------
+// Script Hosting & Versioning
+// ---------------------------------------------------------------------------
+
+/** Base URL for GitHub raw content. Update if repo is ever moved. */
+export const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/lucasskywalker64/gacha-tracker";
+
+/**
+ * Pinned commit SHAs for each game's extraction script.
+ * Update ONLY when the corresponding script file is changed.
+ * Users can verify: github.com/<org>/<repo>/commit/<sha>
+ */
+export const SCRIPT_VERSIONS = {
+    starrail: "8516eba0cddaa4aa359fac5433ba803e4e710589",
+} as const;

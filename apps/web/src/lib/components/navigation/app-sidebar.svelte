@@ -55,7 +55,7 @@
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton isActive={currentPath === `/${$selectedGame}/import`}>
 							{#snippet child({ props })}
-								<a href={`/${$selectedGame}/import`} {...props}>
+								<a href={`/${$selectedGame}/import`} {...props} data-sveltekit-preload-data="off">
 									<Download class="w-4 h-4" />
 									<span>Import Pulls</span>
 								</a>

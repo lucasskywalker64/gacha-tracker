@@ -3,6 +3,7 @@ import { authPlugin } from "./modules/auth";
 import { gamesRouter } from "./modules/games/routes";
 import { importRouter } from "./modules/pulls/import";
 import { queryRouter } from "./modules/pulls/query";
+import { eventsRouter } from "./modules/pulls/events";
 import { statsRouter } from "./modules/stats";
 import { db } from "./db/client";
 import { redis } from "./lib/redis";
@@ -24,6 +25,7 @@ const app = new Elysia()
     .use(gamesRouter)
     .use(importRouter)
     .use(queryRouter)
+    .use(eventsRouter)
     .use(statsRouter)
 
     /**

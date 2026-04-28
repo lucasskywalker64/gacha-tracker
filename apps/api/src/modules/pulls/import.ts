@@ -6,8 +6,7 @@ import { redis } from "../../lib/redis";
 import { getAdapter } from "../games/registry";
 import { authPlugin } from "../auth";
 import { importPayloadSchema, type NormalizedPull } from "@gacha-tracker/shared";
-
-const IMPORT_TOKEN_TTL = 3600; // 1 hour
+import { IMPORT_TOKEN_TTL_SECONDS } from "../../config";
 
 export const importRouter = new Elysia({ prefix: "/pulls" })
     .use(authPlugin)
@@ -16,8 +15,10 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         "/import/token",
         async ({ user, body, status }) => {
             const { gameId } = body;
+            const userId = user!.id;
+            console.log(`[import:token] Generating token for user ${userId}, game ${gameId}`);
             const token = crypto.randomUUID();
-            await redis.set(`import_token:${token}`, user!.id, "EX", IMPORT_TOKEN_TTL);
+            await redis.set(`import_token:${token}`, userId, "EX", IMPORT_TOKEN_TTL_SECONDS);
 
             const existingUserGame = await db.query.userGame.findFirst({
                 where: and(eq(userGame.userId, user!.id), eq(userGame.gameId, gameId)),
@@ -30,7 +31,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             return status(200, {
                 success: true,
                 token,
-                expiresIn: IMPORT_TOKEN_TTL,
+                expiresIn: IMPORT_TOKEN_TTL_SECONDS,
                 latestPullIds,
             });
         },
@@ -52,7 +53,39 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         }
     )
 
-    // 2. Accept the import payload
+    // 2. Start endpoint for the script to notify the UI
+    .post(
+        "/import/start",
+        async ({ request, body, status }) => {
+            const authHeader = request.headers.get("authorization");
+            if (!authHeader?.startsWith("Bearer ")) {
+                return status(401, {
+                    success: false,
+                    error: "Missing or invalid authorization header",
+                });
+            }
+            const token = authHeader.substring(7);
+            const userId = await redis.get(`import_token:${token}`);
+            if (!userId) {
+                console.warn(`[import:start] Invalid or expired token: ${token}`);
+                return status(401, { success: false, error: "Invalid or expired import token" });
+            }
+            const { gameId } = body;
+            const channel = `import:${userId}:${gameId}`;
+            console.log(`[import:start] Publishing started event to ${channel}`);
+            await redis.publish(channel, JSON.stringify({ type: "started", gameId }));
+            return status(200, { success: true });
+        },
+        {
+            body: t.Object({ gameId: t.String() }),
+            response: {
+                200: t.Object({ success: t.Boolean() }),
+                401: t.Object({ success: t.Boolean(), error: t.String() }),
+            },
+        }
+    )
+
+    // 3. Accept the import payload
     .post(
         "/import",
         async ({ request, body, status }) => {
@@ -227,9 +260,26 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     .where(eq(userGame.id, currentUserGame.id));
             });
 
+            const channel = `import:${userId}:${payload.gameId}`;
+
+            // Invalidate stats cache so the dashboard shows fresh pity immediately
+            await redis.del(`stats:${userId}:${payload.gameId}`);
+
             if (newCount === 0) {
+                await redis.publish(
+                    channel,
+                    JSON.stringify({ type: "complete", imported: 0, gameId: payload.gameId })
+                );
                 return status(200, { success: true, imported: 0, message: "No new pulls found" });
             }
+
+            console.log(
+                `[import:complete] Publishing complete event to ${channel} (imported: ${newCount})`
+            );
+            await redis.publish(
+                channel,
+                JSON.stringify({ type: "complete", imported: newCount, gameId: payload.gameId })
+            );
 
             return status(200, {
                 success: true,
