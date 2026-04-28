@@ -32,7 +32,9 @@ export class ImportWizardStore {
 	}
 
 	goToStep(step: number) {
-		this.state.step = step;
+		if (step >= 1 && step <= 4) {
+			this.state.step = step;
+		}
 	}
 
 	setToken(token: string, cursors: Record<string, string> | null) {

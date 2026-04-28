@@ -7,7 +7,6 @@ export const eventsRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get
     async ({ user, query }) => {
         const { gameId } = query;
         const channel = `import:${user!.id}:${gameId}`;
-        console.log(`[events:subscribe] User ${user!.id} subscribing to ${channel}`);
 
         // Dedicated subscriber client — cannot reuse the shared command client
         const subscriber = createSubscriberClient();
@@ -54,12 +53,17 @@ export const eventsRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get
                 subscriber.subscribe(channel);
                 subscriber.on("message", (_ch, message) => {
                     if (isClosed) return;
-                    console.log(`[events:message] Received message on channel ${_ch}: ${message}`);
 
                     if (sendEvent(message)) {
-                        const parsed = JSON.parse(message);
-                        if (parsed.type === "complete" || parsed.type === "timeout") {
-                            safeClose();
+                        try {
+                            const parsed = JSON.parse(message);
+                            if (parsed.type === "complete" || parsed.type === "timeout") {
+                                safeClose();
+                            }
+                        } catch {
+                            console.error(
+                                `[events:parse-error] Failed to parse message: ${message}`
+                            );
                         }
                     } else {
                         safeClose();

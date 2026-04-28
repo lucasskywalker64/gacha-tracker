@@ -16,7 +16,6 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         async ({ user, body, status }) => {
             const { gameId } = body;
             const userId = user!.id;
-            console.log(`[import:token] Generating token for user ${userId}, game ${gameId}`);
             const token = crypto.randomUUID();
             await redis.set(`import_token:${token}`, userId, "EX", IMPORT_TOKEN_TTL_SECONDS);
 
@@ -67,12 +66,10 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             const token = authHeader.substring(7);
             const userId = await redis.get(`import_token:${token}`);
             if (!userId) {
-                console.warn(`[import:start] Invalid or expired token: ${token}`);
                 return status(401, { success: false, error: "Invalid or expired import token" });
             }
             const { gameId } = body;
             const channel = `import:${userId}:${gameId}`;
-            console.log(`[import:start] Publishing started event to ${channel}`);
             await redis.publish(channel, JSON.stringify({ type: "started", gameId }));
             return status(200, { success: true });
         },
@@ -273,9 +270,6 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 return status(200, { success: true, imported: 0, message: "No new pulls found" });
             }
 
-            console.log(
-                `[import:complete] Publishing complete event to ${channel} (imported: ${newCount})`
-            );
             await redis.publish(
                 channel,
                 JSON.stringify({ type: "complete", imported: newCount, gameId: payload.gameId })

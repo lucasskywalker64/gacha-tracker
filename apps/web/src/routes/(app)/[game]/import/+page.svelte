@@ -41,7 +41,7 @@
 	// The PowerShell command to run
 	const cursorsJson = $derived(data.cursors ? JSON.stringify(data.cursors) : '{}');
 	const command = $derived(
-		`irm "${scriptUrl}" | iex -Command { param() .\\extract.ps1 -ImportToken "${data.token}" -Cursors '${cursorsJson}' }`
+		`& ([scriptblock]::Create((irm "${scriptUrl}"))) -ImportToken "${data.token}" -Cursors '${cursorsJson}'`
 	);
 
 	function handleNext() {

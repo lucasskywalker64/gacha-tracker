@@ -7,14 +7,18 @@ export function connectImportSse(gameId: string, wizardStore: ImportWizardStore)
 	if (activeEs) return; // idempotent
 
 	const url = `${PUBLIC_API_URL}/pulls/import/events?gameId=${gameId}`;
-	console.log(`[SSE:Connect] Connecting to ${url}`);
 	activeEs = new EventSource(url, { withCredentials: true });
 
 	wizardStore.setStatus('connecting');
 
 	activeEs.onmessage = (e) => {
-		console.log('[SSE:Message]', e.data);
-		const data = JSON.parse(e.data);
+		let data;
+		try {
+			data = JSON.parse(e.data);
+		} catch (err) {
+			console.error('[SSE:ParseError]', err);
+			return;
+		}
 
 		if (data.type === 'started') {
 			// Script has begun — auto-advance from Step 2 to Step 3
@@ -28,7 +32,6 @@ export function connectImportSse(gameId: string, wizardStore: ImportWizardStore)
 			activeEs?.close();
 			activeEs = null;
 		} else if (data.type === 'timeout') {
-			console.warn('[SSE:Timeout]');
 			wizardStore.setStatus('timeout');
 			activeEs?.close();
 			activeEs = null;

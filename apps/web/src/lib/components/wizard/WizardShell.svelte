@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
+	import { resolve } from '$app/paths';
 
 	interface Props {
 		steps: string[];
@@ -26,7 +27,7 @@
 			</div>
 
 			<a
-				href="/{gameId}"
+				href={resolve(`/${gameId}`)}
 				class="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-zinc-800"
 			>
 				<X size={16} />

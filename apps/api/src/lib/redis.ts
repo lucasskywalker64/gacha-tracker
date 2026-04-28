@@ -24,9 +24,13 @@ redis.on("error", (err) => {
  * Remember to call .unsubscribe() + .quit() when done.
  */
 export function createSubscriberClient(): Redis {
-    return new Redis(config.REDIS_URL, {
+    const client = new Redis(config.REDIS_URL, {
         enableOfflineQueue: true,
         maxRetriesPerRequest: 3,
         lazyConnect: false,
     });
+    client.on("error", (err) => {
+        console.error("[redis:subscriber] connection error:", err.message);
+    });
+    return client;
 }
