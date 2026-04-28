@@ -47,7 +47,7 @@ export const eventsRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get
                             safeClose();
                         }
                     },
-                    5 * 60 * 1000
+                    15 * 60 * 1000
                 );
 
                 subscriber.subscribe(channel);
