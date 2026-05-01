@@ -23,7 +23,7 @@ mock.module("../../lib/redis", () => ({
 mock.module("../../db/client", () => ({
     db: {
         run: mock(async () => undefined),
-        query: { users: { findMany: mock(async () => []) } },
+        query: { user: { findMany: mock(async () => []) } },
     },
 }));
 
@@ -96,7 +96,7 @@ describe("authGuard", () => {
             email: "deleted@example.com",
             emailVerified: true,
             image: null,
-            deletedAt: Math.floor(Date.now() / 1000) - 3600,
+            deletedAt: new Date(Date.now() - 3600 * 1000),
             isAnonymous: false,
             isAdmin: false,
             createdAt: new Date(),

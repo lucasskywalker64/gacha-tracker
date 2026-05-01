@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import { db } from "../../db/client";
-import { pulls } from "../../db/schema";
+import { pull } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { authPlugin } from "../auth";
 import { redis } from "../../lib/redis";
@@ -19,8 +19,8 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
 
         const allPulls = await db
             .select()
-            .from(pulls)
-            .where(and(eq(pulls.userId, userId), eq(pulls.gameId, gameId)));
+            .from(pull)
+            .where(and(eq(pull.userId, userId), eq(pull.gameId, gameId)));
 
         const stats = {
             total: allPulls.length,
@@ -49,7 +49,7 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
                     itemName: pull.itemName,
                     pityAtPull: pull.pityAtPull,
                     wasGuaranteed: pull.wasGuaranteed,
-                    pulledAt: pull.pulledAt,
+                    pulledAt: pull.pulledAt.getTime(),
                     bannerType: pull.bannerType,
                 });
                 pityTracker[pull.bannerType] = 0; // reset
@@ -64,10 +64,10 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
         // We actually want the current pity from the most recent pulls per banner
         // Since allPulls isn't sorted implicitly here, we should sort them
         allPulls.sort((a, b) => {
-            if (a.pulledAt === b.pulledAt) {
+            if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
                 return a.pullId.localeCompare(b.pullId);
             }
-            return a.pulledAt - b.pulledAt;
+            return a.pulledAt.getTime() - b.pulledAt.getTime();
         });
 
         const currentPityExact: Record<string, number> = {};

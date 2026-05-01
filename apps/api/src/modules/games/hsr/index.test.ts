@@ -17,7 +17,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 3,
                     pulledAt: new Date(),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
                 {
                     pullId: "2",
@@ -29,17 +29,17 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 3,
                     pulledAt: new Date(),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
             ];
 
             const processed = adapter.computePity(pulls, "11");
 
             expect(processed[0].pityAtPull).toBe(1);
-            expect(processed[0].wasGuaranteed).toBe(false);
+            expect(processed[0].wasGuaranteed).toBe(0);
 
             expect(processed[1].pityAtPull).toBe(2);
-            expect(processed[1].wasGuaranteed).toBe(false);
+            expect(processed[1].wasGuaranteed).toBe(0);
         });
 
         it("should correctly reset pity and set guarantee after losing the 50/50", () => {
@@ -55,7 +55,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 5,
                     pulledAt: new Date(1),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
                 {
                     pullId: "2",
@@ -67,7 +67,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 3,
                     pulledAt: new Date(2),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
                 {
                     pullId: "3",
@@ -79,7 +79,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 5,
                     pulledAt: new Date(3),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
             ];
 
@@ -87,15 +87,15 @@ describe("Honkai: Star Rail Game Adapter", () => {
 
             // First 5-star (Lost 50/50)
             expect(processed[0].pityAtPull).toBe(1);
-            expect(processed[0].wasGuaranteed).toBe(false); // First one wasn't guaranteed
+            expect(processed[0].wasGuaranteed).toBe(0); // First one wasn't guaranteed
 
             // 3-star after reset
             expect(processed[1].pityAtPull).toBe(1);
-            expect(processed[1].wasGuaranteed).toBe(true); // Banner is in guaranteed state
+            expect(processed[1].wasGuaranteed).toBe(1); // Banner is in guaranteed state
 
             // Second 5-star (Won via guarantee)
             expect(processed[2].pityAtPull).toBe(2);
-            expect(processed[2].wasGuaranteed).toBe(true); // Should be guaranteed
+            expect(processed[2].wasGuaranteed).toBe(1); // Should be guaranteed
         });
 
         it("should correctly identify a won 50/50 and not set the next character to guaranteed", () => {
@@ -111,7 +111,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 5,
                     pulledAt: new Date(1),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
                 {
                     pullId: "2",
@@ -123,17 +123,17 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 5,
                     pulledAt: new Date(2),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
             ];
 
             const processed = adapter.computePity(pulls, "11");
 
             expect(processed[0].pityAtPull).toBe(1);
-            expect(processed[0].wasGuaranteed).toBe(false); // Won 50/50
+            expect(processed[0].wasGuaranteed).toBe(0); // Won 50/50
 
             expect(processed[1].pityAtPull).toBe(1);
-            expect(processed[1].wasGuaranteed).toBe(false); // Also won 50/50, but wasn't guaranteed
+            expect(processed[1].wasGuaranteed).toBe(0); // Also won 50/50, but wasn't guaranteed
         });
 
         it("should maintain independent pity between different banner types", () => {
@@ -149,7 +149,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 3,
                     pulledAt: new Date(1),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
             ];
 
@@ -164,7 +164,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 3,
                     pulledAt: new Date(2),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
                 {
                     pullId: "3",
@@ -176,7 +176,7 @@ describe("Honkai: Star Rail Game Adapter", () => {
                     rarity: 3,
                     pulledAt: new Date(3),
                     pityAtPull: 0,
-                    wasGuaranteed: false,
+                    wasGuaranteed: 0,
                 },
             ];
 

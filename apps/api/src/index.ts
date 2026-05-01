@@ -3,11 +3,20 @@ import { authPlugin } from "./modules/auth";
 import { gamesRouter } from "./modules/games/routes";
 import { importRouter } from "./modules/pulls/import";
 import { queryRouter } from "./modules/pulls/query";
+import { eventsRouter } from "./modules/pulls/events";
 import { statsRouter } from "./modules/stats";
 import { db } from "./db/client";
 import { redis } from "./lib/redis";
+import { cors } from "@elysiajs/cors";
+import { runMigrations } from "./db/migrate";
 
 const app = new Elysia()
+    .use(
+        cors({
+            origin: true, // During development, true dynamically allows the requester origin
+            credentials: true, // Essential for Better Auth to set session cookies securely via cross-origin fetch
+        })
+    )
     /**
      * Auth plugin: mounts Better-Auth at /api/auth/* and exposes the auth macro.
      * Also includes the anonymous auth endpoints at /api/auth/anonymous/*.
@@ -16,6 +25,7 @@ const app = new Elysia()
     .use(gamesRouter)
     .use(importRouter)
     .use(queryRouter)
+    .use(eventsRouter)
     .use(statsRouter)
 
     /**
@@ -84,9 +94,10 @@ const app = new Elysia()
                 }),
             },
         }
-    )
+    );
+await runMigrations();
 
-    .listen(3000);
+app.listen(3000);
 
 console.log(`Gacha Tracker API is running at ${app.server?.hostname}:${app.server?.port}`);
 

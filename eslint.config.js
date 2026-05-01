@@ -8,6 +8,13 @@ export default tseslint.config(
     ...tseslint.configs.recommended,
     ...eslintPluginSvelte.configs["flat/recommended"],
     {
+        languageOptions: {
+            parserOptions: {
+                tsconfigRootDir: import.meta.dirname,
+            },
+        },
+    },
+    {
         ignores: [
             "**/node_modules/**",
             "**/.turbo/**",

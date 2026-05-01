@@ -10,8 +10,18 @@ Add-Type -AssemblyName System.Web
 
 if ([string]::IsNullOrEmpty($ImportToken)) {
     Write-Host "Error: Import token (-ImportToken) is required." -ForegroundColor Red
-    Write-Host "Usage: .\extract.ps1 -ImportToken `<your_token>` [-Cursors `<json>`]"
+    Write-Host "Usage: .\extract.ps1 -ImportToken <your_token> [-Cursors <json>]"
     exit 1
+}
+
+# Notify tracker that import is starting
+try {
+    Invoke-RestMethod -Uri "$ApiUrl/pulls/import/start" -Method Post `
+        -Headers @{ "Authorization" = "Bearer $ImportToken"; "Content-Type" = "application/json" } `
+        -Body (@{ gameId = "starrail" } | ConvertTo-Json -Compress) | Out-Null
+} catch {
+    Write-Host "Failed to notify tracker: $_"
+    # Non-fatal: wizard just won't auto-advance, user can click Next manually
 }
 
 $ProgressPreference = 'SilentlyContinue'
@@ -219,9 +229,12 @@ try {
         Write-Host "Successfully imported pulls: $($result.message)" -ForegroundColor Green
     } else {
         Write-Host "Import failed: $($result.error)" -ForegroundColor Red
+        exit 1
     }
 } catch {
     Write-Host "Failed to send data to server: $_" -ForegroundColor Red
+    Write-Host "Please try again. If the issue persists, please contact support."
+    exit 1
 }
 
 Write-Host "Done! You can close this window."

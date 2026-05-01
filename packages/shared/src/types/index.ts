@@ -26,6 +26,11 @@ export interface PityConfig {
      * pull on the same banner type.
      */
     guaranteeAfterFailed: boolean;
+    /**
+     * Explicit order for displaying banners in the UI.
+     * Uses stringified banner IDs.
+     */
+    bannerOrder: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -43,7 +48,7 @@ export interface NormalizedPull {
     rarity: number;
     pulledAt: Date;
     pityAtPull: number;
-    wasGuaranteed: boolean;
+    wasGuaranteed: number;
     extra?: Record<string, unknown>;
 }
 
@@ -98,16 +103,16 @@ export interface Game {
     iconUrl: string | null;
     isActive: boolean;
     config: Record<string, unknown>;
-    createdAt: number;
+    createdAt: Date;
 }
 
 export interface UserGame {
     id: string;
     userId: string;
     gameId: string;
-    lastImport: number | null;
+    lastImport: Date | null;
     latestPullIds: Record<string, string> | null;
-    createdAt: number;
+    createdAt: Date;
 }
 
 export interface Pull {
@@ -122,12 +127,28 @@ export interface Pull {
     itemName: string;
     itemType: string;
     rarity: number;
-    pulledAt: number;
+    pulledAt: Date;
     pityAtPull: number;
-    wasGuaranteed: boolean;
+    wasGuaranteed: number;
     pityVersion: number;
     extra: Record<string, unknown> | null;
-    createdAt: number;
+    createdAt: Date;
+}
+
+export interface GameStats {
+    total: number;
+    fiveStars: number;
+    fourStars: number;
+    currentPity: Record<string, number>;
+    fiveStarHistory: {
+        id: string;
+        itemId: string;
+        itemName: string;
+        pityAtPull: number;
+        wasGuaranteed: number;
+        pulledAt: number;
+        bannerType: string;
+    }[];
 }
 
 export interface ImportPayload {
@@ -157,6 +178,57 @@ export interface ImportResult {
 
 export interface PaginatedResponse<T> {
     data: T[];
-    nextCursor: string | null;
-    total: number;
+    meta: {
+        page: number;
+        limit: number;
+        hasNextPage: boolean;
+        total: number;
+    };
+}
+
+/**
+ * Display properties for a single rarity tier within a game.
+ * Fully describes how to render a pull of that rarity — no hardcoding
+ * of specific values like 3, 4, or 5 anywhere in components.
+ */
+export interface RarityDisplayConfig {
+    /** The numeric rarity value as stored in the DB (e.g. 5, 4, 3, or 6 for future games). */
+    value: number;
+    /** Human-readable label shown in UI (e.g. "5★", "Gold", "Legendary"). */
+    label: string;
+    /**
+     * Tailwind CSS color token for text (e.g. "text-yellow-400").
+     * Using a string token (not a full class) so Tailwind's JIT scanner can
+     * detect it — always use full class strings, not dynamic concatenation.
+     */
+    textColor: string;
+    /** Background accent class for badges/rows (e.g. "bg-yellow-400/10"). */
+    bgColor: string;
+    /** Border accent class (e.g. "border-yellow-400/30"). */
+    borderColor: string;
+    /** Whether this rarity tier is the one that triggers pity reset. */
+    triggersPity: boolean;
+    /** Display sort order — higher = rendered more prominently (e.g. 5★ first). */
+    sortOrder: number;
+}
+
+/** Wizard-specific configurations for automated imports. */
+export interface WizardConfig {
+    /** The name of the game's pull history menu (e.g. "Warp", "Wish", "Convene"). */
+    historyName: string;
+    /** The name of the records/history button (e.g. "Records", "History"). */
+    recordsName: string;
+    /** Relative path to the extraction script from the repository root. */
+    scriptPath: string;
+}
+
+/** Full game-level config used by both the API adapter and the frontend. */
+export interface GameConfig {
+    gameId: string;
+    displayName: string;
+    pityConfig: PityConfig;
+    /** Ordered list of rarity tiers, from lowest to highest. */
+    rarityDisplay: RarityDisplayConfig[];
+    /** Wizard-specific configurations. Optional if the game does not support automated imports yet. */
+    wizard?: WizardConfig;
 }

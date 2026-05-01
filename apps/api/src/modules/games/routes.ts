@@ -1,13 +1,13 @@
 import { Elysia } from "elysia";
 import { db } from "../../db/client";
-import { games, userGames } from "../../db/schema";
+import { game, userGame } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { authPlugin } from "../auth";
 
 export const gamesRouter = new Elysia()
     .use(authPlugin)
     .get("/games", async () => {
-        return await db.select().from(games).where(eq(games.isActive, 1));
+        return await db.select().from(game).where(eq(game.isActive, 1));
     })
     .get(
         "/user/games",
@@ -15,12 +15,12 @@ export const gamesRouter = new Elysia()
             // Return user's games joined with the game details
             const result = await db
                 .select({
-                    game: games,
-                    userGame: userGames,
+                    game: game,
+                    userGame: userGame,
                 })
-                .from(userGames)
-                .innerJoin(games, eq(userGames.gameId, games.id))
-                .where(eq(userGames.userId, user!.id));
+                .from(userGame)
+                .innerJoin(game, eq(userGame.gameId, game.id))
+                .where(eq(userGame.userId, user!.id));
 
             return result.map(({ game, userGame }) => ({
                 ...userGame,

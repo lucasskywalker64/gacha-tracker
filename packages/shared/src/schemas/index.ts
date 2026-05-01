@@ -23,7 +23,7 @@ export const rawPullSchema = z.object({
     itemId: z.string().min(1),
     itemName: z.string().min(1),
     itemType: z.string().min(1),
-    rarity: z.number().int().min(2).max(5),
+    rarity: z.number().int().positive(),
     pulledAt: z.string(),
     extra: z.record(z.string(), z.unknown()).optional(),
 });

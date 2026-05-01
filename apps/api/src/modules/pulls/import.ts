@@ -1,13 +1,12 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db/client";
-import { pulls, userGames } from "../../db/schema";
+import { pull, userGame } from "../../db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { redis } from "../../lib/redis";
 import { getAdapter } from "../games/registry";
 import { authPlugin } from "../auth";
 import { importPayloadSchema, type NormalizedPull } from "@gacha-tracker/shared";
-
-const IMPORT_TOKEN_TTL = 3600; // 1 hour
+import { IMPORT_TOKEN_TTL_SECONDS } from "../../config";
 
 export const importRouter = new Elysia({ prefix: "/pulls" })
     .use(authPlugin)
@@ -16,21 +15,22 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         "/import/token",
         async ({ user, body, status }) => {
             const { gameId } = body;
+            const userId = user!.id;
             const token = crypto.randomUUID();
-            await redis.set(`import_token:${token}`, user!.id, "EX", IMPORT_TOKEN_TTL);
+            await redis.set(`import_token:${token}`, userId, "EX", IMPORT_TOKEN_TTL_SECONDS);
 
-            const userGame = await db.query.userGames.findFirst({
-                where: and(eq(userGames.userId, user!.id), eq(userGames.gameId, gameId)),
+            const existingUserGame = await db.query.userGame.findFirst({
+                where: and(eq(userGame.userId, user!.id), eq(userGame.gameId, gameId)),
             });
 
-            const latestPullIds = userGame?.latestPullIds
-                ? JSON.parse(userGame.latestPullIds)
+            const latestPullIds = existingUserGame?.latestPullIds
+                ? JSON.parse(existingUserGame.latestPullIds)
                 : null;
 
             return status(200, {
                 success: true,
                 token,
-                expiresIn: IMPORT_TOKEN_TTL,
+                expiresIn: IMPORT_TOKEN_TTL_SECONDS,
                 latestPullIds,
             });
         },
@@ -52,7 +52,37 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         }
     )
 
-    // 2. Accept the import payload
+    // 2. Start endpoint for the script to notify the UI
+    .post(
+        "/import/start",
+        async ({ request, body, status }) => {
+            const authHeader = request.headers.get("authorization");
+            if (!authHeader?.startsWith("Bearer ")) {
+                return status(401, {
+                    success: false,
+                    error: "Missing or invalid authorization header",
+                });
+            }
+            const token = authHeader.substring(7);
+            const userId = await redis.get(`import_token:${token}`);
+            if (!userId) {
+                return status(401, { success: false, error: "Invalid or expired import token" });
+            }
+            const { gameId } = body;
+            const channel = `import:${userId}:${gameId}`;
+            await redis.publish(channel, JSON.stringify({ type: "started", gameId }));
+            return status(200, { success: true });
+        },
+        {
+            body: t.Object({ gameId: t.String() }),
+            response: {
+                200: t.Object({ success: t.Boolean() }),
+                401: t.Object({ success: t.Boolean(), error: t.String() }),
+            },
+        }
+    )
+
+    // 3. Accept the import payload
     .post(
         "/import",
         async ({ request, body, status }) => {
@@ -86,26 +116,26 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
 
             await db.transaction(async (tx) => {
                 // Find existing userGame
-                let userGame = await tx.query.userGames.findFirst({
-                    where: and(eq(userGames.userId, userId), eq(userGames.gameId, payload.gameId)),
+                let currentUserGame = await tx.query.userGame.findFirst({
+                    where: and(eq(userGame.userId, userId), eq(userGame.gameId, payload.gameId)),
                 });
 
-                if (!userGame) {
+                if (!currentUserGame) {
                     const userGameId = crypto.randomUUID();
-                    await tx.insert(userGames).values({
+                    await tx.insert(userGame).values({
                         id: userGameId,
                         userId,
                         gameId: payload.gameId,
                         latestPullIds: "{}",
                     });
 
-                    userGame = {
+                    currentUserGame = {
                         id: userGameId,
                         userId,
                         gameId: payload.gameId,
                         lastImport: null,
                         latestPullIds: "{}",
-                        createdAt: Math.floor(Date.now() / 1000),
+                        createdAt: new Date(),
                     };
                 }
 
@@ -115,9 +145,9 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 // For Phase 1, we can just fetch existing pulls for this user/game,
                 // compute pity on the combined array, and then upsert everything.
 
-                const existingDbPulls = await tx.query.pulls.findMany({
-                    where: and(eq(pulls.userId, userId), eq(pulls.gameId, payload.gameId)),
-                    orderBy: (pulls, { asc }) => [asc(pulls.pulledAt)], // Needs to be sorted properly
+                const existingDbPulls = await tx.query.pull.findMany({
+                    where: and(eq(pull.userId, userId), eq(pull.gameId, payload.gameId)),
+                    orderBy: (pull, { asc }) => [asc(pull.pulledAt)], // Needs to be sorted properly
                 });
 
                 // Convert existing DB pulls to NormalizedPull format
@@ -130,9 +160,9 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     itemName: p.itemName,
                     itemType: p.itemType,
                     rarity: p.rarity,
-                    pulledAt: new Date(p.pulledAt * 1000),
+                    pulledAt: new Date(p.pulledAt),
                     pityAtPull: p.pityAtPull,
-                    wasGuaranteed: p.wasGuaranteed === 1,
+                    wasGuaranteed: p.wasGuaranteed,
                     extra: p.extra ? JSON.parse(p.extra) : undefined,
                 }));
 
@@ -187,9 +217,9 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                             itemName: p.itemName,
                             itemType: p.itemType,
                             rarity: p.rarity,
-                            pulledAt: Math.floor(p.pulledAt.getTime() / 1000),
+                            pulledAt: p.pulledAt,
                             pityAtPull: p.pityAtPull,
-                            wasGuaranteed: p.wasGuaranteed ? 1 : 0,
+                            wasGuaranteed: p.wasGuaranteed,
                             extra: p.extra ? JSON.stringify(p.extra) : null,
                             pityVersion: 1, // hardcoded for phase 1
                         });
@@ -205,10 +235,10 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 for (let i = 0; i < pullsToUpsert.length; i += CHUNK_SIZE) {
                     const chunk = pullsToUpsert.slice(i, i + CHUNK_SIZE);
                     await tx
-                        .insert(pulls)
+                        .insert(pull)
                         .values(chunk)
                         .onConflictDoUpdate({
-                            target: [pulls.userId, pulls.gameId, pulls.pullId],
+                            target: [pull.userId, pull.gameId, pull.pullId],
                             set: {
                                 pityAtPull: sql`excluded.pity_at_pull`,
                                 wasGuaranteed: sql`excluded.was_guaranteed`,
@@ -217,19 +247,33 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                         });
                 }
 
-                // Update userGames
+                // Update userGame
                 await tx
-                    .update(userGames)
+                    .update(userGame)
                     .set({
-                        lastImport: Math.floor(Date.now() / 1000),
+                        lastImport: new Date(),
                         latestPullIds: JSON.stringify(latestIds),
                     })
-                    .where(eq(userGames.id, userGame.id));
+                    .where(eq(userGame.id, currentUserGame.id));
             });
 
+            const channel = `import:${userId}:${payload.gameId}`;
+
+            // Invalidate stats cache so the dashboard shows fresh pity immediately
+            await redis.del(`stats:${userId}:${payload.gameId}`);
+
             if (newCount === 0) {
+                await redis.publish(
+                    channel,
+                    JSON.stringify({ type: "complete", imported: 0, gameId: payload.gameId })
+                );
                 return status(200, { success: true, imported: 0, message: "No new pulls found" });
             }
+
+            await redis.publish(
+                channel,
+                JSON.stringify({ type: "complete", imported: newCount, gameId: payload.gameId })
+            );
 
             return status(200, {
                 success: true,

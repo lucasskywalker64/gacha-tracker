@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { Elysia } from "elysia";
-import { importTokenGuard } from "../importTokenGuard";
 
 const store = new Map<string, string>();
 
@@ -16,7 +15,8 @@ mock.module("../../lib/redis", () => ({
     redis: redisMock,
 }));
 
-function buildApp() {
+async function buildApp() {
+    const { importTokenGuard } = await import("../importTokenGuard");
     return new Elysia().use(importTokenGuard).post("/pulls/import", ({ importUserId }) => ({
         success: true,
         userId: importUserId,
@@ -37,7 +37,7 @@ describe("importTokenGuard", () => {
     });
 
     it("returns 401 when no Authorization header is present", async () => {
-        const app = buildApp();
+        const app = await buildApp();
         const res = await app.handle(
             new Request("http://localhost/pulls/import", { method: "POST" })
         );
@@ -45,7 +45,7 @@ describe("importTokenGuard", () => {
     });
 
     it("returns 401 when Authorization header is not a Bearer token", async () => {
-        const app = buildApp();
+        const app = await buildApp();
         const res = await app.handle(
             new Request("http://localhost/pulls/import", {
                 method: "POST",
@@ -57,7 +57,7 @@ describe("importTokenGuard", () => {
 
     it("returns 401 when the token is not in Redis (expired or never issued)", async () => {
         // store is empty — Redis returns null
-        const app = buildApp();
+        const app = await buildApp();
         const res = await app.handle(
             new Request("http://localhost/pulls/import", {
                 method: "POST",
@@ -75,7 +75,7 @@ describe("importTokenGuard", () => {
         const token = "valid-token-uuid-001";
         store.set(`import_token:${token}`, "user_abc");
 
-        const app = buildApp();
+        const app = await buildApp();
         const res = await app.handle(
             new Request("http://localhost/pulls/import", {
                 method: "POST",
@@ -96,7 +96,7 @@ describe("importTokenGuard", () => {
         const token = "single-use-token-uuid";
         store.set(`import_token:${token}`, "user_xyz");
 
-        const app = buildApp();
+        const app = await buildApp();
 
         // First request: should succeed
         const res1 = await app.handle(
