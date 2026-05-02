@@ -1,9 +1,8 @@
 param(
     [string]$ImportToken = "",
-    [string]$Cursors = "{}"
+    [string]$Cursors = "{}",
+    [string]$ApiUrl = "https://api.gacha-tracker.app"
 )
-
-$ApiUrl = "https://gacha-tracker.app/api"
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 Add-Type -AssemblyName System.Web

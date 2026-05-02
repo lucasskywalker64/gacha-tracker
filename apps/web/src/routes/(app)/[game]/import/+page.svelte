@@ -7,6 +7,7 @@
 	import WizardStep from '$lib/components/wizard/WizardStep.svelte';
 	import CommandBlock from '$lib/components/wizard/CommandBlock.svelte';
 	import ImportStatusDisplay from '$lib/components/wizard/ImportStatusDisplay.svelte';
+	import { PUBLIC_API_URL } from '$env/static/public';
 	import { ChevronRight, ChevronLeft, ExternalLink, Info, Clock } from 'lucide-svelte';
 
 	let { data } = $props();
@@ -41,7 +42,7 @@
 	// The PowerShell command to run
 	const cursorsJson = $derived(data.cursors ? JSON.stringify(data.cursors) : '{}');
 	const command = $derived(
-		`& ([scriptblock]::Create((irm "${scriptUrl}"))) -ImportToken "${data.token}" -Cursors '${cursorsJson}'`
+		`& ([scriptblock]::Create((irm "${scriptUrl}"))) -ImportToken "${data.token}" -Cursors '${cursorsJson}' -ApiUrl "${PUBLIC_API_URL}"`
 	);
 
 	function handleNext() {
