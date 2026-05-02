@@ -9,6 +9,7 @@ import { db } from "./db/client";
 import { redis } from "./lib/redis";
 import { cors } from "@elysiajs/cors";
 import { runMigrations } from "./db/migrate";
+import { config } from "./config";
 
 const app = new Elysia()
     .use(
@@ -97,7 +98,7 @@ const app = new Elysia()
     );
 await runMigrations();
 
-app.listen(3000);
+app.listen(config.PORT);
 
 console.log(`Gacha Tracker API is running at ${app.server?.hostname}:${app.server?.port}`);
 

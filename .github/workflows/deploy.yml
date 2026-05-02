@@ -1,101 +1,173 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - '**'
-  pull_request:
-    branches:
-      - '**'
+    push:
+        branches:
+            - "**"
+    pull_request:
+        branches:
+            - "**"
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-          
-      - run: bun install
-      - run: bun run lint
-      - run: bun run typecheck
-      - name: Test
-        run: bun run test
-        env:
-          DATABASE_URL: "libsql://test.turso.io"
-          DATABASE_AUTH_TOKEN: "test"
-          REDIS_URL: "redis://localhost:6379"
-          BETTER_AUTH_URL: "http://localhost:3000"
-          BETTER_AUTH_SECRET: "test-secret-1234567890abcdefghijklmnopqrstuvwxyz"
-          DISCORD_CLIENT_ID: "test"
-          DISCORD_CLIENT_SECRET: "test"
-          GOOGLE_CLIENT_ID: "test"
-          GOOGLE_CLIENT_SECRET: "test"
+    ci:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
 
-  deploy-backend:
-    needs: ci
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install cloudflared
-        run: |
-          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-          sudo dpkg -i cloudflared-linux-amd64.deb
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
 
-      - name: Setup SSH Key
-        uses: webfactory/ssh-agent@v0.10.0
-        with:
-          ssh-private-key: ${{ secrets.PI_SSH_KEY }}
+            - run: bun install
+            - run: bun run lint
+            - run: bun run typecheck
+            - name: Test
+              run: bun run test
+              env:
+                  DATABASE_URL: "libsql://test.turso.io"
+                  DATABASE_AUTH_TOKEN: "test"
+                  REDIS_URL: "redis://localhost:6379"
+                  BETTER_AUTH_URL: "http://localhost:3000"
+                  BETTER_AUTH_SECRET: "test-secret-1234567890abcdefghijklmnopqrstuvwxyz"
+                  DISCORD_CLIENT_ID: "test"
+                  DISCORD_CLIENT_SECRET: "test"
+                  GOOGLE_CLIENT_ID: "test"
+                  GOOGLE_CLIENT_SECRET: "test"
 
-      - name: Configure SSH Proxy
-        run: |
-          mkdir -p ~/.ssh
-          echo "Host ${{ secrets.PI_HOST }}" >> ~/.ssh/config
-          echo "  ProxyCommand cloudflared access ssh --hostname %h" >> ~/.ssh/config
-          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+    deploy-backend:
+        environment: production
+        needs: ci
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Install cloudflared
+              run: |
+                  wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+                  sudo dpkg -i cloudflared-linux-amd64.deb
 
-      - name: Deploy to Raspberry Pi
-        run: |
-          ssh ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} << 'EOF'
-            set -e
+            - name: Setup SSH Key
+              uses: webfactory/ssh-agent@v0.10.0
+              with:
+                  ssh-private-key: ${{ secrets.PI_SSH_KEY }}
 
-            export PATH="$HOME/.bun/bin:$PATH"
-            cd ~/gacha-tracker
+            - name: Configure SSH Proxy
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "Host ${{ secrets.PI_HOST }}" >> ~/.ssh/config
+                  echo "  ProxyCommand cloudflared access ssh --hostname %h" >> ~/.ssh/config
+                  echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
-            OLD_COMMIT=$(git rev-parse HEAD)
-            cp apps/api/.env apps/api/.env.backup || true
+            - name: Deploy to Raspberry Pi
+              run: |
+                  ssh ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} << 'EOF'
+                    set -e
 
-            git fetch origin main
-            git reset --hard origin/main
+                    export PATH="$HOME/.bun/bin:$PATH"
+                    cd ~/gacha-tracker
 
-            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > apps/api/.env.tmp
-            echo "DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}" >> apps/api/.env.tmp
-            echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
-            echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
-            echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
-            echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
-            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
-            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> apps/api/.env.tmp
+                    OLD_COMMIT=$(git rev-parse HEAD)
+                    cp apps/api/.env apps/api/.env.backup || true
 
-            mv apps/api/.env.tmp apps/api/.env
+                    git fetch origin main
+                    git reset --hard origin/main
 
-            bun install
-            sudo systemctl restart gacha-api
+                    echo "PORT=3000" > apps/api/.env.tmp
+                    echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> apps/api/.env.tmp
+                    echo "DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}" >> apps/api/.env.tmp
+                    echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
+                    echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
+                    echo "FRONTEND_URL=https://gacha-tracker.app" >> apps/api/.env.tmp
+                    echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
+                    echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> apps/api/.env.tmp
+                    echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> apps/api/.env.tmp
 
-            sleep 5
+                    mv apps/api/.env.tmp apps/api/.env
 
-            if ! systemctl is-active --quiet gacha-api; then
-              git reset --hard $OLD_COMMIT
-              mv apps/api/.env.backup apps/api/.env
-              bun install
-              sudo systemctl restart gacha-api
-              exit 1
-            fi
+                    bun install
+                    sudo systemctl restart gacha-api
 
-            rm -f apps/api/.env.backup
-          EOF
+                    sleep 5
+
+                    if ! systemctl is-active --quiet gacha-api; then
+                      git reset --hard $OLD_COMMIT
+                      mv apps/api/.env.backup apps/api/.env
+                      bun install
+                      sudo systemctl restart gacha-api
+                      exit 1
+                    fi
+
+                    rm -f apps/api/.env.backup
+                  EOF
+
+    deploy-backend-dev:
+        environment: development
+        needs: ci
+        if: github.ref == 'refs/heads/develop'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Install cloudflared
+              run: |
+                  wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+                  sudo dpkg -i cloudflared-linux-amd64.deb
+
+            - name: Setup SSH Key
+              uses: webfactory/ssh-agent@v0.10.0
+              with:
+                  ssh-private-key: ${{ secrets.PI_SSH_KEY }}
+
+            - name: Configure SSH Proxy
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "Host ${{ secrets.PI_HOST }}" >> ~/.ssh/config
+                  echo "  ProxyCommand cloudflared access ssh --hostname %h" >> ~/.ssh/config
+                  echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+
+            - name: Deploy to Raspberry Pi (Dev)
+              run: |
+                  ssh ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} << 'EOF'
+                    set -e
+
+                    export PATH="$HOME/.bun/bin:$PATH"
+                    cd ~/gacha-tracker-dev
+
+                    OLD_COMMIT=$(git rev-parse HEAD)
+                    cp apps/api/.env apps/api/.env.backup || true
+
+                    git fetch origin develop
+                    git reset --hard origin/develop
+
+                    echo "PORT=3001" > apps/api/.env.tmp
+                    echo "DATABASE_URL=file:./dev.db" >> apps/api/.env.tmp
+                    echo "DATABASE_AUTH_TOKEN=dev-secret" >> apps/api/.env.tmp
+                    echo "REDIS_URL=redis://localhost:6379/1" >> apps/api/.env.tmp
+                    echo "BETTER_AUTH_URL=https://dev-api.gacha-tracker.app" >> apps/api/.env.tmp
+                    echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
+                    echo "FRONTEND_URL=https://dev.gacha-tracker.app" >> apps/api/.env.tmp
+                    echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
+                    echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> apps/api/.env.tmp
+                    echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> apps/api/.env.tmp
+
+                    mv apps/api/.env.tmp apps/api/.env
+
+                    bun install
+                    sudo systemctl restart gacha-api-dev
+
+                    sleep 5
+
+                    if ! systemctl is-active --quiet gacha-api-dev; then
+                      git reset --hard $OLD_COMMIT
+                      mv apps/api/.env.backup apps/api/.env
+                      bun install
+                      sudo systemctl restart gacha-api-dev
+                      exit 1
+                    fi
+
+                    rm -f apps/api/.env.backup
+                  EOF

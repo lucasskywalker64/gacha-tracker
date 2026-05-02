@@ -13,6 +13,7 @@ const configSchema = z.object({
     GOOGLE_CLIENT_SECRET: z.string(),
     RESEND_API_KEY: z.string().startsWith("re_"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("production"),
+    PORT: z.coerce.number().default(3000),
 });
 
 /**
