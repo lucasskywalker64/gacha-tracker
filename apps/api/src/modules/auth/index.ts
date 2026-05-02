@@ -10,7 +10,7 @@ import { anonymousAuthPlugin } from "./anonymous";
  *   can use by passing `{ auth: true }` to a route definition.
  * - Includes the anonymous auth endpoints from anonymousAuthPlugin.
  */
-export const authPlugin = new Elysia({ name: "auth" })
+export const authPlugin = new Elysia({ prefix: "/auth" })
     .use(anonymousAuthPlugin)
     .mount(auth.handler)
     .macro({

@@ -74,7 +74,7 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
      * - Returns the plaintext code to the SPA. No DB write occurs here.
      */
     .post(
-        "/api/auth/anonymous/generate",
+        "/anonymous/generate",
         async ({ status }) => {
             const flags = await getFlags();
             if (!flags.anonymousAccounts) {
@@ -146,7 +146,7 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
      * - Hashes the code with Argon2id and stores it on the user row for verification.
      */
     .post(
-        "/api/auth/anonymous/confirm",
+        "/anonymous/confirm",
         async ({ body, request, status, set }) => {
             const { code } = body;
             const identifier = getIdentifier(code);
@@ -231,7 +231,7 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
      * always be able to log in even if the generation feature is disabled.
      */
     .post(
-        "/api/auth/anonymous/login",
+        "/anonymous/login",
         async ({ body, status, set, request: { headers: requestHeaders } }) => {
             const { code } = body;
             const identifier = getIdentifier(code);

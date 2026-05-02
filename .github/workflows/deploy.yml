@@ -79,7 +79,7 @@ jobs:
                     echo "DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}" >> apps/api/.env.tmp
                     echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
                     echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
-                    echo "FRONTEND_URL=https://gacha-tracker.app" >> apps/api/.env.tmp
+                    echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> apps/api/.env.tmp
                     echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
                     echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
                     echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
@@ -145,9 +145,9 @@ jobs:
                     echo "DATABASE_URL=file:./dev.db" >> apps/api/.env.tmp
                     echo "DATABASE_AUTH_TOKEN=dev-secret" >> apps/api/.env.tmp
                     echo "REDIS_URL=redis://localhost:6379/1" >> apps/api/.env.tmp
-                    echo "BETTER_AUTH_URL=https://dev-api.gacha-tracker.app" >> apps/api/.env.tmp
+                    echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
                     echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
-                    echo "FRONTEND_URL=https://dev.gacha-tracker.app" >> apps/api/.env.tmp
+                    echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> apps/api/.env.tmp
                     echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
                     echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
                     echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp

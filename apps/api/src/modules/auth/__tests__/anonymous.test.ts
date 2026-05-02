@@ -117,7 +117,7 @@ describe("anonymousAuthPlugin — /generate", () => {
     it("returns 403 when anonymousAccounts flag is disabled", async () => {
         flagsMock.anonymousAccounts = false;
         const app = await buildApp();
-        const res = await app.handle(makeRequest("/api/auth/anonymous/generate"));
+        const res = await app.handle(makeRequest("/anonymous/generate"));
         expect(res.status).toBe(403);
         const body = await res.json();
         expect(body.error.code).toBe("ANONYMOUS_ACCOUNTS_DISABLED");
@@ -125,7 +125,7 @@ describe("anonymousAuthPlugin — /generate", () => {
 
     it("returns a 16-character code and stores a Redis key", async () => {
         const app = await buildApp();
-        const res = await app.handle(makeRequest("/api/auth/anonymous/generate"));
+        const res = await app.handle(makeRequest("/anonymous/generate"));
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.success).toBe(true);
@@ -149,7 +149,7 @@ describe("anonymousAuthPlugin — /confirm", () => {
     it("returns 400 when the code key is not in Redis (expired or never issued)", async () => {
         const app = await buildApp();
         const res = await app.handle(
-            makeRequest("/api/auth/anonymous/confirm", { code: "AAAAAAAAAAAAAAAA" })
+            makeRequest("/anonymous/confirm", { code: "AAAAAAAAAAAAAAAA" })
         );
         expect(res.status).toBe(400);
         const body = await res.json();
@@ -166,12 +166,12 @@ describe("anonymousAuthPlugin — /confirm", () => {
         const app = await buildApp();
 
         const firstRes = await app.handle(
-            makeRequest("/api/auth/anonymous/confirm", { code: "BBBBBBBBBBBBBBBB" })
+            makeRequest("/anonymous/confirm", { code: "BBBBBBBBBBBBBBBB" })
         );
         expect(firstRes.status).toBe(200);
 
         const secondRes = await app.handle(
-            makeRequest("/api/auth/anonymous/confirm", { code: "BBBBBBBBBBBBBBBB" })
+            makeRequest("/anonymous/confirm", { code: "BBBBBBBBBBBBBBBB" })
         );
         expect(secondRes.status).toBe(400);
         const body = await secondRes.json();
@@ -183,7 +183,7 @@ describe("anonymousAuthPlugin — /confirm", () => {
 
         const app = await buildApp();
         const res = await app.handle(
-            makeRequest("/api/auth/anonymous/confirm", { code: "CCCCCCCCCCCCCCCC" })
+            makeRequest("/anonymous/confirm", { code: "CCCCCCCCCCCCCCCC" })
         );
         expect(res.status).toBe(200);
         const body = await res.json();
