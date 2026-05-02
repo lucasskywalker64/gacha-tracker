@@ -75,7 +75,7 @@
 		isLoading = true;
 		errorMessage = '';
 		try {
-			const { error } = await api.api.auth.anonymous.login.post({ code: anonymousCode });
+			const { error } = await api.auth.anonymous.login.post({ code: anonymousCode });
 			if (error) {
 				// @ts-expect-error - Eden Treaty error union might not contain .error.message
 				errorMessage = error.value?.error?.message || 'Invalid code.';

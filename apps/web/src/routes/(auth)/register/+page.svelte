@@ -56,7 +56,7 @@
 		isLoading = true;
 		errorMessage = '';
 		try {
-			const { data, error } = await api.api.auth.anonymous.generate.post();
+			const { data, error } = await api.auth.anonymous.generate.post();
 			if (error) {
 				// @ts-expect-error - Eden Treaty error union might not contain .error.message
 				errorMessage = error.value?.error?.message || 'Failed to generate code.';
@@ -87,7 +87,7 @@
 		isLoading = true;
 		errorMessage = '';
 		try {
-			const { error } = await api.api.auth.anonymous.confirm.post({ code: confirmationCode });
+			const { error } = await api.auth.anonymous.confirm.post({ code: confirmationCode });
 			if (error) {
 				// @ts-expect-error - Eden Treaty error union might not contain .error.message
 				errorMessage = error.value?.error?.message || 'Confirmation failed.';
