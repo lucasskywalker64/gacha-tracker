@@ -382,5 +382,5 @@ export const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/lucasskywalker
  * Users can verify: github.com/<org>/<repo>/commit/<sha>
  */
 export const SCRIPT_VERSIONS = {
-    starrail: "8516eba0cddaa4aa359fac5433ba803e4e710589",
+    starrail: "7b63e10622905c3f9922960b76124b2ae64725a1",
 } as const;
