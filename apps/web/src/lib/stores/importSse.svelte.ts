@@ -6,7 +6,8 @@ let activeEs: EventSource | null = null;
 export function connectImportSse(gameId: string, wizardStore: ImportWizardStore) {
 	if (activeEs) return; // idempotent
 
-	const url = `${PUBLIC_API_URL}/pulls/import/events?gameId=${gameId}`;
+	const cleanApiUrl = PUBLIC_API_URL.replace(/\/+$/, '');
+	const url = `${cleanApiUrl}/pulls/import/events?gameId=${gameId}`;
 	activeEs = new EventSource(url, { withCredentials: true });
 
 	wizardStore.setStatus('connecting');

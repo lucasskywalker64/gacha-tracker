@@ -41,8 +41,9 @@
 
 	// The PowerShell command to run
 	const cursorsJson = $derived(data.cursors ? JSON.stringify(data.cursors) : '{}');
+	const cleanApiUrl = $derived(PUBLIC_API_URL.replace(/\/+$/, ''));
 	const command = $derived(
-		`& ([scriptblock]::Create((irm "${scriptUrl}"))) -ImportToken "${data.token}" -Cursors '${cursorsJson}' -ApiUrl "${PUBLIC_API_URL}"`
+		`& ([scriptblock]::Create((irm "${scriptUrl}"))) -ImportToken "${data.token}" -Cursors '${cursorsJson}' -ApiUrl "${cleanApiUrl}"`
 	);
 
 	function handleNext() {

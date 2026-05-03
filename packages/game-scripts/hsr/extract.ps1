@@ -13,6 +13,8 @@ if ([string]::IsNullOrEmpty($ImportToken)) {
     exit 1
 }
 
+$ApiUrl = $ApiUrl.TrimEnd('/')
+
 # Notify tracker that import is starting
 try {
     Invoke-RestMethod -Uri "$ApiUrl/pulls/import/start" -Method Post `
