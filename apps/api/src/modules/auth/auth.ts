@@ -16,14 +16,14 @@ import type { anonymousAuthPlugin } from "./anonymous";
  * anonymous plugin works differently (auto-upgrades anonymous sessions) and
  * there is no built-in "credential" plugin in v1.4. The custom flow:
  *
- *  1. POST /api/auth/anonymous/generate — generates a 16-char base62 code,
+ *  1. POST /auth/anonymous/generate — generates a 16-char base62 code,
  *     stores an Argon2id hash in Redis with a 5-min TTL, returns the plaintext.
  *
- *  2. POST /api/auth/anonymous/confirm — user types code back; we verify it
+ *  2. POST /auth/anonymous/confirm — user types code back; we verify it
  *     against the Redis key, create a real account via Better-Auth's signUpEmail
  *     (with a dummy email + random password), and store codeHash on the user row.
  *
- *  3. POST /api/auth/anonymous/login — user enters their saved code; we scan
+ *  3. POST /auth/anonymous/login — user enters their saved code; we scan
  *     anonymous accounts, verify with Argon2id, then call Better-Auth's
  *     signInEmail internally to produce a session.
  *
@@ -36,6 +36,7 @@ export const auth = betterAuth({
     }),
 
     baseURL: config.BETTER_AUTH_URL,
+    basePath: "/auth",
     secret: config.BETTER_AUTH_SECRET,
     trustedOrigins: [config.FRONTEND_URL],
     advanced: {

@@ -5,5 +5,6 @@ import { PUBLIC_API_URL } from '$env/static/public';
 
 export const authClient = createAuthClient({
 	baseURL: PUBLIC_API_URL,
+	basePath: '/auth',
 	plugins: [passkeyClient(), magicLinkClient()]
 });
