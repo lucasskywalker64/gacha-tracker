@@ -50,6 +50,15 @@ export const eventsRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get
                     15 * 60 * 1000
                 );
 
+                const keepAlive = setInterval(() => {
+                    if (isClosed) return;
+                    try {
+                        controller.enqueue(":\\n\\n");
+                    } catch {
+                        safeClose();
+                    }
+                }, 10000);
+
                 subscriber.subscribe(channel);
                 subscriber.on("message", (_ch, message) => {
                     if (isClosed) return;
@@ -72,6 +81,7 @@ export const eventsRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get
 
                 cleanup = () => {
                     clearTimeout(timeout);
+                    clearInterval(keepAlive);
                     subscriber.unsubscribe(channel).catch(() => {});
                     subscriber.quit().catch(() => {});
                 };
