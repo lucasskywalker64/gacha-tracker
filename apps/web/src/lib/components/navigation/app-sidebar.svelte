@@ -3,9 +3,9 @@
 	import GameSelector from './game-selector.svelte';
 	import { LayoutDashboard, History, Download, LogOut, Settings } from 'lucide-svelte';
 	import { selectedGame } from '$lib/stores/game';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
-	let currentPath = $derived($page.url.pathname as string);
+	let currentPath = $derived(page.url.pathname);
 </script>
 
 <Sidebar.Root>

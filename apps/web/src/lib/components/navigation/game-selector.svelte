@@ -5,6 +5,7 @@
 	import { ChevronDown, Gamepad2 } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 
 	const games: Record<SupportedGame, { name: string }> = {
 		genshin: { name: 'Genshin Impact' },
@@ -19,6 +20,13 @@
 		$selectedGame = game;
 		goto(resolve('/(app)/[game]', { game }));
 	}
+
+	$effect(() => {
+		const gameParam = page.params.game;
+		if (gameParam && gameParam !== $selectedGame && gameParam in games) {
+			$selectedGame = gameParam as SupportedGame;
+		}
+	});
 </script>
 
 <DropdownMenu.Root>

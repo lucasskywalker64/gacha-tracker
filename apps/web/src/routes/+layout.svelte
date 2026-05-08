@@ -1,7 +1,7 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
 	import '../app.css';
-	import { page, navigating } from '$app/stores';
+	import { page, navigating } from '$app/state';
 	import { authStore } from '$lib/stores/auth';
 	import { fade } from 'svelte/transition';
 
@@ -9,7 +9,7 @@
 
 	// Reactively update authStore based on page data
 	$effect(() => {
-		authStore.set($page.data.session);
+		authStore.set(page.data.session);
 	});
 </script>
 
@@ -17,7 +17,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if $navigating}
+{#if navigating.to}
 	<div
 		class="fixed inset-0 z-100 flex items-center justify-center bg-background/60 backdrop-blur-[2px]"
 		transition:fade={{ duration: 200 }}
