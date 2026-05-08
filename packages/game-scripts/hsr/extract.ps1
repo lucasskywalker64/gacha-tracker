@@ -10,7 +10,7 @@ Add-Type -AssemblyName System.Web
 if ([string]::IsNullOrEmpty($ImportToken)) {
     Write-Host "Error: Import token (-ImportToken) is required." -ForegroundColor Red
     Write-Host "Usage: .\extract.ps1 -ImportToken <your_token> [-Cursors <json>]"
-    exit 1
+    return
 }
 
 $ApiUrl = $ApiUrl.TrimEnd('/')
@@ -57,7 +57,7 @@ if ([IO.File]::Exists($log_path)) {
 
 if ([string]::IsNullOrEmpty($game_path)) {
     Write-Host "Failed to locate game path from logs. Please contact support or run with admin privileges." -ForegroundColor Red
-    exit 1
+    return
 }
 
 # Find the latest webcache data_2 file
@@ -80,7 +80,7 @@ if ($cache_folders) {
 
 if (-Not [IO.File]::Exists($cache_path)) {
     Write-Host "Error: Could not find web cache file at $cache_path. Open the game and view your warp history first." -ForegroundColor Red
-    exit 1
+    return
 }
 
 Write-Host "Reading cache file: $cache_path"
@@ -114,7 +114,7 @@ for ($i = $cache_data_split.Length - 1; $i -ge 0; $i--) {
 
 if (-not $valid_url) {
     Write-Host "Could not locate valid Warp History Url. Make sure to open the Warp history in game, then run the script again." -ForegroundColor Red
-    exit 1
+    return
 }
 
 $uri = [Uri]$valid_url
@@ -201,7 +201,7 @@ foreach ($gachaType in $bannerTypes) {
 
 if ($allPulls.Count -eq 0) {
     Write-Host "No pulls found." -ForegroundColor Yellow
-    exit 0
+    return
 }
 
 Write-Host "Fetched $($allPulls.Count) pulls total. Sending to tracker..."
@@ -230,12 +230,12 @@ try {
         Write-Host "Successfully imported pulls: $($result.message)" -ForegroundColor Green
     } else {
         Write-Host "Import failed: $($result.error)" -ForegroundColor Red
-        exit 1
+        return
     }
 } catch {
     Write-Host "Failed to send data to server: $_" -ForegroundColor Red
     Write-Host "Please try again. If the issue persists, please contact support."
-    exit 1
+    return
 }
 
 Write-Host "Done! You can close this window."
