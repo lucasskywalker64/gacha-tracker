@@ -1,0 +1,596 @@
+{
+    "games": {
+        "hsr": [
+            {
+                "phase": "1.0.1",
+                "name": "Seele",
+                "featuredCharacters": ["1102"],
+                "mainCharacterId": "1102",
+                "featuredWeapons": ["23001"],
+                "mainWeaponId": "23001",
+                "startTime": 1682388000000,
+                "endTime": 1684317540000
+            },
+            {
+                "phase": "1.0.2",
+                "name": "Jing Yuan",
+                "featuredCharacters": ["1204"],
+                "mainCharacterId": "1204",
+                "featuredWeapons": ["23010"],
+                "mainWeaponId": "23010",
+                "startTime": 1684317600000,
+                "endTime": 1686034740000
+            },
+            {
+                "phase": "1.1.1",
+                "name": "Silver Wolf",
+                "featuredCharacters": ["1006"],
+                "mainCharacterId": "1006",
+                "featuredWeapons": ["23007"],
+                "mainWeaponId": "23007",
+                "startTime": 1686106800000,
+                "endTime": 1687924800000
+            },
+            {
+                "phase": "1.1.2",
+                "name": "Luocha",
+                "featuredCharacters": ["1203"],
+                "mainCharacterId": "1203",
+                "featuredWeapons": ["23008"],
+                "mainWeaponId": "23008",
+                "startTime": 1687924800000,
+                "endTime": 1689663599000
+            },
+            {
+                "phase": "1.2.1",
+                "name": "Blade",
+                "featuredCharacters": ["1205"],
+                "mainCharacterId": "1205",
+                "featuredWeapons": ["23009"],
+                "mainWeaponId": "23009",
+                "startTime": 1689735600000,
+                "endTime": 1691553599000
+            },
+            {
+                "phase": "1.2.2",
+                "name": "Kafka",
+                "featuredCharacters": ["1005"],
+                "mainCharacterId": "1005",
+                "featuredWeapons": ["23006"],
+                "mainWeaponId": "23006",
+                "startTime": 1691553600000,
+                "endTime": 1693292399000
+            },
+            {
+                "phase": "1.3.1",
+                "name": "Dan Heng • Imbibitor Lunae",
+                "featuredCharacters": ["1213"],
+                "mainCharacterId": "1213",
+                "featuredWeapons": ["23015"],
+                "mainWeaponId": "23015",
+                "startTime": 1693364400000,
+                "endTime": 1695182399000
+            },
+            {
+                "phase": "1.3.2",
+                "name": "Fu Xuan",
+                "featuredCharacters": ["1208"],
+                "mainCharacterId": "1208",
+                "featuredWeapons": ["23011"],
+                "mainWeaponId": "23011",
+                "startTime": 1695182400000,
+                "endTime": 1696921199000
+            },
+            {
+                "phase": "1.4.1",
+                "name": "Jingliu",
+                "featuredCharacters": ["1212"],
+                "mainCharacterId": "1212",
+                "featuredWeapons": ["23014"],
+                "mainWeaponId": "23014",
+                "startTime": 1696993200000,
+                "endTime": 1698379199000
+            },
+            {
+                "phase": "1.4.2",
+                "name": "Seele",
+                "featuredCharacters": ["1102"],
+                "mainCharacterId": "1102",
+                "featuredWeapons": ["23001"],
+                "mainWeaponId": "23001",
+                "startTime": 1698379200000,
+                "endTime": 1699945199000
+            },
+            {
+                "phase": "1.5.1",
+                "name": "Huohuo",
+                "featuredCharacters": ["1217"],
+                "mainCharacterId": "1217",
+                "featuredWeapons": ["23017"],
+                "mainWeaponId": "23017",
+                "startTime": 1700017200000,
+                "endTime": 1701835140000
+            },
+            {
+                "phase": "1.5.2",
+                "name": "Argenti / Silver Wolf",
+                "featuredCharacters": ["1302", "1006"],
+                "mainCharacterId": "1302",
+                "featuredWeapons": ["23007"],
+                "mainWeaponId": "23007",
+                "startTime": 1701835200000,
+                "endTime": 1703573999000
+            },
+            {
+                "phase": "1.5.3",
+                "name": "An Instant Before A Gaze",
+                "featuredCharacters": [],
+                "mainCharacterId": "",
+                "featuredWeapons": ["23018"],
+                "mainWeaponId": "23018",
+                "startTime": 1701835200000,
+                "endTime": 1703584799000
+            },
+            {
+                "phase": "1.6.1",
+                "name": "Ruan Mei / Blade",
+                "featuredCharacters": ["1303", "1205"],
+                "mainCharacterId": "1303",
+                "featuredWeapons": ["23019", "23009"],
+                "mainWeaponId": "23019",
+                "startTime": 1703646000000,
+                "endTime": 1705463940000
+            },
+            {
+                "phase": "1.6.2",
+                "name": "Dr. Ratio / Kafka",
+                "featuredCharacters": ["1305", "1005"],
+                "mainCharacterId": "1305",
+                "featuredWeapons": ["23020", "23006"],
+                "mainWeaponId": "23020",
+                "startTime": 1705464000000,
+                "endTime": 1707116399000
+            },
+            {
+                "phase": "2.0.1",
+                "name": "Black Swan / Dan Heng • Imbibitor Lunae",
+                "featuredCharacters": ["1307", "1213"],
+                "mainCharacterId": "1307",
+                "featuredWeapons": ["23022", "23015"],
+                "mainWeaponId": "23022",
+                "startTime": 1707188400000,
+                "endTime": 1709179140000
+            },
+            {
+                "phase": "2.0.2",
+                "name": "Sparkle / Jing Yuan",
+                "featuredCharacters": ["1306", "1204"],
+                "mainCharacterId": "1306",
+                "featuredWeapons": ["23021", "23010"],
+                "mainWeaponId": "23021",
+                "startTime": 1709179200000,
+                "endTime": 1711436340000
+            },
+            {
+                "phase": "2.1.1",
+                "name": "Acheron / Luocha",
+                "featuredCharacters": ["1308", "1203"],
+                "mainCharacterId": "1308",
+                "featuredWeapons": ["23024", "23008"],
+                "mainWeaponId": "23024",
+                "startTime": 1711508400000,
+                "endTime": 1713326399000
+            },
+            {
+                "phase": "2.1.2",
+                "name": "Aventurine / Jingliu",
+                "featuredCharacters": ["1304", "1212"],
+                "mainCharacterId": "1304",
+                "featuredWeapons": ["23023", "23014"],
+                "mainWeaponId": "23023",
+                "startTime": 1713326400000,
+                "endTime": 1715065200000
+            },
+            {
+                "phase": "2.2.1",
+                "name": "Robin",
+                "featuredCharacters": ["1309"],
+                "mainCharacterId": "1309",
+                "featuredWeapons": ["23026"],
+                "mainWeaponId": "23026",
+                "startTime": 1715137200000,
+                "endTime": 1716955140000
+            },
+            {
+                "phase": "2.2.2",
+                "name": "Boothill / Fu Xuan",
+                "featuredCharacters": ["1315", "1208"],
+                "mainCharacterId": "1315",
+                "featuredWeapons": ["23027", "23011"],
+                "mainWeaponId": "23027",
+                "startTime": 1716955200000,
+                "endTime": 1718694000000
+            },
+            {
+                "phase": "2.3.1",
+                "name": "Firefly / Ruan Mei",
+                "featuredCharacters": ["1310", "1303"],
+                "mainCharacterId": "1310",
+                "featuredWeapons": ["23025", "23019"],
+                "mainWeaponId": "23025",
+                "startTime": 1718766000000,
+                "endTime": 1720583940000
+            },
+            {
+                "phase": "2.3.2",
+                "name": "Jade / Argenti",
+                "featuredCharacters": ["1314", "1302"],
+                "mainCharacterId": "1314",
+                "featuredWeapons": ["23028", "23018"],
+                "mainWeaponId": "23028",
+                "startTime": 1720584000000,
+                "endTime": 1722322800000
+            },
+            {
+                "phase": "2.4.1",
+                "name": "Yunli / Huohuo",
+                "featuredCharacters": ["1221", "1217"],
+                "mainCharacterId": "1221",
+                "featuredWeapons": ["23030", "23017"],
+                "mainWeaponId": "23030",
+                "startTime": 1722394800000,
+                "endTime": 1724212740000
+            },
+            {
+                "phase": "2.4.2",
+                "name": "Sparkle / Jiaoqiu",
+                "featuredCharacters": ["1306", "1218"],
+                "mainCharacterId": "1306",
+                "featuredWeapons": ["23029", "23021"],
+                "mainWeaponId": "23029",
+                "startTime": 1724212800000,
+                "endTime": 1725865200000
+            },
+            {
+                "phase": "2.5.1",
+                "name": "Robin / Kafka / Black Swan / Feixiao",
+                "featuredCharacters": ["1309", "1005", "1307", "1220"],
+                "mainCharacterId": "1309",
+                "featuredWeapons": ["23031", "23006", "23022", "23026"],
+                "mainWeaponId": "23031",
+                "startTime": 1725937200000,
+                "endTime": 1727841540000
+            },
+            {
+                "phase": "2.5.2",
+                "name": "Lingsha",
+                "featuredCharacters": ["1222"],
+                "mainCharacterId": "1222",
+                "featuredWeapons": ["23032"],
+                "mainWeaponId": "23032",
+                "startTime": 1727841600000,
+                "endTime": 1729580400000
+            },
+            {
+                "phase": "2.6.1",
+                "name": "Rappa / Dan Heng • Imbibitor Lunae",
+                "featuredCharacters": ["1317", "1213"],
+                "mainCharacterId": "1317",
+                "featuredWeapons": ["23033", "23015"],
+                "mainWeaponId": "23033",
+                "startTime": 1729652400000,
+                "endTime": 1731470340000
+            },
+            {
+                "phase": "2.6.2",
+                "name": "Acheron / Aventurine",
+                "featuredCharacters": ["1308", "1304"],
+                "mainCharacterId": "1308",
+                "featuredWeapons": ["23024", "23023"],
+                "mainWeaponId": "23024",
+                "startTime": 1731470400000,
+                "endTime": 1733209200000
+            },
+            {
+                "phase": "2.7.1",
+                "name": "Sunday / Jing Yuan",
+                "featuredCharacters": ["1313", "1204"],
+                "mainCharacterId": "1313",
+                "featuredWeapons": ["23034", "23010"],
+                "mainWeaponId": "23034",
+                "startTime": 1733281200000,
+                "endTime": 1735099140000
+            },
+            {
+                "phase": "2.7.2",
+                "name": "Fugue / Firefly",
+                "featuredCharacters": ["1225", "1310"],
+                "mainCharacterId": "1225",
+                "featuredWeapons": ["23035", "23025"],
+                "mainWeaponId": "23035",
+                "startTime": 1735099200000,
+                "endTime": 1736837999000
+            },
+            {
+                "phase": "3.0.1",
+                "name": "The Herta / Lingsha / Feixiao / Jade",
+                "featuredCharacters": ["1401", "1222", "1220", "1314"],
+                "mainCharacterId": "1401",
+                "featuredWeapons": ["23037", "23032", "23031", "23028"],
+                "mainWeaponId": "23037",
+                "startTime": 1736910000000,
+                "endTime": 1738727940000
+            },
+            {
+                "phase": "3.0.2",
+                "name": "Aglaea / Boothill / Robin / Silver Wolf",
+                "featuredCharacters": ["1402", "1315", "1309", "1006"],
+                "mainCharacterId": "1402",
+                "featuredWeapons": ["23036", "23027", "23026", "23007"],
+                "mainWeaponId": "23036",
+                "startTime": 1738728000000,
+                "endTime": 1740466799000
+            },
+            {
+                "phase": "3.1.1",
+                "name": "Tribbie / Yunli",
+                "featuredCharacters": ["1403", "1221"],
+                "mainCharacterId": "1403",
+                "featuredWeapons": ["23038", "23030"],
+                "mainWeaponId": "23038",
+                "startTime": 1740538800000,
+                "endTime": 1742356740000
+            },
+            {
+                "phase": "3.1.2",
+                "name": "Mydei / Huohuo",
+                "featuredCharacters": ["1404", "1217"],
+                "mainCharacterId": "1404",
+                "featuredWeapons": ["23017"],
+                "mainWeaponId": "23017",
+                "startTime": 1742356800000,
+                "endTime": 1744095600000
+            },
+            {
+                "phase": "3.2.1",
+                "name": "Castorice / Fugue / Jiaoqiu / Acheron",
+                "featuredCharacters": ["1407", "1225", "1218", "1308"],
+                "mainCharacterId": "1407",
+                "featuredWeapons": ["23040", "23035", "23029", "23024"],
+                "mainWeaponId": "23040",
+                "startTime": 1744167600000,
+                "endTime": 1745985540000
+            },
+            {
+                "phase": "3.2.2",
+                "name": "Anaxa / Dr. Ratio",
+                "featuredCharacters": ["1405", "1305"],
+                "mainCharacterId": "1405",
+                "featuredWeapons": ["23041", "23020"],
+                "mainWeaponId": "23041",
+                "startTime": 1745985600000,
+                "endTime": 1747724400000
+            },
+            {
+                "phase": "3.3.1",
+                "name": "Hyacine / The Herta",
+                "featuredCharacters": ["1409", "1401"],
+                "mainCharacterId": "1409",
+                "featuredWeapons": ["23042", "23037"],
+                "mainWeaponId": "23042",
+                "startTime": 1747796400000,
+                "endTime": 1749614340000
+            },
+            {
+                "phase": "3.3.2",
+                "name": "Cipher / Aglaea",
+                "featuredCharacters": ["1406", "1402"],
+                "mainCharacterId": "1406",
+                "featuredWeapons": ["23043", "23036"],
+                "mainWeaponId": "23043",
+                "startTime": 1749614400000,
+                "endTime": 1751353200000
+            },
+            {
+                "phase": "3.4.1",
+                "name": "Phainon / Tribbie / Sunday / Sparkle",
+                "featuredCharacters": ["1408", "1403", "1313", "1306"],
+                "mainCharacterId": "1408",
+                "featuredWeapons": ["23044", "23038", "23034", "23021"],
+                "mainWeaponId": "23044",
+                "startTime": 1751425200000,
+                "endTime": 1753243140000
+            },
+            {
+                "phase": "3.4.2",
+                "name": "Firefly / Jingliu / Blade",
+                "featuredCharacters": ["1310", "1212", "1205"],
+                "mainCharacterId": "1310",
+                "featuredWeapons": ["23025", "23014", "23009"],
+                "mainWeaponId": "23025",
+                "startTime": 1753243200000,
+                "endTime": 1754981999000
+            },
+            {
+                "phase": "3.5.1",
+                "name": "Hysilens / Kafka",
+                "featuredCharacters": ["1410", "1005"],
+                "mainCharacterId": "1410",
+                "featuredWeapons": ["23047", "23006"],
+                "mainWeaponId": "23047",
+                "startTime": 1755054000000,
+                "endTime": 1756785540000
+            },
+            {
+                "phase": "3.5.2",
+                "name": "Cerydra / Silver Wolf",
+                "featuredCharacters": ["1412", "1006"],
+                "mainCharacterId": "1412",
+                "featuredWeapons": ["23048", "23007"],
+                "mainWeaponId": "23048",
+                "startTime": 1756785600000,
+                "endTime": 1758610799000
+            },
+            {
+                "phase": "3.6.1",
+                "name": "Evernight / The Herta",
+                "featuredCharacters": ["1413", "1401"],
+                "mainCharacterId": "1413",
+                "featuredWeapons": ["23049", "23037"],
+                "mainWeaponId": "23049",
+                "startTime": 1758682800000,
+                "endTime": 1760500740000
+            },
+            {
+                "phase": "3.6.2",
+                "name": "Dan Heng • Permansor Terrae / Anaxa",
+                "featuredCharacters": ["1414", "1405"],
+                "mainCharacterId": "1414",
+                "featuredWeapons": ["23051", "23041"],
+                "mainWeaponId": "23051",
+                "startTime": 1760500800000,
+                "endTime": 1762239599000
+            },
+            {
+                "phase": "3.7.1",
+                "name": "Hyacine / Castorice / Tribbie",
+                "featuredCharacters": ["1409", "1407", "1403"],
+                "mainCharacterId": "1409",
+                "featuredWeapons": ["23042", "23040", "23038"],
+                "mainWeaponId": "23042",
+                "startTime": 1762311600000,
+                "endTime": 1764129540000
+            },
+            {
+                "phase": "3.7.2",
+                "name": "Cyrene",
+                "featuredCharacters": ["1415"],
+                "mainCharacterId": "1415",
+                "featuredWeapons": [],
+                "mainWeaponId": "",
+                "startTime": 1762311600000,
+                "endTime": 1765868400000
+            },
+            {
+                "phase": "3.7.3",
+                "name": "Phainon / Cipher / Mydei",
+                "featuredCharacters": ["1408", "1406", "1404"],
+                "mainCharacterId": "1408",
+                "featuredWeapons": ["23044", "23043"],
+                "mainWeaponId": "23044",
+                "startTime": 1764129600000,
+                "endTime": 1765868399000
+            },
+            {
+                "phase": "3.8.1",
+                "name": "The Dahlia / Firefly",
+                "featuredCharacters": ["1321", "1310"],
+                "mainCharacterId": "1321",
+                "featuredWeapons": ["23050", "23025"],
+                "mainWeaponId": "23050",
+                "startTime": 1765940400000,
+                "endTime": 1767758340000
+            },
+            {
+                "phase": "3.8.2",
+                "name": "Fugue / Lingsha",
+                "featuredCharacters": ["1225", "1222"],
+                "mainCharacterId": "1225",
+                "featuredWeapons": ["23035", "23032"],
+                "mainWeaponId": "23035",
+                "startTime": 1767758400000,
+                "endTime": 1769572740000
+            },
+            {
+                "phase": "3.8.3",
+                "name": "Aglaea / Sunday",
+                "featuredCharacters": ["1402", "1313"],
+                "mainCharacterId": "1402",
+                "featuredWeapons": ["23036", "23034"],
+                "mainWeaponId": "23036",
+                "startTime": 1769572800000,
+                "endTime": 1770879600000
+            },
+            {
+                "phase": "4.0.1",
+                "name": "Yao Guang",
+                "featuredCharacters": ["1502"],
+                "mainCharacterId": "1502",
+                "featuredWeapons": ["23054"],
+                "mainWeaponId": "23054",
+                "startTime": 1770951600000,
+                "endTime": 1774335600000
+            },
+            {
+                "phase": "4.0.2",
+                "name": "Evernight / Hysilens / Black Swan",
+                "featuredCharacters": ["1413", "1410", "1307"],
+                "mainCharacterId": "1413",
+                "featuredWeapons": ["23049", "23047", "23022"],
+                "mainWeaponId": "23049",
+                "startTime": 1770951600000,
+                "endTime": 1772510340000
+            },
+            {
+                "phase": "4.0.3",
+                "name": "Sparxie / Cerydra / Rappa / Sparkle",
+                "featuredCharacters": ["1501", "1412", "1317", "1306"],
+                "mainCharacterId": "1501",
+                "featuredWeapons": ["23053", "23048", "23033", "23021"],
+                "mainWeaponId": "23053",
+                "startTime": 1772510400000,
+                "endTime": 1774335600000
+            },
+            {
+                "phase": "4.1.1",
+                "name": "Ashveil",
+                "featuredCharacters": ["1504"],
+                "mainCharacterId": "1504",
+                "featuredWeapons": ["23056"],
+                "mainWeaponId": "23056",
+                "startTime": 1774407600000,
+                "endTime": 1776754800000
+            },
+            {
+                "phase": "4.1.2",
+                "name": "Hyacine",
+                "featuredCharacters": ["1409"],
+                "mainCharacterId": "1409",
+                "featuredWeapons": ["23042"],
+                "mainWeaponId": "23042",
+                "startTime": 1774407600000,
+                "endTime": 1775620799000
+            },
+            {
+                "phase": "4.1.3",
+                "name": "Boothill",
+                "featuredCharacters": ["1315"],
+                "mainCharacterId": "1315",
+                "featuredWeapons": ["23027"],
+                "mainWeaponId": "23027",
+                "startTime": 1775620800000,
+                "endTime": 1776754800000
+            },
+            {
+                "phase": "4.2.1",
+                "name": "Silver Wolf LV.999 / The Dahlia / Castorice / Firefly",
+                "featuredCharacters": ["1506", "1321", "1407", "1310"],
+                "mainCharacterId": "1506",
+                "featuredWeapons": ["23057", "23050", "23040", "23025"],
+                "mainWeaponId": "23057",
+                "startTime": 1776826800000,
+                "endTime": 1778644740000
+            },
+            {
+                "phase": "4.2.2",
+                "name": "Evanescia / Tribbie / Sunday / Feixiao",
+                "featuredCharacters": ["1505", "1403", "1313", "1220"],
+                "mainCharacterId": "1505",
+                "featuredWeapons": ["23058", "23038", "23034", "23031"],
+                "mainWeaponId": "23058",
+                "startTime": 1778644800000,
+                "endTime": 1780257599000
+            }
+        ]
+    }
+}

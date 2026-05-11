@@ -4,29 +4,14 @@ import type {
     NormalizedPull,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { HSR_BANNERS, GAME_CONFIGS } from "@gacha-tracker/shared";
+import { HSR_BANNERS, GAME_CONFIGS, banners, type BannerPhase } from "@gacha-tracker/shared";
 import { computeGenericPity } from "../pity";
 
 const { pityConfig: hsrPityConfig } = GAME_CONFIGS["starrail"];
 
-export const HSR_STANDARD_ITEMS = {
-    CHARACTER_HIMEKO: "1003",
-    CHARACTER_WELT: "1004",
-    CHARACTER_YANQING: "1016",
-    CHARACTER_BRONYA: "1101",
-    CHARACTER_GEPARD: "1104",
-    CHARACTER_BAILU: "1211",
-    CHARACTER_CLARA: "1214",
-    LIGHT_CONE_NIGHT_ON_THE_MILKY_WAY: "23000",
-    LIGHT_CONE_IN_THE_NAME_OF_THE_WORLD: "23001",
-    LIGHT_CONE_BUT_THE_BATTLE_ISNT_OVER: "23002",
-    LIGHT_CONE_MOMENT_OF_VICTORY: "23004",
-    LIGHT_CONE_SOMETHING_IRREPLACEABLE: "23005",
-    LIGHT_CONE_SLEEP_LIKE_THE_DEAD: "23012",
-    LIGHT_CONE_TIME_WAITS_FOR_NO_ONE: "23013",
-} as const;
-
-const STANDARD_5_STAR_IDS: Set<string> = new Set(Object.values(HSR_STANDARD_ITEMS));
+function findActivePhase(time: number, bannersList: BannerPhase[]): BannerPhase | undefined {
+    return bannersList.find((b) => time >= b.startTime && (!b.endTime || time <= b.endTime));
+}
 
 export const hsrAdapter: GameAdapter = {
     gameId: "starrail",
@@ -61,10 +46,96 @@ export const hsrAdapter: GameAdapter = {
     },
 
     computePity(pulls: NormalizedPull[], bannerType: string): NormalizedPull[] {
-        const has5050 = bannerType === "11" || bannerType === "12";
+        const has5050 =
+            bannerType === String(HSR_BANNERS.CHARACTER) ||
+            bannerType === String(HSR_BANNERS.WEAPON);
+        const isCharacterBanner = bannerType === String(HSR_BANNERS.CHARACTER);
+        const isWeaponBanner = bannerType === String(HSR_BANNERS.WEAPON);
+        const hsrBanners = banners.games.hsr || [];
 
-        return computeGenericPity(pulls, hsrPityConfig, has5050, (pull) => {
-            return STANDARD_5_STAR_IDS.has(pull.itemId);
+        // 5-Star Approximation Attribution Pass
+        let currentSequence: NormalizedPull[] = [];
+        const attributedPulls: NormalizedPull[] = [];
+
+        for (let i = 0; i < pulls.length; i++) {
+            const pull = pulls[i];
+            currentSequence.push(pull);
+
+            if (pull.rarity === hsrPityConfig.pityTriggerRarity) {
+                const pullTime = pull.pulledAt.getTime();
+                const activePhase = findActivePhase(pullTime, hsrBanners);
+
+                let featuredIds: string[] = [];
+                let mainId = "";
+
+                if (activePhase) {
+                    if (isCharacterBanner) {
+                        featuredIds = activePhase.featuredCharacters;
+                        mainId = activePhase.mainCharacterId;
+                    } else if (isWeaponBanner) {
+                        featuredIds = activePhase.featuredWeapons;
+                        mainId = activePhase.mainWeaponId;
+                    }
+                }
+
+                let sequenceBannerId = mainId || bannerType;
+
+                if (has5050 && activePhase) {
+                    if (featuredIds.includes(pull.itemId)) {
+                        sequenceBannerId = pull.itemId;
+                    } else {
+                        sequenceBannerId = mainId;
+                    }
+                }
+
+                for (const p of currentSequence) {
+                    p.bannerId = sequenceBannerId;
+                }
+
+                attributedPulls.push(...currentSequence);
+                currentSequence = [];
+            }
+        }
+
+        // Handle any remaining pulls in the final incomplete sequence
+        if (currentSequence.length > 0) {
+            const lastPull = currentSequence[currentSequence.length - 1];
+            const pullTime = lastPull.pulledAt.getTime();
+            const activePhase = findActivePhase(pullTime, hsrBanners);
+
+            let mainId = "";
+            if (activePhase) {
+                mainId = isCharacterBanner
+                    ? activePhase.mainCharacterId
+                    : isWeaponBanner
+                      ? activePhase.mainWeaponId
+                      : "";
+            }
+
+            const sequenceBannerId = mainId || bannerType;
+
+            for (const p of currentSequence) {
+                p.bannerId = sequenceBannerId;
+            }
+            attributedPulls.push(...currentSequence);
+        }
+
+        // Generic Pity Pass
+        return computeGenericPity(attributedPulls, hsrPityConfig, has5050, (pull) => {
+            const pullTime = pull.pulledAt.getTime();
+            const activePhase = findActivePhase(pullTime, hsrBanners);
+
+            if (!activePhase) {
+                return false;
+            }
+
+            if (isCharacterBanner) {
+                return !activePhase.featuredCharacters.includes(pull.itemId);
+            } else if (isWeaponBanner) {
+                return !activePhase.featuredWeapons.includes(pull.itemId);
+            }
+
+            return false;
         });
     },
 };

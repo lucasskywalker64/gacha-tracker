@@ -14,7 +14,8 @@
         "lint": "turbo run lint",
         "prepare": "husky",
         "test": "turbo run test",
-        "typecheck": "turbo run typecheck"
+        "typecheck": "turbo run typecheck",
+        "update": "bun --cwd packages/game-scripts update"
     },
     "lint-staged": {
         "*.{ts,svelte,js}": [
