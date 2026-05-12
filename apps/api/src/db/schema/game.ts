@@ -16,7 +16,6 @@ export const game = sqliteTable("game", {
     displayName: text("display_name").notNull(),
     iconUrl: text("icon_url"),
     isActive: integer("is_active").notNull().default(1),
-    config: text("config").notNull().default("{}"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
         .notNull()
         .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),

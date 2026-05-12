@@ -26,7 +26,6 @@ export const gamesRouter = new Elysia()
                 ...userGame,
                 gameDisplayName: game.displayName,
                 gameIconUrl: game.iconUrl,
-                gameConfig: game.config,
             }));
         },
         { auth: true }
