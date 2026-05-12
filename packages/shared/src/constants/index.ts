@@ -210,6 +210,11 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(GENSHIN_BANNERS.CHRONICLED),
             ],
         },
+        wizard: {
+            historyName: "Wish",
+            recordsName: "History",
+            scriptPath: "packages/game-scripts/genshin/extract.ps1",
+        },
         rarityDisplay: [
             {
                 value: 5,
@@ -265,6 +270,11 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(ZZZ_BANNERS.WEAPON),
                 String(ZZZ_BANNERS.BANGBOO),
             ],
+        },
+        wizard: {
+            historyName: "Signal Search",
+            recordsName: "Search Records",
+            scriptPath: "packages/game-scripts/zzz/extract.ps1",
         },
         rarityDisplay: [
             {
@@ -337,6 +347,11 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(WUWA_BANNERS.BEGINNER_CHOICE),
             ],
         },
+        wizard: {
+            historyName: "Convene",
+            recordsName: "Convene Records",
+            scriptPath: "packages/game-scripts/wuwa/extract.ps1",
+        },
         rarityDisplay: [
             {
                 value: 5,
@@ -383,4 +398,7 @@ export const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/lucasskywalker
  */
 export const SCRIPT_VERSIONS = {
     starrail: "7b63e10622905c3f9922960b76124b2ae64725a1",
+    genshin: "",
+    zzz: "",
+    wuwa: "",
 } as const;
