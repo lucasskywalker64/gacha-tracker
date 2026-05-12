@@ -14,6 +14,9 @@ export interface BannerPhase {
 export interface BannersData {
     games: {
         hsr: BannerPhase[];
+        genshin: BannerPhase[];
+        zzz: BannerPhase[];
+        wuwa: BannerPhase[];
         [gameId: string]: BannerPhase[];
     };
 }
