@@ -71,8 +71,15 @@ export interface GameAdapter {
     normalizeImport(raw: unknown): Promise<NormalizedImportResult>;
 
     /**
+     * Map of banner type IDs to their shared pity pool.
+     * If omitted, each banner type tracks its own pity independently.
+     * e.g. For Genshin: { "301": "limited_character", "400": "limited_character" }
+     */
+    pityPools?: Record<string, string>;
+
+    /**
      * Annotates each pull with pity counters.
-     * Receives all pulls for a given user + game + banner type in chronological
+     * Receives all pulls for a given user + game + pity pool in chronological
      * order (oldest first), including any pulls already stored in the DB.
      * Returns the same array with pityAtPull and wasGuaranteed set.
      */
