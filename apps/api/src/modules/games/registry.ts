@@ -1,5 +1,8 @@
 import type { GameAdapter } from "@gacha-tracker/shared";
 import { hsrAdapter } from "./hsr";
+import { genshinAdapter } from "./genshin";
+import { zzzAdapter } from "./zzz";
+import { wuwaAdapter } from "./wuwa";
 
 // ---------------------------------------------------------------------------
 // Game Plugin Registry
@@ -28,3 +31,6 @@ export function getAllAdapters(): GameAdapter[] {
 // ---------------------------------------------------------------------------
 
 registerAdapter(hsrAdapter);
+registerAdapter(genshinAdapter);
+registerAdapter(zzzAdapter);
+registerAdapter(wuwaAdapter);
