@@ -1,4 +1,5 @@
 import { updateHsrBanners } from "./hsr/index.js";
+import { updateGenshinBanners } from "./genshin/index.js";
 
 async function main() {
     const args = process.argv.slice(2);
@@ -12,6 +13,9 @@ async function main() {
     if (game === "hsr") {
         console.log("Updating Honkai: Star Rail banners...");
         await updateHsrBanners();
+    } else if (game === "genshin") {
+        console.log("Updating Genshin Impact banners...");
+        await updateGenshinBanners();
     } else {
         console.error(`Error: Unknown game: ${game}`);
         process.exit(1);
