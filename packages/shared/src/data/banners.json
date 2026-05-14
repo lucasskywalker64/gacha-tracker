@@ -1739,7 +1739,318 @@
                 "endTime": 1782802799000
             }
         ],
-        "zzz": [],
+        "zzz": [
+            {
+                "phase": "1.0.1",
+                "name": "Ellen",
+                "featuredCharacters": ["1191"],
+                "mainCharacterId": "1191",
+                "featuredWeapons": ["14119"],
+                "mainWeaponId": "14119",
+                "startTime": 1720051200000,
+                "endTime": 1721786399000
+            },
+            {
+                "phase": "1.0.2",
+                "name": "Zhu Yuan",
+                "featuredCharacters": ["1241"],
+                "mainCharacterId": "1241",
+                "featuredWeapons": ["14124"],
+                "mainWeaponId": "14124",
+                "startTime": 1721786400000,
+                "endTime": 1723525199000
+            },
+            {
+                "phase": "1.1.1",
+                "name": "Qingyi",
+                "featuredCharacters": ["1251"],
+                "mainCharacterId": "1251",
+                "featuredWeapons": ["14125"],
+                "mainWeaponId": "14125",
+                "startTime": 1723593600000,
+                "endTime": 1725415199000
+            },
+            {
+                "phase": "1.1.2",
+                "name": "Jane",
+                "featuredCharacters": ["1261"],
+                "mainCharacterId": "1261",
+                "featuredWeapons": ["14126"],
+                "mainWeaponId": "14126",
+                "startTime": 1725415200000,
+                "endTime": 1727153999000
+            },
+            {
+                "phase": "1.2.1",
+                "name": "Caesar",
+                "featuredCharacters": ["1071"],
+                "mainCharacterId": "1071",
+                "featuredWeapons": ["14107"],
+                "mainWeaponId": "14107",
+                "startTime": 1727200800000,
+                "endTime": 1729065599000
+            },
+            {
+                "phase": "1.2.2",
+                "name": "Burnice",
+                "featuredCharacters": ["1171"],
+                "mainCharacterId": "1171",
+                "featuredWeapons": ["14117"],
+                "mainWeaponId": "14117",
+                "startTime": 1729044000000,
+                "endTime": 1730786399000
+            },
+            {
+                "phase": "1.3.1",
+                "name": "Yanagi",
+                "featuredCharacters": ["1221"],
+                "mainCharacterId": "1221",
+                "featuredWeapons": ["14122"],
+                "mainWeaponId": "14122",
+                "startTime": 1730833200000,
+                "endTime": 1732697999000
+            },
+            {
+                "phase": "1.3.2",
+                "name": "Lighter",
+                "featuredCharacters": ["1161"],
+                "mainCharacterId": "1161",
+                "featuredWeapons": ["14116"],
+                "mainWeaponId": "14116",
+                "startTime": 1732676400000,
+                "endTime": 1734415199000
+            },
+            {
+                "phase": "1.4.1",
+                "name": "Miyabi / Harumasa",
+                "featuredCharacters": ["1091", "1201"],
+                "mainCharacterId": "1201",
+                "featuredWeapons": ["14109", "14120"],
+                "mainWeaponId": "14120",
+                "startTime": 1734487200000,
+                "endTime": 1737439199000
+            },
+            {
+                "phase": "1.5.1",
+                "name": "Ellen / Astra Yao",
+                "featuredCharacters": ["1191", "1311"],
+                "mainCharacterId": "1311",
+                "featuredWeapons": ["14131", "14119"],
+                "mainWeaponId": "14131",
+                "startTime": 1737507600000,
+                "endTime": 1739329199000
+            },
+            {
+                "phase": "1.5.2",
+                "name": "Evelyn / Qingyi",
+                "featuredCharacters": ["1321", "1251"],
+                "mainCharacterId": "1321",
+                "featuredWeapons": ["14132", "14125"],
+                "mainWeaponId": "14132",
+                "startTime": 1739329200000,
+                "endTime": 1741672799000
+            },
+            {
+                "phase": "1.6.1",
+                "name": "Burnice / Soldier 0 - Anby",
+                "featuredCharacters": ["1171", "1381"],
+                "mainCharacterId": "1381",
+                "featuredWeapons": ["14117", "14138"],
+                "mainWeaponId": "14138",
+                "startTime": 1741741200000,
+                "endTime": 1743559199000
+            },
+            {
+                "phase": "1.6.2",
+                "name": "Trigger / Zhu Yuan",
+                "featuredCharacters": ["1361", "1241"],
+                "mainCharacterId": "1361",
+                "featuredWeapons": ["14124", "14136"],
+                "mainWeaponId": "14136",
+                "startTime": 1743559200000,
+                "endTime": 1745297999000
+            },
+            {
+                "phase": "1.7.1",
+                "name": "Vivian / Jane",
+                "featuredCharacters": ["1331", "1261"],
+                "mainCharacterId": "1331",
+                "featuredWeapons": ["14126", "14133"],
+                "mainWeaponId": "14133",
+                "startTime": 1745366400000,
+                "endTime": 1747187999000
+            },
+            {
+                "phase": "1.7.2",
+                "name": "Lighter / Hugo Vlad",
+                "featuredCharacters": ["1161", "1291"],
+                "mainCharacterId": "1291",
+                "featuredWeapons": ["14116", "14129"],
+                "mainWeaponId": "14129",
+                "startTime": 1747188000000,
+                "endTime": 1748926799000
+            },
+            {
+                "phase": "2.0.1",
+                "name": "Yi Xuan / Astra Yao",
+                "featuredCharacters": ["1371", "1311"],
+                "mainCharacterId": "1371",
+                "featuredWeapons": ["14131", "14137"],
+                "mainWeaponId": "14137",
+                "startTime": 1749171600000,
+                "endTime": 1750816799000
+            },
+            {
+                "phase": "2.0.2",
+                "name": "Ju Fufu / Caesar",
+                "featuredCharacters": ["1391", "1071"],
+                "mainCharacterId": "1391",
+                "featuredWeapons": ["14107", "14139"],
+                "mainWeaponId": "14139",
+                "startTime": 1750813200000,
+                "endTime": 1752555599000
+            },
+            {
+                "phase": "2.1.1",
+                "name": "Miyabi / Yuzuha",
+                "featuredCharacters": ["1091", "1411"],
+                "mainCharacterId": "1411",
+                "featuredWeapons": ["14109", "14141"],
+                "mainWeaponId": "14141",
+                "startTime": 1752627600000,
+                "endTime": 1754445599000
+            },
+            {
+                "phase": "2.1.2",
+                "name": "Alice / Yanagi",
+                "featuredCharacters": ["1401", "1221"],
+                "mainCharacterId": "1401",
+                "featuredWeapons": ["14122", "14140"],
+                "mainWeaponId": "14140",
+                "startTime": 1754445600000,
+                "endTime": 1756875599000
+            },
+            {
+                "phase": "2.2.1",
+                "name": "Seed / Trigger",
+                "featuredCharacters": ["1461", "1361"],
+                "mainCharacterId": "1461",
+                "featuredWeapons": ["14136", "14146"],
+                "mainWeaponId": "14146",
+                "startTime": 1756947600000,
+                "endTime": 1758679199000
+            },
+            {
+                "phase": "2.2.2",
+                "name": "Evelyn / Orphie & Magus",
+                "featuredCharacters": ["1321", "1301"],
+                "mainCharacterId": "1301",
+                "featuredWeapons": ["14132", "14130"],
+                "mainWeaponId": "14130",
+                "startTime": 1758679200000,
+                "endTime": 1760417999000
+            },
+            {
+                "phase": "2.3.1",
+                "name": "Lucia / Vivian",
+                "featuredCharacters": ["1451", "1331"],
+                "mainCharacterId": "1451",
+                "featuredWeapons": ["14133", "14145"],
+                "mainWeaponId": "14145",
+                "startTime": 1760490000000,
+                "endTime": 1762311599000
+            },
+            {
+                "phase": "2.3.2",
+                "name": "Yidhari / Ju Fufu",
+                "featuredCharacters": ["1051", "1391"],
+                "mainCharacterId": "1051",
+                "featuredWeapons": ["14139", "14105"],
+                "mainWeaponId": "14105",
+                "startTime": 1762311600000,
+                "endTime": 1764050399000
+            },
+            {
+                "phase": "2.4.1",
+                "name": "Dialyn / Hugo Vlad",
+                "featuredCharacters": ["1481", "1291"],
+                "mainCharacterId": "1481",
+                "featuredWeapons": ["14129", "14148"],
+                "mainWeaponId": "14148",
+                "startTime": 1764122400000,
+                "endTime": 1765940399000
+            },
+            {
+                "phase": "2.4.2",
+                "name": "Banyue / Ellen",
+                "featuredCharacters": ["1471", "1191"],
+                "mainCharacterId": "1471",
+                "featuredWeapons": ["14119", "14147"],
+                "mainWeaponId": "14147",
+                "startTime": 1765940400000,
+                "endTime": 1766987999000
+            },
+            {
+                "phase": "2.5.1",
+                "name": "Ye Shunguang / Zhao",
+                "featuredCharacters": ["1431", "1341"],
+                "mainCharacterId": "1431",
+                "featuredWeapons": ["14143", "14134"],
+                "mainWeaponId": "14143",
+                "startTime": 1767060000000,
+                "endTime": 1770271199000
+            },
+            {
+                "phase": "2.6.1",
+                "name": "Yi Xuan / Sunna",
+                "featuredCharacters": ["1371", "1491"],
+                "mainCharacterId": "1491",
+                "featuredWeapons": ["14137", "14149"],
+                "mainWeaponId": "14149",
+                "startTime": 1770343200000,
+                "endTime": 1772593199000
+            },
+            {
+                "phase": "2.6.2",
+                "name": "Aria / Yuzuha",
+                "featuredCharacters": ["1501", "1411"],
+                "mainCharacterId": "1501",
+                "featuredWeapons": ["14141", "14150"],
+                "mainWeaponId": "14150",
+                "startTime": 1772593200000,
+                "endTime": 1774245599000
+            },
+            {
+                "phase": "2.7.1",
+                "name": "Nangong Yu / Yidhari",
+                "featuredCharacters": ["1511", "1051"],
+                "mainCharacterId": "1511",
+                "featuredWeapons": ["14151", "14105"],
+                "mainWeaponId": "14151",
+                "startTime": 1774317600000,
+                "endTime": 1776218399000
+            },
+            {
+                "phase": "2.7.2",
+                "name": "Cissia / Seed",
+                "featuredCharacters": ["1521", "1461"],
+                "mainCharacterId": "1521",
+                "featuredWeapons": ["14152", "14146"],
+                "mainWeaponId": "14152",
+                "startTime": 1776218400000,
+                "endTime": 1777957199000
+            },
+            {
+                "phase": "2.8.1",
+                "name": "Promeia / Lucia",
+                "featuredCharacters": ["1541", "1451"],
+                "mainCharacterId": "1541",
+                "featuredWeapons": ["14154", "14145"],
+                "mainWeaponId": "14154",
+                "startTime": 1778029200000,
+                "endTime": 1779847199000
+            }
+        ],
         "wuwa": []
     }
 }
