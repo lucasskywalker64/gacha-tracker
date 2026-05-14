@@ -4,6 +4,9 @@
     "private": true,
     "description": "Extraction scripts for pulling gacha history from game log files",
     "scripts": {
+        "format": "prettier --write .",
+        "lint": "eslint .",
+        "typecheck": "tsc --noEmit",
         "update": "tsx src/index.ts"
     },
     "dependencies": {
@@ -11,6 +14,7 @@
     },
     "devDependencies": {
         "@types/node": "^25.6.2",
-        "tsx": "^4.21.0"
+        "tsx": "^4.21.0",
+        "typescript": "latest"
     }
 }

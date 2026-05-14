@@ -2051,6 +2051,357 @@
                 "endTime": 1779847199000
             }
         ],
-        "wuwa": []
+        "wuwa": [
+            {
+                "phase": "1.0.1",
+                "name": "Jiyan",
+                "featuredCharacters": ["1404"],
+                "mainCharacterId": "1404",
+                "featuredWeapons": ["21010016"],
+                "mainWeaponId": "21010016",
+                "startTime": 1716429600000,
+                "endTime": 1718243940000
+            },
+            {
+                "phase": "1.0.2",
+                "name": "Yinlin",
+                "featuredCharacters": ["1302"],
+                "mainCharacterId": "1302",
+                "featuredWeapons": ["21050016"],
+                "mainWeaponId": "21050016",
+                "startTime": 1717639200000,
+                "endTime": 1719374340000
+            },
+            {
+                "phase": "1.1.1",
+                "name": "Jinhsi",
+                "featuredCharacters": ["1304"],
+                "mainCharacterId": "1304",
+                "featuredWeapons": ["21010026"],
+                "mainWeaponId": "21010026",
+                "startTime": 1719540000000,
+                "endTime": 1721613540000
+            },
+            {
+                "phase": "1.1.2",
+                "name": "Changli",
+                "featuredCharacters": ["1205"],
+                "mainCharacterId": "1205",
+                "featuredWeapons": ["21020016"],
+                "mainWeaponId": "21020016",
+                "startTime": 1721613600000,
+                "endTime": 1723607940000
+            },
+            {
+                "phase": "1.2.1",
+                "name": "Zhezhi",
+                "featuredCharacters": ["1105"],
+                "mainCharacterId": "1105",
+                "featuredWeapons": ["21050026"],
+                "mainWeaponId": "21050026",
+                "startTime": 1723687200000,
+                "endTime": 1725674340000
+            },
+            {
+                "phase": "1.2.2",
+                "name": "Xiangli Yao",
+                "featuredCharacters": ["1305"],
+                "mainCharacterId": "1305",
+                "featuredWeapons": ["21040016"],
+                "mainWeaponId": "21040016",
+                "startTime": 1725674400000,
+                "endTime": 1727495940000
+            },
+            {
+                "phase": "1.3.1",
+                "name": "Shorekeeper",
+                "featuredCharacters": ["1505"],
+                "mainCharacterId": "1505",
+                "featuredWeapons": ["21050036"],
+                "mainWeaponId": "21050036",
+                "startTime": 1727578800000,
+                "endTime": 1729735140000
+            },
+            {
+                "phase": "1.3.2",
+                "name": "Jiyan",
+                "featuredCharacters": ["1404"],
+                "mainCharacterId": "1404",
+                "featuredWeapons": ["21010016"],
+                "mainWeaponId": "21010016",
+                "startTime": 1729735200000,
+                "endTime": 1731463140000
+            },
+            {
+                "phase": "1.4.1",
+                "name": "Camellya",
+                "featuredCharacters": ["1603"],
+                "mainCharacterId": "1603",
+                "featuredWeapons": ["21020026"],
+                "mainWeaponId": "21020026",
+                "startTime": 1731553200000,
+                "endTime": 1733968740000
+            },
+            {
+                "phase": "1.4.2",
+                "name": "Xiangli Yao / Yinlin",
+                "featuredCharacters": ["1305", "1302"],
+                "mainCharacterId": "1305",
+                "featuredWeapons": ["21050016", "21040016"],
+                "mainWeaponId": "21050016",
+                "startTime": 1733968800000,
+                "endTime": 1735703940000
+            },
+            {
+                "phase": "2.0.1",
+                "name": "Zhezhi / Carlotta",
+                "featuredCharacters": ["1105", "1107"],
+                "mainCharacterId": "1107",
+                "featuredWeapons": ["21050026", "21030016"],
+                "mainWeaponId": "21050026",
+                "startTime": 1735783200000,
+                "endTime": 1737597540000
+            },
+            {
+                "phase": "2.0.2",
+                "name": "Roccia / Jinhsi",
+                "featuredCharacters": ["1606", "1304"],
+                "mainCharacterId": "1606",
+                "featuredWeapons": ["21040026", "21010026"],
+                "mainWeaponId": "21040026",
+                "startTime": 1737597600000,
+                "endTime": 1739332740000
+            },
+            {
+                "phase": "2.1.1",
+                "name": "Phoebe",
+                "featuredCharacters": ["1506"],
+                "mainCharacterId": "1506",
+                "featuredWeapons": ["21050046"],
+                "mainWeaponId": "21050046",
+                "startTime": 1739412000000,
+                "endTime": 1741226340000
+            },
+            {
+                "phase": "2.1.2",
+                "name": "Brant / Changli",
+                "featuredCharacters": ["1206", "1205"],
+                "mainCharacterId": "1206",
+                "featuredWeapons": ["21020036", "21020016"],
+                "mainWeaponId": "21020036",
+                "startTime": 1741226400000,
+                "endTime": 1742954340000
+            },
+            {
+                "phase": "2.2.1",
+                "name": "Cantarella / Camellya",
+                "featuredCharacters": ["1607", "1603"],
+                "mainCharacterId": "1607",
+                "featuredWeapons": ["21020026", "21050056"],
+                "mainWeaponId": "21020026",
+                "startTime": 1743040800000,
+                "endTime": 1744855140000
+            },
+            {
+                "phase": "2.2.2",
+                "name": "Shorekeeper",
+                "featuredCharacters": ["1505"],
+                "mainCharacterId": "1505",
+                "featuredWeapons": ["21050036"],
+                "mainWeaponId": "21050036",
+                "startTime": 1744855200000,
+                "endTime": 1745805540000
+            },
+            {
+                "phase": "2.3.1",
+                "name": "Zani",
+                "featuredCharacters": ["1507"],
+                "mainCharacterId": "1507",
+                "featuredWeapons": ["21040036"],
+                "mainWeaponId": "21040036",
+                "startTime": 1745892000000,
+                "endTime": 1747879140000
+            },
+            {
+                "phase": "2.3.2",
+                "name": "Ciaccona",
+                "featuredCharacters": ["1407"],
+                "mainCharacterId": "1407",
+                "featuredWeapons": ["21030026"],
+                "mainWeaponId": "21030026",
+                "startTime": 1747879200000,
+                "endTime": 1749607140000
+            },
+            {
+                "phase": "2.4.1",
+                "name": "Cartethyia",
+                "featuredCharacters": ["1409"],
+                "mainCharacterId": "1409",
+                "featuredWeapons": ["21020056"],
+                "mainWeaponId": "21020056",
+                "startTime": 1749693600000,
+                "endTime": 1751507940000
+            },
+            {
+                "phase": "2.4.2",
+                "name": "Lupa",
+                "featuredCharacters": ["1207"],
+                "mainCharacterId": "1207",
+                "featuredWeapons": ["21010036"],
+                "mainWeaponId": "21010036",
+                "startTime": 1751508000000,
+                "endTime": 1753235940000
+            },
+            {
+                "phase": "2.5.1",
+                "name": "Phrolova / Roccia",
+                "featuredCharacters": ["1608", "1606"],
+                "mainCharacterId": "1608",
+                "featuredWeapons": ["21050066", "21040026"],
+                "mainWeaponId": "21050066",
+                "startTime": 1753322400000,
+                "endTime": 1755136740000
+            },
+            {
+                "phase": "2.5.2",
+                "name": "Cantarella / Brant",
+                "featuredCharacters": ["1607", "1206"],
+                "mainCharacterId": "1607",
+                "featuredWeapons": ["21020036", "21050056"],
+                "mainWeaponId": "21020036",
+                "startTime": 1755136800000,
+                "endTime": 1756267140000
+            },
+            {
+                "phase": "2.6.1",
+                "name": "Augusta / Shorekeeper / Carlotta",
+                "featuredCharacters": ["1306", "1505", "1107"],
+                "mainCharacterId": "1306",
+                "featuredWeapons": ["21010046", "21030016", "21050036"],
+                "mainWeaponId": "21010046",
+                "startTime": 1756346400000,
+                "endTime": 1758074340000
+            },
+            {
+                "phase": "2.6.2",
+                "name": "Iuno / Ciaccona",
+                "featuredCharacters": ["1410", "1407"],
+                "mainCharacterId": "1410",
+                "featuredWeapons": ["21040046", "21030026"],
+                "mainWeaponId": "21040046",
+                "startTime": 1758074400000,
+                "endTime": 1759895940000
+            },
+            {
+                "phase": "2.7.1",
+                "name": "Lupa / Galbrena",
+                "featuredCharacters": ["1207", "1208"],
+                "mainCharacterId": "1208",
+                "featuredWeapons": ["21030036", "21010036"],
+                "mainWeaponId": "21030036",
+                "startTime": 1759975200000,
+                "endTime": 1761789540000
+            },
+            {
+                "phase": "2.7.2",
+                "name": "Zani / Qiuyuan",
+                "featuredCharacters": ["1507", "1411"],
+                "mainCharacterId": "1411",
+                "featuredWeapons": ["21040036", "21020066"],
+                "mainWeaponId": "21040036",
+                "startTime": 1761789600000,
+                "endTime": 1763524740000
+            },
+            {
+                "phase": "2.8.1",
+                "name": "Chisa / Phoebe",
+                "featuredCharacters": ["1508", "1506"],
+                "mainCharacterId": "1508",
+                "featuredWeapons": ["21010056", "21050046"],
+                "mainWeaponId": "21010056",
+                "startTime": 1763605800000,
+                "endTime": 1765418340000
+            },
+            {
+                "phase": "2.8.2",
+                "name": "Cantarella / Phrolova",
+                "featuredCharacters": ["1607", "1608"],
+                "mainCharacterId": "1607",
+                "featuredWeapons": ["21050066", "21050056"],
+                "mainWeaponId": "21050066",
+                "startTime": 1765418400000,
+                "endTime": 1766548740000
+            },
+            {
+                "phase": "3.0.1",
+                "name": "Lynae / Cartethyia / Ciaccona",
+                "featuredCharacters": ["1509", "1409", "1407"],
+                "mainCharacterId": "1509",
+                "featuredWeapons": ["21030046", "21020056", "21030026"],
+                "mainWeaponId": "21030046",
+                "startTime": 1766630700000,
+                "endTime": 1768442340000
+            },
+            {
+                "phase": "3.0.2",
+                "name": "Mornye / Augusta / Iuno",
+                "featuredCharacters": ["1209", "1306", "1410"],
+                "mainCharacterId": "1209",
+                "featuredWeapons": ["21010066", "21010046", "21040046"],
+                "mainWeaponId": "21010066",
+                "startTime": 1768442400000,
+                "endTime": 1770177540000
+            },
+            {
+                "phase": "3.1.1",
+                "name": "Chisa / Aemeath / Lupa",
+                "featuredCharacters": ["1508", "1210", "1207"],
+                "mainCharacterId": "1210",
+                "featuredWeapons": ["21010056", "21020076", "21010036"],
+                "mainWeaponId": "21010056",
+                "startTime": 1770252900000,
+                "endTime": 1772071140000
+            },
+            {
+                "phase": "3.1.2",
+                "name": "Galbrena / Luuk Herssen",
+                "featuredCharacters": ["1208", "1510"],
+                "mainCharacterId": "1510",
+                "featuredWeapons": ["21040056", "21030036"],
+                "mainWeaponId": "21040056",
+                "startTime": 1772071200000,
+                "endTime": 1773806340000
+            },
+            {
+                "phase": "3.2.1",
+                "name": "Sigrika / Qiuyuan",
+                "featuredCharacters": ["1412", "1411"],
+                "mainCharacterId": "1412",
+                "featuredWeapons": ["21040066", "21020066"],
+                "mainWeaponId": "21040066",
+                "startTime": 1773889200000,
+                "endTime": 1775699940000
+            },
+            {
+                "phase": "3.2.2",
+                "name": "Lynae / Zani / Phoebe",
+                "featuredCharacters": ["1509", "1507", "1506"],
+                "mainCharacterId": "1509",
+                "featuredWeapons": ["21030046", "21040036", "21050046"],
+                "mainWeaponId": "21030046",
+                "startTime": 1775700000000,
+                "endTime": 1777435140000
+            },
+            {
+                "phase": "3.3.1",
+                "name": "Hiyuki / Mornye / Iuno",
+                "featuredCharacters": ["1108", "1209", "1410"],
+                "mainCharacterId": "1108",
+                "featuredWeapons": ["21020086", "21010066", "21040046"],
+                "mainWeaponId": "21020086",
+                "startTime": 1777478400000,
+                "endTime": 1779328740000
+            }
+        ]
     }
 }
