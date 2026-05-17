@@ -6,11 +6,74 @@ import type {
 } from "@gacha-tracker/shared";
 import { GENSHIN_BANNERS, GAME_CONFIGS, banners, type BannerPhase } from "@gacha-tracker/shared";
 import { computeGenericPity } from "../pity";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uigfDictPath = path.resolve(__dirname, "./uigf_dict.json");
+let uigfDictLocal: Record<string, number> = {};
+try {
+    if (fs.existsSync(uigfDictPath)) {
+        uigfDictLocal = JSON.parse(fs.readFileSync(uigfDictPath, "utf-8"));
+    }
+} catch (e) {
+    console.error("Failed to load local UIGF dictionary:", e);
+}
+
+// In-memory cache of UIGF mapping (name -> string ID)
+const uigfMap: Record<string, string> = {};
+for (const [name, id] of Object.entries(uigfDictLocal)) {
+    uigfMap[name.toLowerCase()] = String(id);
+}
+
+// Keep track of initialization to fetch latest dict from api.uigf.org in background
+let initialized = false;
+async function ensureUigfDict() {
+    if (initialized) return;
+    initialized = true;
+    try {
+        const res = await fetch("https://api.uigf.org/dict/genshin/en.json", {
+            signal: AbortSignal.timeout(3000),
+        });
+        if (res.ok) {
+            const data = (await res.json()) as Record<string, number>;
+            for (const [name, id] of Object.entries(data)) {
+                uigfMap[name.toLowerCase()] = String(id);
+            }
+        }
+    } catch {
+        // Fall back gracefully to local dict
+    }
+}
 
 const { pityConfig: genshinPityConfig } = GAME_CONFIGS["genshin"];
 
-function findActivePhase(time: number, bannersList: BannerPhase[]): BannerPhase | undefined {
-    return bannersList.find((b) => time >= b.startTime && (!b.endTime || time <= b.endTime));
+function findActivePhase(
+    time: number,
+    bannersList: BannerPhase[],
+    itemId?: string
+): BannerPhase | undefined {
+    const activePhases = bannersList.filter(
+        (b) => time >= b.startTime && (!b.endTime || time <= b.endTime)
+    );
+    if (activePhases.length === 0) return undefined;
+    if (activePhases.length === 1) return activePhases[0];
+
+    if (itemId) {
+        const matchingPhase = activePhases.find(
+            (b) =>
+                b.featuredCharacters?.includes(itemId) ||
+                b.featuredWeapons?.includes(itemId) ||
+                b.mainCharacterId === itemId ||
+                b.mainWeaponId === itemId
+        );
+        if (matchingPhase) return matchingPhase;
+    }
+
+    return activePhases[0];
 }
 
 export const genshinAdapter: GameAdapter = {
@@ -27,13 +90,23 @@ export const genshinAdapter: GameAdapter = {
     async normalizeImport(raw: unknown): Promise<NormalizedImportResult> {
         const payload = raw as ImportPayloadInput;
 
+        // Try to fetch latest dictionary from UIGF in the background if not done already
+        ensureUigfDict().catch(() => {});
+
         const pulls: NormalizedPull[] = payload.pulls.map((rawPull) => {
+            // Resolve empty itemId using UIGF dictionary or item name itself
+            let itemId = rawPull.itemId;
+            if (!itemId || itemId.trim() === "") {
+                const nameKey = rawPull.itemName.trim().toLowerCase();
+                itemId = uigfMap[nameKey] || rawPull.itemName;
+            }
+
             return {
                 pullId: rawPull.pullId,
                 gameUid: payload.gameUid,
                 bannerType: rawPull.bannerType,
                 bannerId: rawPull.bannerId,
-                itemId: rawPull.itemId,
+                itemId,
                 itemName: rawPull.itemName,
                 itemType: rawPull.itemType,
                 rarity: rawPull.rarity,
@@ -67,7 +140,7 @@ export const genshinAdapter: GameAdapter = {
 
             if (pull.rarity === genshinPityConfig.pityTriggerRarity) {
                 const pullTime = pull.pulledAt.getTime();
-                const activePhase = findActivePhase(pullTime, genshinBanners);
+                const activePhase = findActivePhase(pullTime, genshinBanners, pull.itemId);
 
                 let featuredIds: string[] = [];
                 let mainId = "";
@@ -104,7 +177,7 @@ export const genshinAdapter: GameAdapter = {
         if (currentSequence.length > 0) {
             const lastPull = currentSequence[currentSequence.length - 1];
             const pullTime = lastPull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, genshinBanners);
+            const activePhase = findActivePhase(pullTime, genshinBanners, lastPull.itemId);
 
             let mainId = "";
             if (activePhase) {
@@ -126,7 +199,7 @@ export const genshinAdapter: GameAdapter = {
         // Generic Pity Pass
         return computeGenericPity(attributedPulls, genshinPityConfig, has5050, (pull) => {
             const pullTime = pull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, genshinBanners);
+            const activePhase = findActivePhase(pullTime, genshinBanners, pull.itemId);
 
             if (!activePhase) {
                 return false;

@@ -19,6 +19,69 @@ describe("genshinAdapter", () => {
         ];
     });
 
+    describe("normalizeImport", () => {
+        it("should correctly resolve empty itemIds to UIGF IDs based on the local dictionary", async () => {
+            const rawPayload = {
+                gameId: "genshin",
+                gameUid: "700077050",
+                pulls: [
+                    {
+                        pullId: "1775772360000185850",
+                        bannerType: "200",
+                        itemId: "",
+                        itemName: "Emerald Orb",
+                        itemType: "Weapon",
+                        rarity: 3,
+                        pulledAt: "2026-04-09 23:45:06",
+                    },
+                    {
+                        pullId: "1775772360000184750",
+                        bannerType: "200",
+                        itemId: "",
+                        itemName: "Cool Steel",
+                        itemType: "Weapon",
+                        rarity: 3,
+                        pulledAt: "2026-04-09 23:45:03",
+                    },
+                    {
+                        pullId: "1775772360000184550",
+                        bannerType: "200",
+                        itemId: "",
+                        itemName: "Black Tassel",
+                        itemType: "Weapon",
+                        rarity: 3,
+                        pulledAt: "2026-04-09 23:45:01",
+                    },
+                    {
+                        pullId: "1775772360000184551",
+                        bannerType: "200",
+                        itemId: "",
+                        itemName: "Nonexistent Item Name",
+                        itemType: "Weapon",
+                        rarity: 3,
+                        pulledAt: "2026-04-09 23:45:02",
+                    },
+                ],
+            };
+
+            const result = await genshinAdapter.normalizeImport(rawPayload);
+            expect(result.gameUid).toBe("700077050");
+            expect(result.pulls.length).toBe(4);
+
+            // Emerald Orb -> 14304 (based on the UIGF English dictionary)
+            expect(result.pulls[0].itemId).toBe("14304");
+
+            // Cool Steel -> 11301
+            expect(result.pulls[1].itemId).toBe("11301");
+
+            // Black Tassel -> 13303
+            expect(result.pulls[2].itemId).toBe("13303");
+
+            // Nonexistent Item Name -> fallback to name
+            expect(result.pulls[3].itemId).toBe("Nonexistent Item Name");
+        });
+    });
+
     describe("computePity", () => {
         it("should correctly compute shared pity for Character 1 (301) and Character 2 (400)", () => {
             const pulls = [
