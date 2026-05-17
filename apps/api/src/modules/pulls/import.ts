@@ -242,6 +242,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                                 pityAtPull: sql`excluded.pity_at_pull`,
                                 wasGuaranteed: sql`excluded.was_guaranteed`,
                                 pityVersion: sql`excluded.pity_version`,
+                                bannerId: sql`excluded.banner_id`,
                             },
                         });
                 }

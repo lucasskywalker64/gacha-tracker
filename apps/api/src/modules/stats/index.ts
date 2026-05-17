@@ -35,6 +35,7 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
                 wasGuaranteed: number;
                 pulledAt: number;
                 bannerType: string;
+                bannerId?: string | null;
             }[], // Explicitly typed array of recent 5 stars
         };
 
@@ -51,6 +52,7 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
                     wasGuaranteed: pull.wasGuaranteed,
                     pulledAt: pull.pulledAt.getTime(),
                     bannerType: pull.bannerType,
+                    bannerId: pull.bannerId,
                 });
                 pityTracker[pull.bannerType] = 0; // reset
             } else if (pull.rarity === 4) {

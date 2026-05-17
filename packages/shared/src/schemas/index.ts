@@ -20,7 +20,7 @@ export const rawPullSchema = z.object({
     pullId: z.string().min(1),
     bannerType: z.string().min(1),
     bannerId: z.string().optional(),
-    itemId: z.string().min(1),
+    itemId: z.string(),
     itemName: z.string().min(1),
     itemType: z.string().min(1),
     rarity: z.number().int().positive(),

@@ -155,6 +155,7 @@ export interface GameStats {
         wasGuaranteed: number;
         pulledAt: number;
         bannerType: string;
+        bannerId?: string | null;
     }[];
 }
 
