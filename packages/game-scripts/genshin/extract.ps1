@@ -31,29 +31,23 @@ Write-Host "Attempting to locate Wish cache..."
 
 $app_data = [Environment]::GetFolderPath('ApplicationData')
 $locallow_path = [IO.Path]::GetFullPath("$app_data\..\LocalLow\miHoYo\Genshin Impact")
-$log_path = Join-Path $locallow_path "Player.log"
+$log_path = Join-Path $locallow_path "output_log.txt"
+
+# Also support China location if global doesn't exist
+if (-not [IO.File]::Exists($log_path)) {
+    $locallow_path_cn = [IO.Path]::GetFullPath("$app_data\..\LocalLow\miHoYo\$([char]0x539f)$([char]0x795e)")
+    $log_path_cn = Join-Path $locallow_path_cn "output_log.txt"
+    if ([IO.File]::Exists($log_path_cn)) {
+        $locallow_path = $locallow_path_cn
+        $log_path = $log_path_cn
+    }
+}
 
 if ([IO.File]::Exists($log_path)) {
-    $log_lines = Get-Content $log_path -First 15 2>$null
-    if ([string]::IsNullOrEmpty($log_lines)) {
-        $log_path = Join-Path $locallow_path "Player-prev.log"
-        if ([IO.File]::Exists($log_path)) {
-            $log_lines = Get-Content $log_path -First 15 2>$null
-        }
-    }
-
-    if ($log_lines) {
-        $lines = if ($log_lines -is [array]) { $log_lines } else { $log_lines.split([Environment]::NewLine) }
-        foreach ($log_line in $lines) {
-            if ($log_line.startsWith("Loading player data from ")) {
-                $game_path = $log_line.replace("Loading player data from ", "").replace("data.unity3d", "").Trim()
-                break
-            }
-            if ($log_line -match "at path (.*_Data)") {
-                $game_path = $matches[1].Trim()
-                break
-            }
-        }
+    $log_content = Get-Content -Path $log_path -Raw 2>$null
+    
+    if ($log_content -match '(.:/[^\r\n]+?(?:GenshinImpact_Data|YuanShen_Data))') {
+        $game_path = $matches[1].Trim()
     }
 }
 
@@ -62,22 +56,18 @@ if ([string]::IsNullOrEmpty($game_path)) {
     return
 }
 
-# Find the latest webcache data_2 file
-$cache_path = "$game_path/webCaches/Cache/Cache_Data/data_2"
-$cache_folders = Get-ChildItem "$game_path/webCaches/" -Directory -ErrorAction SilentlyContinue
-$max_version = 0
+$webCaches_dir = Join-Path $game_path "webCaches"
 
-if ($cache_folders) {
-    for ($i = 0; $i -le $cache_folders.Length; $i++) {
-        $cache_folder = $cache_folders[$i].Name
-        if ($cache_folder -match '^\d+\.\d+\.\d+\.\d+$') {
-            $version = [int]-join($cache_folder.Split("."))
-            if ($version -ge $max_version) {
-                $max_version = $version
-                $cache_path = "$game_path/webCaches/$cache_folder/Cache/Cache_Data/data_2"
-            }
-        }
+if (Test-Path $webCaches_dir) {
+    # Get the latest modified directory under webCaches
+    $latest_folder = Get-ChildItem -Path $webCaches_dir -Directory -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($latest_folder) {
+        $cache_path = Join-Path $latest_folder.FullName "Cache/Cache_Data/data_2"
+    } else {
+        $cache_path = "$game_path/webCaches/Cache/Cache_Data/data_2"
     }
+} else {
+    $cache_path = "$game_path/webCaches/Cache/Cache_Data/data_2"
 }
 
 if (-Not [IO.File]::Exists($cache_path)) {
@@ -98,12 +88,29 @@ $valid_url = $null
 for ($i = $cache_data_split.Length - 1; $i -ge 0; $i--) {
     $line = $cache_data_split[$i]
 
-    if ($line.StartsWith('http') -and ($line.Contains("getGachaLog") -or $line.Contains("getLdGachaLog"))) {
-        $url = ($line -split "\0")[0]
+    if ($line -match "(https://[^\0]+?webview_gacha[^\0]+)") {
+        $url = $matches[1]
         
         Write-Host "Testing URL candidate..."
         try {
-            $res = Invoke-RestMethod -Uri $url -ContentType "application/json" -UseBasicParsing
+            $candUri = [Uri]$url
+            $candQuery = [Web.HttpUtility]::ParseQueryString($candUri.Query)
+            $candAuthkey = $candQuery.Get("authkey")
+            $candAuthkeyVer = $candQuery.Get("authkey_ver")
+            $candSignType = $candQuery.Get("sign_type")
+            $candGameBiz = $candQuery.Get("game_biz")
+            $candRegion = $candQuery.Get("region")
+
+            $candApiHost = "public-operation-hk4e-sg.hoyoverse.com"
+            if ($candGameBiz -eq "hk4e_cn" -or $url.Contains("webstatic.mihoyo.com") -or $url.Contains("ys_cn") -or $candRegion -match "^cn_") {
+                $candApiHost = "public-operation-hk4e.mihoyo.com"
+            }
+
+            $testUrl = "https://$candApiHost/gacha_info/api/getGachaLog?authkey=$([uri]::EscapeDataString($candAuthkey))&authkey_ver=$candAuthkeyVer&sign_type=$candSignType&lang=en-us&size=5&gacha_type=301"
+            if ($candGameBiz) { $testUrl += "&game_biz=$candGameBiz" }
+            if ($candRegion) { $testUrl += "&region=$candRegion" }
+
+            $res = Invoke-RestMethod -Uri $testUrl -ContentType "application/json" -UseBasicParsing
             if ($res.retcode -eq 0) {
                 $valid_url = $url
                 break
@@ -129,7 +136,12 @@ $region = $query.Get("region")
 
 Write-Host "Successfully extracted authkey!" -ForegroundColor Green
 
-$baseUrl = $uri.Scheme + "://" + $uri.Host + $uri.AbsolutePath
+$apiHost = "public-operation-hk4e-sg.hoyoverse.com"
+if ($game_biz -eq "hk4e_cn" -or $valid_url.Contains("webstatic.mihoyo.com") -or $valid_url.Contains("ys_cn") -or $region -match "^cn_") {
+    $apiHost = "public-operation-hk4e.mihoyo.com"
+}
+
+$baseUrl = "https://$apiHost/gacha_info/api/getGachaLog"
 $commonQuery = "?authkey=$([uri]::EscapeDataString($authkey))&authkey_ver=$authkey_ver&sign_type=$sign_type&lang=en-us&size=20"
 if ($game_biz) { $commonQuery += "&game_biz=$game_biz" } else { $commonQuery += "&game_biz=hk4e_global" }
 if ($region) { $commonQuery += "&region=$region" }
@@ -185,7 +197,9 @@ foreach ($gachaType in $bannerTypes) {
                 }
 
                 $uid = $item.uid
-                if (-not $gameUid -and $uid) { $gameUid = $uid }
+                if (-not $gameUid -and $uid) { 
+                    $gameUid = $uid 
+                }
                 
                 $allPulls += @{
                     uid        = $item.uid
@@ -199,9 +213,11 @@ foreach ($gachaType in $bannerTypes) {
                 }
             }
 
-            $endId = $list[-1].id
-            $page++
-            Start-Sleep -Milliseconds 300 # Be gentle on Hoyo servers
+            if ($hasNext) {
+                $endId = $list[-1].id
+                $page++
+                Start-Sleep -Milliseconds 300 # Be gentle on Hoyo servers
+            }
         } catch {
             Write-Host "Failed to fetch pulls: $_" -ForegroundColor Red
             break
