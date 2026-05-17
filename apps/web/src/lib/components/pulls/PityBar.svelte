@@ -8,9 +8,17 @@
 		hardPity: number;
 		bannerLabel: string;
 		isGuaranteed?: boolean;
+		has5050?: boolean;
 	}
 
-	let { currentPity, softPity, hardPity, bannerLabel, isGuaranteed = false }: Props = $props();
+	let {
+		currentPity,
+		softPity,
+		hardPity,
+		bannerLabel,
+		isGuaranteed = false,
+		has5050 = true
+	}: Props = $props();
 
 	let progress = $derived(hardPity > 0 ? (currentPity / hardPity) * 100 : 0);
 	let softPityStart = $derived(hardPity > 0 ? (softPity / hardPity) * 100 : 0);
@@ -31,13 +39,18 @@
 				<span class="text-sm text-zinc-500">/ {hardPity}</span>
 			</div>
 		</div>
-		{#if isGuaranteed}
-			<Badge variant="outline" class="bg-violet-500/10 text-violet-400 border-violet-500/30 gap-1">
-				<Lock class="w-3 h-3" />
-				Guaranteed
-			</Badge>
-		{:else}
-			<Badge variant="outline" class="text-zinc-500 border-zinc-800">50/50</Badge>
+		{#if has5050}
+			{#if isGuaranteed}
+				<Badge
+					variant="outline"
+					class="bg-violet-500/10 text-violet-400 border-violet-500/30 gap-1"
+				>
+					<Lock class="w-3 h-3" />
+					Guaranteed
+				</Badge>
+			{:else}
+				<Badge variant="outline" class="text-zinc-500 border-zinc-800">50/50</Badge>
+			{/if}
 		{/if}
 	</div>
 
