@@ -249,7 +249,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
         gameId: "zzz",
         displayName: "Zenless Zone Zero",
         pityConfig: {
-            rarityTiers: [2, 3, 4, 5],
+            rarityTiers: [3, 4, 5],
             pityTriggerRarity: 5,
             softPity: {
                 [ZZZ_BANNERS.STANDARD]: 74,
@@ -284,7 +284,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 bgColor: "bg-yellow-400/10",
                 borderColor: "border-yellow-400/30",
                 triggersPity: true,
-                sortOrder: 4,
+                sortOrder: 3,
             },
             {
                 value: 4,
@@ -293,7 +293,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 bgColor: "bg-violet-400/10",
                 borderColor: "border-violet-400/30",
                 triggersPity: false,
-                sortOrder: 3,
+                sortOrder: 2,
             },
             {
                 value: 3,
@@ -301,15 +301,6 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 textColor: "text-blue-400",
                 bgColor: "bg-blue-400/10",
                 borderColor: "border-blue-400/30",
-                triggersPity: false,
-                sortOrder: 2,
-            },
-            {
-                value: 2,
-                label: "C",
-                textColor: "text-gray-400",
-                bgColor: "bg-gray-400/10",
-                borderColor: "border-gray-400/30",
                 triggersPity: false,
                 sortOrder: 1,
             },

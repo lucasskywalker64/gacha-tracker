@@ -9,8 +9,29 @@ import { computeGenericPity } from "../pity";
 
 const { pityConfig: zzzPityConfig } = GAME_CONFIGS["zzz"];
 
-function findActivePhase(time: number, bannersList: BannerPhase[]): BannerPhase | undefined {
-    return bannersList.find((b) => time >= b.startTime && (!b.endTime || time <= b.endTime));
+function findActivePhase(
+    time: number,
+    bannersList: BannerPhase[],
+    itemId?: string
+): BannerPhase | undefined {
+    const activePhases = bannersList.filter(
+        (b) => time >= b.startTime && (!b.endTime || time <= b.endTime)
+    );
+    if (activePhases.length === 0) return undefined;
+    if (activePhases.length === 1) return activePhases[0];
+
+    if (itemId) {
+        const matchingPhase = activePhases.find(
+            (b) =>
+                b.featuredCharacters?.includes(itemId) ||
+                b.featuredWeapons?.includes(itemId) ||
+                b.mainCharacterId === itemId ||
+                b.mainWeaponId === itemId
+        );
+        if (matchingPhase) return matchingPhase;
+    }
+
+    return activePhases[0];
 }
 
 export const zzzAdapter: GameAdapter = {
@@ -23,6 +44,13 @@ export const zzzAdapter: GameAdapter = {
         const payload = raw as ImportPayloadInput;
 
         const pulls: NormalizedPull[] = payload.pulls.map((rawPull) => {
+            const rarityMap: Record<number, number> = {
+                2: 3, // B-Rank -> 3★ equivalent
+                3: 4, // A-Rank -> 4★ equivalent
+                4: 5, // S-Rank -> 5★ equivalent
+            };
+            const normalizedRarity = rarityMap[rawPull.rarity] || rawPull.rarity;
+
             return {
                 pullId: rawPull.pullId,
                 gameUid: payload.gameUid,
@@ -31,7 +59,7 @@ export const zzzAdapter: GameAdapter = {
                 itemId: rawPull.itemId,
                 itemName: rawPull.itemName,
                 itemType: rawPull.itemType,
-                rarity: rawPull.rarity,
+                rarity: normalizedRarity,
                 pulledAt: new Date(rawPull.pulledAt),
                 pityAtPull: 0,
                 wasGuaranteed: 0,
@@ -62,7 +90,7 @@ export const zzzAdapter: GameAdapter = {
 
             if (pull.rarity === zzzPityConfig.pityTriggerRarity) {
                 const pullTime = pull.pulledAt.getTime();
-                const activePhase = findActivePhase(pullTime, zzzBanners);
+                const activePhase = findActivePhase(pullTime, zzzBanners, pull.itemId);
 
                 let featuredIds: string[] = [];
                 let mainId = "";
@@ -99,7 +127,7 @@ export const zzzAdapter: GameAdapter = {
         if (currentSequence.length > 0) {
             const lastPull = currentSequence[currentSequence.length - 1];
             const pullTime = lastPull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, zzzBanners);
+            const activePhase = findActivePhase(pullTime, zzzBanners, lastPull.itemId);
 
             let mainId = "";
             if (activePhase) {
@@ -121,7 +149,7 @@ export const zzzAdapter: GameAdapter = {
         // Generic Pity Pass
         return computeGenericPity(attributedPulls, zzzPityConfig, has5050, (pull) => {
             const pullTime = pull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, zzzBanners);
+            const activePhase = findActivePhase(pullTime, zzzBanners, pull.itemId);
 
             if (!activePhase) {
                 return false;
