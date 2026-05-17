@@ -9,8 +9,29 @@ import { computeGenericPity } from "../pity";
 
 const { pityConfig: wuwaPityConfig } = GAME_CONFIGS["wuwa"];
 
-function findActivePhase(time: number, bannersList: BannerPhase[]): BannerPhase | undefined {
-    return bannersList.find((b) => time >= b.startTime && (!b.endTime || time <= b.endTime));
+function findActivePhase(
+    time: number,
+    bannersList: BannerPhase[],
+    itemId?: string
+): BannerPhase | undefined {
+    const activePhases = bannersList.filter(
+        (b) => time >= b.startTime && (!b.endTime || time <= b.endTime)
+    );
+    if (activePhases.length === 0) return undefined;
+    if (activePhases.length === 1) return activePhases[0];
+
+    if (itemId) {
+        const matchingPhase = activePhases.find(
+            (b) =>
+                b.featuredCharacters?.includes(itemId) ||
+                b.featuredWeapons?.includes(itemId) ||
+                b.mainCharacterId === itemId ||
+                b.mainWeaponId === itemId
+        );
+        if (matchingPhase) return matchingPhase;
+    }
+
+    return activePhases[0];
 }
 
 export const wuwaAdapter: GameAdapter = {
@@ -68,7 +89,7 @@ export const wuwaAdapter: GameAdapter = {
 
             if (pull.rarity === wuwaPityConfig.pityTriggerRarity) {
                 const pullTime = pull.pulledAt.getTime();
-                const activePhase = findActivePhase(pullTime, wuwaBanners);
+                const activePhase = findActivePhase(pullTime, wuwaBanners, pull.itemId);
 
                 let featuredIds: string[] = [];
                 let mainId = "";
@@ -105,7 +126,7 @@ export const wuwaAdapter: GameAdapter = {
         if (currentSequence.length > 0) {
             const lastPull = currentSequence[currentSequence.length - 1];
             const pullTime = lastPull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, wuwaBanners);
+            const activePhase = findActivePhase(pullTime, wuwaBanners, lastPull.itemId);
 
             let mainId = "";
             if (activePhase) {
@@ -127,7 +148,7 @@ export const wuwaAdapter: GameAdapter = {
         // Generic Pity Pass
         return computeGenericPity(attributedPulls, wuwaPityConfig, has5050, (pull) => {
             const pullTime = pull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, wuwaBanners);
+            const activePhase = findActivePhase(pullTime, wuwaBanners, pull.itemId);
 
             if (!activePhase) {
                 return false;
