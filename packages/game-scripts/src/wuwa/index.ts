@@ -167,6 +167,13 @@ export async function updateWuwaBanners() {
             return;
         }
 
+        if (!endTimestamp) {
+            console.log(
+                `[DEBUG] Failed to parse endTime: "${data.endTime}" for page: ${page.title}`
+            );
+            return;
+        }
+
         // Group by start time (allowing 2 hour tolerance)
         let phaseKey = "";
         for (const [key] of Array.from(phasesMap.entries())) {
@@ -274,18 +281,27 @@ export async function updateWuwaBanners() {
 
     console.log(`Generated ${sortedPhases.length} WuWa banner phases.`);
 
+    const nextPhases = sortedPhases.filter(
+        (p) => p.featuredCharacters.length > 0 || p.featuredWeapons.length > 0
+    );
+
     let banners: BannersData = { games: { hsr: [], genshin: [], zzz: [], wuwa: [] } };
     if (fs.existsSync(BANNERS_PATH)) {
         try {
             banners = JSON.parse(fs.readFileSync(BANNERS_PATH, "utf-8"));
-        } catch {
-            console.error("Failed to parse banners.json");
+        } catch (error) {
+            throw new Error(`Failed to parse banners.json: ${String(error)}`, { cause: error });
         }
     }
 
-    banners.games.wuwa = sortedPhases.filter(
-        (p) => p.featuredCharacters.length > 0 || p.featuredWeapons.length > 0
-    );
+    const previousCount = banners.games.wuwa?.length || 0;
+    if (nextPhases.length === 0 || (previousCount > 0 && nextPhases.length < previousCount)) {
+        throw new Error(
+            `Validation failed: scraped ${nextPhases.length} WuWa phases, but expected at least ${previousCount}. Aborting write to prevent data loss.`
+        );
+    }
+
+    banners.games.wuwa = nextPhases;
     fs.writeFileSync(BANNERS_PATH, JSON.stringify(banners, null, 4));
     console.log("Successfully updated banners.json for WuWa");
 }

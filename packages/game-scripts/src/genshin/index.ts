@@ -142,7 +142,19 @@ export async function updateGenshinBanners() {
         const startTimestamp = parseDate(data.startTime);
         const endTimestamp = parseDate(data.endTime);
 
-        if (!startTimestamp) return;
+        if (!startTimestamp) {
+            console.log(
+                `[DEBUG] Failed to parse startTime: "${data.startTime}" for page: ${page.title}`
+            );
+            return;
+        }
+
+        if (!endTimestamp) {
+            console.log(
+                `[DEBUG] Failed to parse endTime: "${data.endTime}" for page: ${page.title}`
+            );
+            return;
+        }
 
         // Group by start/end time with 2 hour tolerance (handles wiki inconsistencies)
         let phaseKey = "";
@@ -309,19 +321,27 @@ export async function updateGenshinBanners() {
 
     console.log(`Generated ${sortedPhases.length} distinct banner phases for Genshin.`);
 
-    let existingData: BannersData = { games: { hsr: [], genshin: [], zzz: [], wuwa: [] } };
-    if (fs.existsSync(BANNERS_PATH)) {
-        existingData = JSON.parse(fs.readFileSync(BANNERS_PATH, "utf-8"));
-    }
-
-    if (!existingData.games.genshin) {
-        existingData.games.genshin = [];
-    }
-
-    // Only keep phases that have actual featured items
-    existingData.games.genshin = sortedPhases.filter(
+    const nextPhases = sortedPhases.filter(
         (p) => p.featuredCharacters.length > 0 || p.featuredWeapons.length > 0
     );
+
+    let existingData: BannersData = { games: { hsr: [], genshin: [], zzz: [], wuwa: [] } };
+    if (fs.existsSync(BANNERS_PATH)) {
+        try {
+            existingData = JSON.parse(fs.readFileSync(BANNERS_PATH, "utf-8"));
+        } catch (error) {
+            throw new Error(`Failed to parse banners.json: ${String(error)}`, { cause: error });
+        }
+    }
+
+    const previousCount = existingData.games.genshin?.length || 0;
+    if (nextPhases.length === 0 || (previousCount > 0 && nextPhases.length < previousCount)) {
+        throw new Error(
+            `Validation failed: scraped ${nextPhases.length} Genshin phases, but expected at least ${previousCount}. Aborting write to prevent data loss.`
+        );
+    }
+
+    existingData.games.genshin = nextPhases;
 
     fs.writeFileSync(BANNERS_PATH, JSON.stringify(existingData, null, 4));
     console.log("Successfully updated banners.json for Genshin");

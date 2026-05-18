@@ -64,7 +64,7 @@ export const ZZZ_BANNER_NAMES: Record<number, string> = {
     [ZZZ_BANNERS.BANGBOO]: "Bangboo Channel",
 };
 
-export const ZZZ_RARITY_TIERS = [2, 3, 4, 5] as const;
+export const ZZZ_RARITY_TIERS = [3, 4, 5] as const;
 
 // ---------------------------------------------------------------------------
 // Wuthering Waves

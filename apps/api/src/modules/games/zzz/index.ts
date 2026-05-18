@@ -4,35 +4,10 @@ import type {
     NormalizedPull,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { ZZZ_BANNERS, GAME_CONFIGS, banners, type BannerPhase } from "@gacha-tracker/shared";
-import { computeGenericPity } from "../pity";
+import { ZZZ_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
+import { computeGenericPity, findActivePhase } from "../pity";
 
 const { pityConfig: zzzPityConfig } = GAME_CONFIGS["zzz"];
-
-function findActivePhase(
-    time: number,
-    bannersList: BannerPhase[],
-    itemId?: string
-): BannerPhase | undefined {
-    const activePhases = bannersList.filter(
-        (b) => time >= b.startTime && (!b.endTime || time <= b.endTime)
-    );
-    if (activePhases.length === 0) return undefined;
-    if (activePhases.length === 1) return activePhases[0];
-
-    if (itemId) {
-        const matchingPhase = activePhases.find(
-            (b) =>
-                b.featuredCharacters?.includes(itemId) ||
-                b.featuredWeapons?.includes(itemId) ||
-                b.mainCharacterId === itemId ||
-                b.mainWeaponId === itemId
-        );
-        if (matchingPhase) return matchingPhase;
-    }
-
-    return activePhases[0];
-}
 
 export const zzzAdapter: GameAdapter = {
     gameId: "zzz",
@@ -49,7 +24,8 @@ export const zzzAdapter: GameAdapter = {
                 3: 4, // A-Rank -> 4★ equivalent
                 4: 5, // S-Rank -> 5★ equivalent
             };
-            const normalizedRarity = rarityMap[rawPull.rarity] || rawPull.rarity;
+            const sourceRarity = Number(rawPull.rarity);
+            const normalizedRarity = rarityMap[sourceRarity] ?? sourceRarity;
 
             return {
                 pullId: rawPull.pullId,

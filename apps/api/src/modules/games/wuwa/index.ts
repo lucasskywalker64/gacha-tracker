@@ -4,35 +4,10 @@ import type {
     NormalizedPull,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { WUWA_BANNERS, GAME_CONFIGS, banners, type BannerPhase } from "@gacha-tracker/shared";
-import { computeGenericPity } from "../pity";
+import { WUWA_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
+import { computeGenericPity, findActivePhase } from "../pity";
 
 const { pityConfig: wuwaPityConfig } = GAME_CONFIGS["wuwa"];
-
-function findActivePhase(
-    time: number,
-    bannersList: BannerPhase[],
-    itemId?: string
-): BannerPhase | undefined {
-    const activePhases = bannersList.filter(
-        (b) => time >= b.startTime && (!b.endTime || time <= b.endTime)
-    );
-    if (activePhases.length === 0) return undefined;
-    if (activePhases.length === 1) return activePhases[0];
-
-    if (itemId) {
-        const matchingPhase = activePhases.find(
-            (b) =>
-                b.featuredCharacters?.includes(itemId) ||
-                b.featuredWeapons?.includes(itemId) ||
-                b.mainCharacterId === itemId ||
-                b.mainWeaponId === itemId
-        );
-        if (matchingPhase) return matchingPhase;
-    }
-
-    return activePhases[0];
-}
 
 export const wuwaAdapter: GameAdapter = {
     gameId: "wuwa",
@@ -44,20 +19,21 @@ export const wuwaAdapter: GameAdapter = {
         const payload = raw as ImportPayloadInput;
 
         const pulls: NormalizedPull[] = payload.pulls.map((rawPull) => {
-            const recordId = rawPull.extra?.recordId as string | undefined;
-            const resourceId = rawPull.extra?.resourceId as string | undefined;
-            const qualityLevel = rawPull.extra?.qualityLevel as number | undefined;
-            const cardPoolType = rawPull.extra?.cardPoolType as number | undefined;
+            const recordId = rawPull.extra?.recordId;
+            const resourceId = rawPull.extra?.resourceId;
+            const qualityLevel = rawPull.extra?.qualityLevel;
+            const cardPoolType = rawPull.extra?.cardPoolType;
 
             return {
-                pullId: recordId || rawPull.pullId,
+                pullId:
+                    recordId != null && String(recordId) !== "" ? String(recordId) : rawPull.pullId,
                 gameUid: payload.gameUid,
-                bannerType: cardPoolType ? String(cardPoolType) : rawPull.bannerType,
+                bannerType: cardPoolType != null ? String(cardPoolType) : rawPull.bannerType,
                 bannerId: rawPull.bannerId,
-                itemId: resourceId || rawPull.itemId,
+                itemId: resourceId != null ? String(resourceId) : rawPull.itemId,
                 itemName: rawPull.itemName,
                 itemType: rawPull.itemType,
-                rarity: qualityLevel || rawPull.rarity,
+                rarity: qualityLevel != null ? Number(qualityLevel) : rawPull.rarity,
                 pulledAt: new Date(rawPull.pulledAt),
                 pityAtPull: 0,
                 wasGuaranteed: 0,

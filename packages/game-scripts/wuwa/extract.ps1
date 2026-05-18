@@ -17,9 +17,9 @@ $ApiUrl = $ApiUrl.TrimEnd('/')
 
 # Notify tracker that import is starting
 try {
-    $startResult = Invoke-RestMethod -Uri "$ApiUrl/pulls/import/start" -Method Post `
+    Invoke-RestMethod -Uri "$ApiUrl/pulls/import/start" -Method Post `
         -Headers @{ "Authorization" = "Bearer $ImportToken"; "Content-Type" = "application/json" } `
-        -Body (@{ gameId = "wuwa" } | ConvertTo-Json -Compress)
+        -Body (@{ gameId = "wuwa" } | ConvertTo-Json -Compress) | Out-Null
 } catch {
     Write-Host "Failed to notify tracker: $_"
 }

@@ -24,5 +24,6 @@ export async function runSeed() {
         console.log("✅ Seeding completed");
     } catch (error) {
         console.error("❌ Seeding failed:", error);
+        throw error;
     }
 }

@@ -1,4 +1,32 @@
-import type { NormalizedPull, PityConfig } from "@gacha-tracker/shared";
+import type { NormalizedPull, PityConfig, BannerPhase } from "@gacha-tracker/shared";
+
+/**
+ * Resolves the active banner phase based on pull time and the item obtained.
+ */
+export function findActivePhase(
+    time: number,
+    bannersList: BannerPhase[],
+    itemId?: string
+): BannerPhase | undefined {
+    const activePhases = bannersList.filter(
+        (b) => time >= b.startTime && (!b.endTime || time <= b.endTime)
+    );
+    if (activePhases.length === 0) return undefined;
+    if (activePhases.length === 1) return activePhases[0];
+
+    if (itemId) {
+        const matchingPhase = activePhases.find(
+            (b) =>
+                b.featuredCharacters?.includes(itemId) ||
+                b.featuredWeapons?.includes(itemId) ||
+                b.mainCharacterId === itemId ||
+                b.mainWeaponId === itemId
+        );
+        if (matchingPhase) return matchingPhase;
+    }
+
+    return activePhases[0];
+}
 
 /**
  * Computes the pity counter and guarantee status for a chronological array of pulls.

@@ -66,7 +66,7 @@ $cache_folders = Get-ChildItem "$game_path/webCaches/" -Directory -ErrorAction S
 $max_version = 0
 
 if ($cache_folders) {
-    for ($i = 0; $i -le $cache_folders.Length; $i++) {
+    for ($i = 0; $i -lt $cache_folders.Length; $i++) {
         $cache_folder = $cache_folders[$i].Name
         if ($cache_folder -match '^\d+\.\d+\.\d+\.\d+$') {
             $version = [int]-join($cache_folder.Split("."))

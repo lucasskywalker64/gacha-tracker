@@ -4,8 +4,8 @@ import type {
     NormalizedPull,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { GENSHIN_BANNERS, GAME_CONFIGS, banners, type BannerPhase } from "@gacha-tracker/shared";
-import { computeGenericPity } from "../pity";
+import { GENSHIN_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
+import { computeGenericPity, findActivePhase } from "../pity";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -50,31 +50,6 @@ async function ensureUigfDict() {
 }
 
 const { pityConfig: genshinPityConfig } = GAME_CONFIGS["genshin"];
-
-function findActivePhase(
-    time: number,
-    bannersList: BannerPhase[],
-    itemId?: string
-): BannerPhase | undefined {
-    const activePhases = bannersList.filter(
-        (b) => time >= b.startTime && (!b.endTime || time <= b.endTime)
-    );
-    if (activePhases.length === 0) return undefined;
-    if (activePhases.length === 1) return activePhases[0];
-
-    if (itemId) {
-        const matchingPhase = activePhases.find(
-            (b) =>
-                b.featuredCharacters?.includes(itemId) ||
-                b.featuredWeapons?.includes(itemId) ||
-                b.mainCharacterId === itemId ||
-                b.mainWeaponId === itemId
-        );
-        if (matchingPhase) return matchingPhase;
-    }
-
-    return activePhases[0];
-}
 
 export const genshinAdapter: GameAdapter = {
     gameId: "genshin",

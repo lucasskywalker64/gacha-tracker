@@ -136,7 +136,11 @@ async function fetchCharacterIDs() {
     return { map, reverseMap };
 }
 
-function findItemId(name: string, idMap: Map<string, string>): string | undefined {
+function findItemId(
+    name: string,
+    idMap: Map<string, string>,
+    reverseIdMap?: Map<string, string>
+): string | undefined {
     const n = name.trim().toLowerCase();
     if (idMap.has(n)) return idMap.get(n);
 
@@ -154,6 +158,9 @@ function findItemId(name: string, idMap: Map<string, string>): string | undefine
 
     console.warn(`Assigned placeholder ID ${placeholderId} for missing item: ${name}`);
     idMap.set(n, placeholderId);
+    if (reverseIdMap && !reverseIdMap.has(placeholderId)) {
+        reverseIdMap.set(placeholderId, name.trim());
+    }
     return placeholderId;
 }
 
@@ -202,15 +209,26 @@ async function fetchWikiPageHTML(pageName: string) {
 
 function parseDate(dateStr: string): number | null {
     if (!dateStr) return null;
-    dateStr = dateStr.replace(/\[\[|\]\]/g, "").trim();
-    let timestamp = Date.parse(dateStr);
-    if (isNaN(timestamp)) return null;
 
-    if (!/GMT|UTC|[+-]\d{2}:?\d{2}/i.test(dateStr)) {
-        const iso = new Date(timestamp).toISOString().split(".")[0];
-        timestamp = new Date(`${iso}+08:00`).getTime();
+    dateStr = dateStr.replace(/\[\[|\]\]/g, "").trim();
+    dateStr = dateStr.split("<")[0].trim();
+
+    // Standardize format: 2024-05-22 10:00:00
+    let normalized = dateStr.replace(/(\d{4}-\d{2}-\d{2})\s+(\d):/, "$1 0$2:");
+
+    // Add time if missing (e.g. 2024-05-22)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+        normalized += " 00:00:00";
     }
-    return timestamp;
+
+    // Assume UTC+8 if no offset is present
+    const hasOffset = /GMT|UTC|[+-]\d{2}:?\d{2}/i.test(dateStr);
+    const isoString = hasOffset
+        ? normalized.replace(" ", "T")
+        : `${normalized.replace(" ", "T")}+08:00`;
+
+    const timestamp = new Date(isoString).getTime();
+    return isNaN(timestamp) ? null : timestamp;
 }
 
 function parseSignalSearchTemplate(
@@ -234,12 +252,24 @@ function parseSignalSearchTemplate(
     const startTime = parseDate(startTimeStr || "");
     const endTime = parseDate(endTimeStr || "");
 
-    if (!startTime || !endTime) return null;
+    if (!startTime) {
+        console.log(
+            `[DEBUG] Failed to parse startTime: "${startTimeStr}" for exclusive channel banner: ${name}`
+        );
+        return null;
+    }
+
+    if (!endTime) {
+        console.log(
+            `[DEBUG] Failed to parse endTime: "${endTimeStr}" for exclusive channel banner: ${name}`
+        );
+        return null;
+    }
 
     const featuredCharacters: string[] = [];
     if (agentSF) {
         agentSF.split(";").forEach((n) => {
-            const id = findItemId(n, idMap);
+            const id = findItemId(n, idMap, reverseIdMap);
             if (id) {
                 featuredCharacters.push(id);
             } else {
@@ -314,7 +344,20 @@ export async function updateZzzBanners() {
 
             const start = parseDate(startStr);
             const end = parseDate(endStr);
-            if (!start || !end) return;
+
+            if (!start) {
+                console.log(
+                    `[DEBUG] Failed to parse startTime: "${startStr}" for W-Engine banner: ${name}`
+                );
+                return;
+            }
+
+            if (!end) {
+                console.log(
+                    `[DEBUG] Failed to parse endTime: "${endStr}" for W-Engine banner: ${name}`
+                );
+                return;
+            }
 
             const featuredWeapons: string[] = [];
             $(tds[1])
@@ -322,7 +365,7 @@ export async function updateZzzBanners() {
                 .each((_, a) => {
                     const wName = $(a).attr("title")?.trim();
                     if (wName) {
-                        const id = findItemId(wName, idMap);
+                        const id = findItemId(wName, idMap, reverseIdMap);
                         if (id) featuredWeapons.push(id);
                     }
                 });
@@ -363,7 +406,20 @@ export async function updateZzzBanners() {
 
             const start = parseDate(startStr);
             const end = parseDate(endStr);
-            if (!start || !end) return;
+
+            if (!start) {
+                console.log(
+                    `[DEBUG] Failed to parse startTime: "${startStr}" for Bangboo banner: ${name}`
+                );
+                return;
+            }
+
+            if (!end) {
+                console.log(
+                    `[DEBUG] Failed to parse endTime: "${endStr}" for Bangboo banner: ${name}`
+                );
+                return;
+            }
 
             const featuredBangboos: string[] = [];
             $(tds[1])
@@ -371,7 +427,7 @@ export async function updateZzzBanners() {
                 .each((_, a) => {
                     const bName = $(a).attr("title")?.trim();
                     if (bName) {
-                        const id = findItemId(bName, idMap);
+                        const id = findItemId(bName, idMap, reverseIdMap);
                         if (id) featuredBangboos.push(id);
                     }
                 });
@@ -490,9 +546,16 @@ export async function updateZzzBanners() {
     if (fs.existsSync(BANNERS_PATH)) {
         try {
             banners = JSON.parse(fs.readFileSync(BANNERS_PATH, "utf-8"));
-        } catch {
-            console.error("Failed to parse banners.json");
+        } catch (error) {
+            throw new Error(`Failed to parse banners.json: ${String(error)}`, { cause: error });
         }
+    }
+
+    const previousCount = banners.games.zzz?.length || 0;
+    if (mergedPhases.length === 0 || (previousCount > 0 && mergedPhases.length < previousCount)) {
+        throw new Error(
+            `Validation failed: scraped ${mergedPhases.length} ZZZ phases, but expected at least ${previousCount}. Aborting write to prevent data loss.`
+        );
     }
 
     banners.games.zzz = mergedPhases;
