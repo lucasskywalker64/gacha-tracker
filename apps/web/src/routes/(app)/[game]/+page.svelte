@@ -40,6 +40,23 @@
 		}
 	});
 
+	function checkHas5050(game: string, type: string): boolean {
+		const typeNum = Number(type);
+		if (game === 'zzz') {
+			return typeNum === 2 || typeNum === 3;
+		}
+		if (game === 'genshin') {
+			return typeNum === 301 || typeNum === 302 || typeNum === 400 || typeNum === 500;
+		}
+		if (game === 'starrail') {
+			return typeNum === 11 || typeNum === 12;
+		}
+		if (game === 'wuwa') {
+			return typeNum === 1;
+		}
+		return false;
+	}
+
 	async function loadMore() {
 		if (loading || !hasMore) return;
 		loading = true;
@@ -185,12 +202,16 @@
 							{@const bannerName =
 								BANNER_NAMES[gameId as keyof typeof BANNER_NAMES]?.[Number(type)] || type}
 							{@const lastFiveStar = stats.fiveStarHistory.find((h) => h.bannerType === type)}
+							{@const has5050 = checkHas5050(gameId, type)}
+							{@const isGuaranteed =
+								has5050 && lastFiveStar ? lastFiveStar.itemId !== lastFiveStar.bannerId : false}
 							<PityBar
 								currentPity={stats.currentPity[type] || 0}
 								softPity={gameConfig.pityConfig.softPity[type]}
 								hardPity={hard}
 								bannerLabel={bannerName}
-								isGuaranteed={lastFiveStar ? lastFiveStar.wasGuaranteed === 1 : false}
+								{has5050}
+								{isGuaranteed}
 							/>
 						{/each}
 					{:else}

@@ -8,6 +8,13 @@
             "when": 1776103099246,
             "tag": "0000_init",
             "breakpoints": true
+        },
+        {
+            "idx": 1,
+            "version": "6",
+            "when": 1778618325714,
+            "tag": "0001_drop_game_config",
+            "breakpoints": true
         }
     ]
 }

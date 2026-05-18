@@ -4,21 +4,29 @@ import type {
     NormalizedPull,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { HSR_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
+import { ZZZ_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
 import { computeGenericPity, findActivePhase } from "../pity";
 
-const { pityConfig: hsrPityConfig } = GAME_CONFIGS["starrail"];
+const { pityConfig: zzzPityConfig } = GAME_CONFIGS["zzz"];
 
-export const hsrAdapter: GameAdapter = {
-    gameId: "starrail",
-    displayName: "Honkai: Star Rail",
-    bannerTypes: Object.values(HSR_BANNERS).map(String),
-    pityConfig: hsrPityConfig,
+export const zzzAdapter: GameAdapter = {
+    gameId: "zzz",
+    displayName: "Zenless Zone Zero",
+    bannerTypes: Object.values(ZZZ_BANNERS).map(String),
+    pityConfig: zzzPityConfig,
 
     async normalizeImport(raw: unknown): Promise<NormalizedImportResult> {
         const payload = raw as ImportPayloadInput;
 
         const pulls: NormalizedPull[] = payload.pulls.map((rawPull) => {
+            const rarityMap: Record<number, number> = {
+                2: 3, // B-Rank -> 3★ equivalent
+                3: 4, // A-Rank -> 4★ equivalent
+                4: 5, // S-Rank -> 5★ equivalent
+            };
+            const sourceRarity = Number(rawPull.rarity);
+            const normalizedRarity = rarityMap[sourceRarity] ?? sourceRarity;
+
             return {
                 pullId: rawPull.pullId,
                 gameUid: payload.gameUid,
@@ -27,7 +35,7 @@ export const hsrAdapter: GameAdapter = {
                 itemId: rawPull.itemId,
                 itemName: rawPull.itemName,
                 itemType: rawPull.itemType,
-                rarity: rawPull.rarity,
+                rarity: normalizedRarity,
                 pulledAt: new Date(rawPull.pulledAt),
                 pityAtPull: 0,
                 wasGuaranteed: 0,
@@ -42,12 +50,11 @@ export const hsrAdapter: GameAdapter = {
     },
 
     computePity(pulls: NormalizedPull[], bannerType: string): NormalizedPull[] {
-        const has5050 =
-            bannerType === String(HSR_BANNERS.CHARACTER) ||
-            bannerType === String(HSR_BANNERS.WEAPON);
-        const isCharacterBanner = bannerType === String(HSR_BANNERS.CHARACTER);
-        const isWeaponBanner = bannerType === String(HSR_BANNERS.WEAPON);
-        const hsrBanners = banners.games.hsr || [];
+        const isCharacterBanner = bannerType === String(ZZZ_BANNERS.CHARACTER);
+        const isWeaponBanner = bannerType === String(ZZZ_BANNERS.WEAPON);
+        const has5050 = isCharacterBanner || isWeaponBanner;
+
+        const zzzBanners = banners.games.zzz || [];
 
         // 5-Star Approximation Attribution Pass
         let currentSequence: NormalizedPull[] = [];
@@ -57,9 +64,9 @@ export const hsrAdapter: GameAdapter = {
             const pull = pulls[i];
             currentSequence.push(pull);
 
-            if (pull.rarity === hsrPityConfig.pityTriggerRarity) {
+            if (pull.rarity === zzzPityConfig.pityTriggerRarity) {
                 const pullTime = pull.pulledAt.getTime();
-                const activePhase = findActivePhase(pullTime, hsrBanners, pull.itemId);
+                const activePhase = findActivePhase(pullTime, zzzBanners, pull.itemId);
 
                 let featuredIds: string[] = [];
                 let mainId = "";
@@ -74,7 +81,7 @@ export const hsrAdapter: GameAdapter = {
                     }
                 }
 
-                let sequenceBannerId = mainId || bannerType;
+                let sequenceBannerId = mainId || pull.bannerType;
 
                 if (has5050 && activePhase) {
                     if (featuredIds.includes(pull.itemId)) {
@@ -93,11 +100,10 @@ export const hsrAdapter: GameAdapter = {
             }
         }
 
-        // Handle any remaining pulls in the final incomplete sequence
         if (currentSequence.length > 0) {
             const lastPull = currentSequence[currentSequence.length - 1];
             const pullTime = lastPull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, hsrBanners, lastPull.itemId);
+            const activePhase = findActivePhase(pullTime, zzzBanners, lastPull.itemId);
 
             let mainId = "";
             if (activePhase) {
@@ -108,7 +114,7 @@ export const hsrAdapter: GameAdapter = {
                       : "";
             }
 
-            const sequenceBannerId = mainId || bannerType;
+            const sequenceBannerId = mainId || lastPull.bannerType;
 
             for (const p of currentSequence) {
                 p.bannerId = sequenceBannerId;
@@ -117,9 +123,9 @@ export const hsrAdapter: GameAdapter = {
         }
 
         // Generic Pity Pass
-        return computeGenericPity(attributedPulls, hsrPityConfig, has5050, (pull) => {
+        return computeGenericPity(attributedPulls, zzzPityConfig, has5050, (pull) => {
             const pullTime = pull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, hsrBanners, pull.itemId);
+            const activePhase = findActivePhase(pullTime, zzzBanners, pull.itemId);
 
             if (!activePhase) {
                 return false;

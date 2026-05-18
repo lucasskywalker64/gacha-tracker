@@ -64,7 +64,7 @@ export const ZZZ_BANNER_NAMES: Record<number, string> = {
     [ZZZ_BANNERS.BANGBOO]: "Bangboo Channel",
 };
 
-export const ZZZ_RARITY_TIERS = [2, 3, 4, 5] as const;
+export const ZZZ_RARITY_TIERS = [3, 4, 5] as const;
 
 // ---------------------------------------------------------------------------
 // Wuthering Waves
@@ -210,6 +210,11 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(GENSHIN_BANNERS.CHRONICLED),
             ],
         },
+        wizard: {
+            historyName: "Wish",
+            recordsName: "History",
+            scriptPath: "packages/game-scripts/genshin/extract.ps1",
+        },
         rarityDisplay: [
             {
                 value: 5,
@@ -244,7 +249,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
         gameId: "zzz",
         displayName: "Zenless Zone Zero",
         pityConfig: {
-            rarityTiers: [2, 3, 4, 5],
+            rarityTiers: [3, 4, 5],
             pityTriggerRarity: 5,
             softPity: {
                 [ZZZ_BANNERS.STANDARD]: 74,
@@ -266,6 +271,11 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(ZZZ_BANNERS.BANGBOO),
             ],
         },
+        wizard: {
+            historyName: "Signal Search",
+            recordsName: "Search Records",
+            scriptPath: "packages/game-scripts/zzz/extract.ps1",
+        },
         rarityDisplay: [
             {
                 value: 5,
@@ -274,7 +284,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 bgColor: "bg-yellow-400/10",
                 borderColor: "border-yellow-400/30",
                 triggersPity: true,
-                sortOrder: 4,
+                sortOrder: 3,
             },
             {
                 value: 4,
@@ -283,7 +293,7 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 bgColor: "bg-violet-400/10",
                 borderColor: "border-violet-400/30",
                 triggersPity: false,
-                sortOrder: 3,
+                sortOrder: 2,
             },
             {
                 value: 3,
@@ -291,15 +301,6 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 textColor: "text-blue-400",
                 bgColor: "bg-blue-400/10",
                 borderColor: "border-blue-400/30",
-                triggersPity: false,
-                sortOrder: 2,
-            },
-            {
-                value: 2,
-                label: "C",
-                textColor: "text-gray-400",
-                bgColor: "bg-gray-400/10",
-                borderColor: "border-gray-400/30",
                 triggersPity: false,
                 sortOrder: 1,
             },
@@ -336,6 +337,11 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(WUWA_BANNERS.BEGINNER),
                 String(WUWA_BANNERS.BEGINNER_CHOICE),
             ],
+        },
+        wizard: {
+            historyName: "Convene",
+            recordsName: "Convene Records",
+            scriptPath: "packages/game-scripts/wuwa/extract.ps1",
         },
         rarityDisplay: [
             {
@@ -383,4 +389,7 @@ export const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/lucasskywalker
  */
 export const SCRIPT_VERSIONS = {
     starrail: "7b63e10622905c3f9922960b76124b2ae64725a1",
+    genshin: "",
+    zzz: "",
+    wuwa: "",
 } as const;

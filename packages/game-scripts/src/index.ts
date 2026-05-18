@@ -1,4 +1,7 @@
 import { updateHsrBanners } from "./hsr/index.js";
+import { updateGenshinBanners } from "./genshin/index.js";
+import { updateZzzBanners } from "./zzz/index.js";
+import { updateWuwaBanners } from "./wuwa/index.js";
 
 async function main() {
     const args = process.argv.slice(2);
@@ -9,13 +12,25 @@ async function main() {
         process.exit(1);
     }
 
-    if (game === "hsr") {
-        console.log("Updating Honkai: Star Rail banners...");
-        await updateHsrBanners();
+    const updaters: Record<string, { name: string; update: () => Promise<void> }> = {
+        hsr: { name: "Honkai: Star Rail", update: updateHsrBanners },
+        genshin: { name: "Genshin Impact", update: updateGenshinBanners },
+        zzz: { name: "Zenless Zone Zero", update: updateZzzBanners },
+        wuwa: { name: "Wuthering Waves", update: updateWuwaBanners },
+    };
+
+    const config = updaters[game];
+
+    if (config) {
+        console.log(`Updating ${config.name} banners...`);
+        await config.update();
     } else {
         console.error(`Error: Unknown game: ${game}`);
         process.exit(1);
     }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});

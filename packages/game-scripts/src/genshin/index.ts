@@ -25,30 +25,29 @@ interface WikiPage {
     }[];
 }
 
-async function fetchMapping(type: "characters" | "light_cones") {
-    const url = `https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_min/en/${type}.json`;
+async function fetchUigfDict() {
+    const url = "https://api.uigf.org/dict/genshin/en.json";
     try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const data = (await res.json()) as Record<string, { name: string; id: string }>;
+        const data = (await res.json()) as Record<string, number>;
         const map = new Map<string, string>();
         const reverseMap = new Map<string, string>();
-        for (const key in data) {
-            const item = data[key];
-            if (item.name === "{NICKNAME}") continue;
-            map.set(item.name.toLowerCase(), item.id);
-            reverseMap.set(item.id, item.name);
+        for (const [name, id] of Object.entries(data)) {
+            const strId = id.toString();
+            map.set(name.toLowerCase(), strId);
+            reverseMap.set(strId, name);
         }
         return { map, reverseMap };
     } catch (error) {
-        console.error(`Failed to fetch ${type} mapping:`, error);
+        console.error(`Failed to fetch UIGF mapping for Genshin:`, error);
         return { map: new Map<string, string>(), reverseMap: new Map<string, string>() };
     }
 }
 
 async function fetchWikiPages(category: string) {
     const pages: WikiPage[] = [];
-    let url = `https://honkai-star-rail.fandom.com/api.php?action=query&generator=categorymembers&gcmtitle=${category}&gcmlimit=50&prop=revisions&rvprop=content&rvslots=main&format=json`;
+    let url = `https://genshin-impact.fandom.com/api.php?action=query&generator=categorymembers&gcmtitle=${category}&gcmlimit=50&prop=revisions&rvprop=content&rvslots=main&format=json`;
     let hasMore = true;
 
     try {
@@ -64,7 +63,7 @@ async function fetchWikiPages(category: string) {
             }
 
             if (data.continue && data.continue.gcmcontinue) {
-                url = `https://honkai-star-rail.fandom.com/api.php?action=query&generator=categorymembers&gcmtitle=${category}&gcmlimit=50&prop=revisions&rvprop=content&rvslots=main&format=json&gcmcontinue=${encodeURIComponent(data.continue.gcmcontinue)}`;
+                url = `https://genshin-impact.fandom.com/api.php?action=query&generator=categorymembers&gcmtitle=${category}&gcmlimit=50&prop=revisions&rvprop=content&rvslots=main&format=json&gcmcontinue=${encodeURIComponent(data.continue.gcmcontinue)}`;
             } else {
                 hasMore = false;
             }
@@ -75,25 +74,33 @@ async function fetchWikiPages(category: string) {
     return pages;
 }
 
-function parseWarpTemplate(text: string) {
+function parseWishTemplate(text: string) {
     const extract = (regex: RegExp) => {
         const match = text.match(regex);
         return match ? match[1].trim() : null;
     };
 
     const name = extract(/\|\s*name\s*=\s*([^|\n]+)/i);
+    const type = extract(/\|\s*type\s*=\s*([^|\n]+)/i);
     const startTime = extract(/\|\s*time_start\s*=\s*([^|\n]+)/i);
     const endTime = extract(/\|\s*time_end\s*=\s*([^|\n]+)/i);
-    const char5F = extract(/\|\s*character_5_F\s*=\s*([^|\n]+)/i);
-    const lc5F = extract(/\|\s*lightcone_5_F\s*=\s*([^|\n]+)/i);
-    const previous = extract(/\|\s*previous\s*=\s*([^|\n]+)/i);
 
-    // Extract Version (e.g. [[Version 1.0]] or {{Change History|1.0}})
+    // Wish Pool extractions
+    const char5F = extract(/\|\s*character_5_F\s*=\s*([^|\n]+)/i);
+    const lc5F = extract(/\|\s*weapon_5_F\s*=\s*([^|\n]+)/i);
+    const char5 = extract(/\|\s*character_5\s*=\s*([^|\n]+)/i);
+    const lc5 = extract(/\|\s*weapon_5\s*=\s*([^|\n]+)/i);
+
+    const preceding =
+        extract(/\|\s*preceding\s*=\s*([^|\n]+)/i) || extract(/\|\s*previous\s*=\s*([^|\n]+)/i);
+
+    // Extract Version (e.g. [[Version 1.0]], {{Change History|1.0}}, or placeholders like {{Change History|Luna VII}})
     const versionMatch =
-        text.match(/\[\[Version\s+([\d.]+)/i) || text.match(/\{\{Change History\|([\d.]+)/i);
+        text.match(/\[\[Version\s+["']?([^\]"']+)["']?\]\]/i) ||
+        text.match(/\{\{Change History\|([^}|]+)/i);
     const version = versionMatch ? versionMatch[1] : null;
 
-    return { name, startTime, endTime, char5F, lc5F, version, previous };
+    return { name, type, startTime, endTime, char5F, lc5F, char5, lc5, version, preceding };
 }
 
 function parseDate(dateStr: string): number | null {
@@ -110,25 +117,26 @@ function parseDate(dateStr: string): number | null {
     return isNaN(timestamp) ? null : timestamp;
 }
 
-export async function updateHsrBanners() {
-    console.log("Fetching StarRailRes mappings...");
-    const { map: charMap, reverseMap: charReverseMap } = await fetchMapping("characters");
-    const { map: weaponMap, reverseMap: weaponReverseMap } = await fetchMapping("light_cones");
+export async function updateGenshinBanners() {
+    console.log("Fetching UIGF mappings for Genshin...");
+    const { map: uigfMap, reverseMap: uigfReverseMap } = await fetchUigfDict();
 
-    console.log(`Loaded ${charMap.size} characters and ${weaponMap.size} weapons.`);
+    console.log(`Loaded ${uigfMap.size} items from UIGF dictionary.`);
 
-    console.log("Fetching Character Event Warps from Fandom...");
-    const charPages = await fetchWikiPages("Category:Character_Event_Warps");
-    console.log("Fetching Light Cone Event Warps from Fandom...");
-    const weaponPages = await fetchWikiPages("Category:Light_Cone_Event_Warps");
+    console.log("Fetching Character Event Wishes from Fandom...");
+    const charPages = await fetchWikiPages("Category:Character_Event_Wishes");
+    console.log("Fetching Weapon Event Wishes from Fandom...");
+    const weaponPages = await fetchWikiPages("Category:Weapon_Event_Wishes");
+    console.log("Fetching Chronicled Wishes from Fandom...");
+    const chronicledPages = await fetchWikiPages("Category:Chronicled_Wishes");
 
     const phasesMap = new Map<string, ProcessingPhase>();
 
-    const processPage = (page: WikiPage, isChar: boolean) => {
+    const processPage = (page: WikiPage, isChar: boolean, isChronicled: boolean) => {
         const content = page.revisions?.[0]?.slots?.main?.["*"];
         if (!content) return;
 
-        const data = parseWarpTemplate(content);
+        const data = parseWishTemplate(content);
         if (!data.startTime || !data.endTime) return;
 
         const startTimestamp = parseDate(data.startTime);
@@ -173,26 +181,34 @@ export async function updateHsrBanners() {
                 startTime: startTimestamp,
                 endTime: endTimestamp,
                 version: data.version || "Unknown",
-                hasRerun: !!data.previous, // Internal use
+                hasRerun: !!data.preceding, // Internal use
             });
         }
 
         const phase = phasesMap.get(phaseKey)!;
 
-        if (isChar && data.char5F) {
-            const characterNames = data.char5F
+        let charList = data.char5F;
+        let weaponList = data.lc5F;
+
+        if (isChronicled || (data.type && data.type.toLowerCase().includes("chronicled"))) {
+            charList = data.char5;
+            weaponList = data.lc5;
+        }
+
+        if (isChar && charList) {
+            const characterNames = charList
                 .split(/[,;]/)
                 .map((name: string) => name.trim().toLowerCase());
 
-            const isNewCharacterBanner = !data.previous;
+            const isNewCharacterBanner = !data.preceding;
 
             for (const characterName of characterNames) {
-                const characterId = charMap.get(characterName);
+                const characterId = uigfMap.get(characterName);
                 if (characterId && !phase.featuredCharacters.includes(characterId)) {
                     phase.featuredCharacters.push(characterId);
 
                     // Priority Logic:
-                    // 1. New characters (no 'previous' field) always beat reruns.
+                    // 1. New characters (no 'preceding' field) always beat reruns.
                     // 2. If both are new or both are reruns, the one with the higher ID wins (latest character).
                     const currentMainIsRerun = phase.hasRerun;
                     const isHigherId =
@@ -213,24 +229,23 @@ export async function updateHsrBanners() {
                     }
                 }
             }
-        } else if (!isChar && data.lc5F) {
-            const weaponNames = data.lc5F
+        } else if (!isChar && weaponList) {
+            const weaponNames = weaponList
                 .split(/[,;]/)
                 .map((name: string) => name.trim().toLowerCase());
 
-            const isNewWeaponBanner = !data.previous;
+            const isNewWeaponBanner = !data.preceding;
 
             for (const weaponName of weaponNames) {
-                const weaponId = weaponMap.get(weaponName);
+                const weaponId = uigfMap.get(weaponName);
                 if (weaponId && !phase.featuredWeapons.includes(weaponId)) {
                     phase.featuredWeapons.push(weaponId);
 
                     const isHigherId =
                         !phase.mainWeaponId || parseInt(weaponId) > parseInt(phase.mainWeaponId);
 
-                    // Weapons follow the same priority logic (Internal flag not needed as they usually match characters)
+                    // Weapons follow the same priority logic
                     if (isNewWeaponBanner || isHigherId) {
-                        // We don't track hasRerun separately for Weapons, but we prioritize new ones
                         if (!phase.mainWeaponId || isHigherId) {
                             phase.mainWeaponId = weaponId;
                         }
@@ -241,8 +256,13 @@ export async function updateHsrBanners() {
     };
 
     console.log("Parsing pages...");
-    charPages.forEach((page: WikiPage) => processPage(page, true));
-    weaponPages.forEach((page: WikiPage) => processPage(page, false));
+    charPages.forEach((page: WikiPage) => processPage(page, true, false));
+    weaponPages.forEach((page: WikiPage) => processPage(page, false, false));
+    chronicledPages.forEach((page: WikiPage) => {
+        // Chronicled wish contains both characters and weapons in the same pool, so we process it as both
+        processPage(page, true, true);
+        processPage(page, false, true);
+    });
 
     const sortedPhases = Array.from(phasesMap.values()).sort(
         (phaseA: ProcessingPhase, phaseB: ProcessingPhase) => phaseA.startTime - phaseB.startTime
@@ -281,10 +301,10 @@ export async function updateHsrBanners() {
             }
 
             const charNames = phase.featuredCharacters.map(
-                (characterId: string) => charReverseMap.get(characterId) || characterId
+                (characterId: string) => uigfReverseMap.get(characterId) || characterId
             );
             const weaponNames = phase.featuredWeapons.map(
-                (weaponId: string) => weaponReverseMap.get(weaponId) || weaponId
+                (weaponId: string) => uigfReverseMap.get(weaponId) || weaponId
             );
 
             if (charNames.length > 0) {
@@ -299,7 +319,7 @@ export async function updateHsrBanners() {
         });
     }
 
-    console.log(`Generated ${sortedPhases.length} distinct banner phases.`);
+    console.log(`Generated ${sortedPhases.length} distinct banner phases for Genshin.`);
 
     const nextPhases = sortedPhases.filter(
         (p) => p.featuredCharacters.length > 0 || p.featuredWeapons.length > 0
@@ -314,15 +334,15 @@ export async function updateHsrBanners() {
         }
     }
 
-    const previousCount = existingData.games.hsr?.length || 0;
+    const previousCount = existingData.games.genshin?.length || 0;
     if (nextPhases.length === 0 || (previousCount > 0 && nextPhases.length < previousCount)) {
         throw new Error(
-            `Validation failed: scraped ${nextPhases.length} HSR phases, but expected at least ${previousCount}. Aborting write to prevent data loss.`
+            `Validation failed: scraped ${nextPhases.length} Genshin phases, but expected at least ${previousCount}. Aborting write to prevent data loss.`
         );
     }
 
-    existingData.games.hsr = nextPhases;
+    existingData.games.genshin = nextPhases;
 
     fs.writeFileSync(BANNERS_PATH, JSON.stringify(existingData, null, 4));
-    console.log("Successfully updated banners.json for HSR");
+    console.log("Successfully updated banners.json for Genshin");
 }

@@ -180,21 +180,22 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     return;
                 }
 
-                // Group by banner type to compute pity
-                const pullsByBanner = new Map<string, NormalizedPull[]>();
+                // Group by pity pool to compute pity
+                const pullsByPool = new Map<string, NormalizedPull[]>();
                 for (const pull of Array.from(combinedPullsMap.values())) {
-                    const arr = pullsByBanner.get(pull.bannerType) || [];
+                    const poolKey = adapter.pityPools?.[pull.bannerType] || pull.bannerType;
+                    const arr = pullsByPool.get(poolKey) || [];
                     arr.push(pull as NormalizedPull);
-                    pullsByBanner.set(pull.bannerType, arr);
+                    pullsByPool.set(poolKey, arr);
                 }
 
                 // Calculate Pity and collect them to insert/update
                 const pullsToUpsert = [];
                 const latestIds: Record<string, string> = {};
 
-                for (const [bannerType, pullsInBanner] of Array.from(pullsByBanner.entries())) {
+                for (const [poolKey, pullsInPool] of Array.from(pullsByPool.entries())) {
                     // Sort explicitly by pulledAt then pullId to break ties predictably
-                    pullsInBanner.sort((a: NormalizedPull, b: NormalizedPull) => {
+                    pullsInPool.sort((a: NormalizedPull, b: NormalizedPull) => {
                         if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
                             return a.pullId.localeCompare(b.pullId);
                         }
@@ -202,7 +203,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     });
 
                     // Run the game adapter's pity calculation
-                    const processedPulls = adapter.computePity(pullsInBanner, bannerType);
+                    const processedPulls = adapter.computePity(pullsInPool, poolKey);
 
                     for (const p of processedPulls) {
                         pullsToUpsert.push({
@@ -223,10 +224,8 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                             extra: p.extra ? JSON.stringify(p.extra) : null,
                             pityVersion: 1, // hardcoded for phase 1
                         });
-                    }
 
-                    if (processedPulls.length > 0) {
-                        latestIds[bannerType] = processedPulls[processedPulls.length - 1].pullId;
+                        latestIds[p.bannerType] = p.pullId;
                     }
                 }
 
@@ -243,6 +242,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                                 pityAtPull: sql`excluded.pity_at_pull`,
                                 wasGuaranteed: sql`excluded.was_guaranteed`,
                                 pityVersion: sql`excluded.pity_version`,
+                                bannerId: sql`excluded.banner_id`,
                             },
                         });
                 }

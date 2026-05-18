@@ -19,36 +19,38 @@ $ApiUrl = $ApiUrl.TrimEnd('/')
 try {
     Invoke-RestMethod -Uri "$ApiUrl/pulls/import/start" -Method Post `
         -Headers @{ "Authorization" = "Bearer $ImportToken"; "Content-Type" = "application/json" } `
-        -Body (@{ gameId = "starrail" } | ConvertTo-Json -Compress) | Out-Null
+        -Body (@{ gameId = "zzz" } | ConvertTo-Json -Compress) | Out-Null
 } catch {
     Write-Host "Failed to notify tracker: $_"
-    # Non-fatal: wizard just won't auto-advance, user can click Next manually
 }
 
 $ProgressPreference = 'SilentlyContinue'
 $game_path = ""
 
-Write-Host "Attempting to locate Warp cache..."
+Write-Host "Attempting to locate Signal Search cache..."
 
 $app_data = [Environment]::GetFolderPath('ApplicationData')
-$locallow_path = "$app_data\..\LocalLow\Cognosphere\Star Rail\"
-$log_path = "$locallow_path\Player.log"
+$locallow_path = [IO.Path]::GetFullPath("$app_data\..\LocalLow\miHoYo\ZenlessZoneZero")
+$log_path = Join-Path $locallow_path "Player.log"
 
 if ([IO.File]::Exists($log_path)) {
     $log_lines = Get-Content $log_path -First 15 2>$null
     if ([string]::IsNullOrEmpty($log_lines)) {
-        $log_path = "$locallow_path\Player-prev.log"
+        $log_path = Join-Path $locallow_path "Player-prev.log"
         if ([IO.File]::Exists($log_path)) {
             $log_lines = Get-Content $log_path -First 15 2>$null
         }
     }
 
-    if (-not [string]::IsNullOrEmpty($log_lines)) {
-        $log_lines = $log_lines.split([Environment]::NewLine)
-        for ($i = 0; $i -lt $log_lines.Length; $i++) {
-            $log_line = $log_lines[$i]
+    if ($log_lines) {
+        $lines = if ($log_lines -is [array]) { $log_lines } else { $log_lines.split([Environment]::NewLine) }
+        foreach ($log_line in $lines) {
             if ($log_line.startsWith("Loading player data from ")) {
-                $game_path = $log_line.replace("Loading player data from ", "").replace("data.unity3d", "")
+                $game_path = $log_line.replace("Loading player data from ", "").replace("data.unity3d", "").Trim()
+                break
+            }
+            if ($log_line -match "at path (.*_Data)") {
+                $game_path = $matches[1].Trim()
                 break
             }
         }
@@ -79,7 +81,7 @@ if ($cache_folders) {
 }
 
 if (-Not [IO.File]::Exists($cache_path)) {
-    Write-Host "Error: Could not find web cache file at $cache_path. Open the game and view your warp history first." -ForegroundColor Red
+    Write-Host "Error: Could not find web cache file at $cache_path. Open the game and view your signal search history first." -ForegroundColor Red
     return
 }
 
@@ -99,7 +101,6 @@ for ($i = $cache_data_split.Length - 1; $i -ge 0; $i--) {
     if ($line.StartsWith('http') -and ($line.Contains("getGachaLog") -or $line.Contains("getLdGachaLog"))) {
         $url = ($line -split "\0")[0]
         
-        Write-Host "Testing URL candidate..."
         try {
             $res = Invoke-RestMethod -Uri $url -ContentType "application/json" -UseBasicParsing
             if ($res.retcode -eq 0) {
@@ -113,7 +114,7 @@ for ($i = $cache_data_split.Length - 1; $i -ge 0; $i--) {
 }
 
 if (-not $valid_url) {
-    Write-Host "Could not locate valid Warp History Url. Make sure to open the Warp history in game, then run the script again." -ForegroundColor Red
+    Write-Host "Could not locate valid Signal Search History Url. Make sure to open the Signal Search history in game, then run the script again." -ForegroundColor Red
     return
 }
 
@@ -122,13 +123,17 @@ $query = [Web.HttpUtility]::ParseQueryString($uri.Query)
 $authkey = $query.Get("authkey")
 $authkey_ver = $query.Get("authkey_ver")
 $sign_type = $query.Get("sign_type")
+$game_biz = $query.Get("game_biz")
+$region = $query.Get("region")
 
 Write-Host "Successfully extracted authkey!" -ForegroundColor Green
 
 $baseUrl = $uri.Scheme + "://" + $uri.Host + $uri.AbsolutePath
-$commonQuery = "?authkey=$([uri]::EscapeDataString($authkey))&authkey_ver=$authkey_ver&sign_type=$sign_type&lang=en-us&size=20&game_biz=hkrpg_global"
+$commonQuery = "?authkey=$([uri]::EscapeDataString($authkey))&authkey_ver=$authkey_ver&sign_type=$sign_type&lang=en-us&size=20"
+if ($game_biz) { $commonQuery += "&game_biz=$game_biz" } else { $commonQuery += "&game_biz=nap_global" }
+if ($region) { $commonQuery += "&region=$region" }
 
-$bannerTypes = @("1", "2", "11", "12") # Standard, Beginner, Character, Weapon
+$bannerTypes = @("1001", "2001", "3001", "5001")
 $allPulls = @()
 $gameUid = $null
 $cursorObj = $null
@@ -152,7 +157,8 @@ foreach ($gachaType in $bannerTypes) {
     }
 
     while ($hasNext) {
-        $url = "$baseUrl$commonQuery&gacha_type=$gachaType&end_id=$endId"
+        $realType = $gachaType.Substring(0, 1)
+        $url = "$baseUrl$commonQuery&gacha_type=$gachaType&real_gacha_type=$realType&end_id=$endId"
         
         try {
             $response = Invoke-RestMethod -Uri $url -Method Get
@@ -162,6 +168,10 @@ foreach ($gachaType in $bannerTypes) {
             }
 
             $list = $response.data.list
+            if (-not $list -or $list.Count -eq 0) {
+                $list = $response.data.list_v2
+            }
+
             if (-not $list -or $list.Count -eq 0) {
                 $hasNext = $false
                 break
@@ -212,7 +222,7 @@ foreach ($item in $allPulls) {
 }
 
 $payload = @{
-    gameId  = "starrail"
+    gameId  = "zzz"
     gameUid = $finalUid
     pulls   = $allPulls
 }

@@ -4,30 +4,36 @@ import type {
     NormalizedPull,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { HSR_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
+import { WUWA_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
 import { computeGenericPity, findActivePhase } from "../pity";
 
-const { pityConfig: hsrPityConfig } = GAME_CONFIGS["starrail"];
+const { pityConfig: wuwaPityConfig } = GAME_CONFIGS["wuwa"];
 
-export const hsrAdapter: GameAdapter = {
-    gameId: "starrail",
-    displayName: "Honkai: Star Rail",
-    bannerTypes: Object.values(HSR_BANNERS).map(String),
-    pityConfig: hsrPityConfig,
+export const wuwaAdapter: GameAdapter = {
+    gameId: "wuwa",
+    displayName: "Wuthering Waves",
+    bannerTypes: Object.values(WUWA_BANNERS).map(String),
+    pityConfig: wuwaPityConfig,
 
     async normalizeImport(raw: unknown): Promise<NormalizedImportResult> {
         const payload = raw as ImportPayloadInput;
 
         const pulls: NormalizedPull[] = payload.pulls.map((rawPull) => {
+            const recordId = rawPull.extra?.recordId;
+            const resourceId = rawPull.extra?.resourceId;
+            const qualityLevel = rawPull.extra?.qualityLevel;
+            const cardPoolType = rawPull.extra?.cardPoolType;
+
             return {
-                pullId: rawPull.pullId,
+                pullId:
+                    recordId != null && String(recordId) !== "" ? String(recordId) : rawPull.pullId,
                 gameUid: payload.gameUid,
-                bannerType: rawPull.bannerType,
+                bannerType: cardPoolType != null ? String(cardPoolType) : rawPull.bannerType,
                 bannerId: rawPull.bannerId,
-                itemId: rawPull.itemId,
+                itemId: resourceId != null ? String(resourceId) : rawPull.itemId,
                 itemName: rawPull.itemName,
                 itemType: rawPull.itemType,
-                rarity: rawPull.rarity,
+                rarity: qualityLevel != null ? Number(qualityLevel) : rawPull.rarity,
                 pulledAt: new Date(rawPull.pulledAt),
                 pityAtPull: 0,
                 wasGuaranteed: 0,
@@ -41,13 +47,13 @@ export const hsrAdapter: GameAdapter = {
         };
     },
 
-    computePity(pulls: NormalizedPull[], bannerType: string): NormalizedPull[] {
+    computePity(pulls: NormalizedPull[], poolKey: string): NormalizedPull[] {
         const has5050 =
-            bannerType === String(HSR_BANNERS.CHARACTER) ||
-            bannerType === String(HSR_BANNERS.WEAPON);
-        const isCharacterBanner = bannerType === String(HSR_BANNERS.CHARACTER);
-        const isWeaponBanner = bannerType === String(HSR_BANNERS.WEAPON);
-        const hsrBanners = banners.games.hsr || [];
+            poolKey === String(WUWA_BANNERS.CHARACTER) || poolKey === String(WUWA_BANNERS.WEAPON);
+        const isCharacterBanner = poolKey === String(WUWA_BANNERS.CHARACTER);
+        const isWeaponBanner = poolKey === String(WUWA_BANNERS.WEAPON);
+
+        const wuwaBanners = banners.games.wuwa || [];
 
         // 5-Star Approximation Attribution Pass
         let currentSequence: NormalizedPull[] = [];
@@ -57,9 +63,9 @@ export const hsrAdapter: GameAdapter = {
             const pull = pulls[i];
             currentSequence.push(pull);
 
-            if (pull.rarity === hsrPityConfig.pityTriggerRarity) {
+            if (pull.rarity === wuwaPityConfig.pityTriggerRarity) {
                 const pullTime = pull.pulledAt.getTime();
-                const activePhase = findActivePhase(pullTime, hsrBanners, pull.itemId);
+                const activePhase = findActivePhase(pullTime, wuwaBanners, pull.itemId);
 
                 let featuredIds: string[] = [];
                 let mainId = "";
@@ -74,7 +80,7 @@ export const hsrAdapter: GameAdapter = {
                     }
                 }
 
-                let sequenceBannerId = mainId || bannerType;
+                let sequenceBannerId = mainId || pull.bannerType;
 
                 if (has5050 && activePhase) {
                     if (featuredIds.includes(pull.itemId)) {
@@ -93,11 +99,10 @@ export const hsrAdapter: GameAdapter = {
             }
         }
 
-        // Handle any remaining pulls in the final incomplete sequence
         if (currentSequence.length > 0) {
             const lastPull = currentSequence[currentSequence.length - 1];
             const pullTime = lastPull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, hsrBanners, lastPull.itemId);
+            const activePhase = findActivePhase(pullTime, wuwaBanners, lastPull.itemId);
 
             let mainId = "";
             if (activePhase) {
@@ -108,7 +113,7 @@ export const hsrAdapter: GameAdapter = {
                       : "";
             }
 
-            const sequenceBannerId = mainId || bannerType;
+            const sequenceBannerId = mainId || lastPull.bannerType;
 
             for (const p of currentSequence) {
                 p.bannerId = sequenceBannerId;
@@ -117,9 +122,9 @@ export const hsrAdapter: GameAdapter = {
         }
 
         // Generic Pity Pass
-        return computeGenericPity(attributedPulls, hsrPityConfig, has5050, (pull) => {
+        return computeGenericPity(attributedPulls, wuwaPityConfig, has5050, (pull) => {
             const pullTime = pull.pulledAt.getTime();
-            const activePhase = findActivePhase(pullTime, hsrBanners, pull.itemId);
+            const activePhase = findActivePhase(pullTime, wuwaBanners, pull.itemId);
 
             if (!activePhase) {
                 return false;

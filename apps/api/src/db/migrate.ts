@@ -1,5 +1,6 @@
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { db } from "./client";
+import { runSeed } from "./seed";
 import path from "node:path";
 
 /**
@@ -19,6 +20,8 @@ export async function runMigrations() {
         });
 
         console.log("✅ Migrations completed");
+
+        await runSeed();
     } catch (error) {
         console.error("❌ Migrations failed:", error);
         process.exit(1);
