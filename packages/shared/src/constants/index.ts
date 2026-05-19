@@ -388,8 +388,8 @@ export const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/lucasskywalker
  * Users can verify: github.com/<org>/<repo>/commit/<sha>
  */
 export const SCRIPT_VERSIONS = {
-    starrail: "7b63e10622905c3f9922960b76124b2ae64725a1",
-    genshin: "",
-    zzz: "",
-    wuwa: "",
+    starrail: "98e2576cbe4895b3cbdb48ed45c90888e704a7af",
+    genshin: "16551f872fc78ad55418f0c035df610393018aab",
+    zzz: "98e2576cbe4895b3cbdb48ed45c90888e704a7af",
+    wuwa: "16551f872fc78ad55418f0c035df610393018aab",
 } as const;
