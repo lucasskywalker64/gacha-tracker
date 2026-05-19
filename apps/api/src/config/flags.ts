@@ -16,7 +16,14 @@ const REDIS_FLAGS_KEY = "flags";
  * Defaults here act as the fallback if the DB row is missing — useful during
  * development before the seed migration has run.
  */
-const flagSchema = z.object({});
+const flagSchema = z.object({
+    starrail: z.boolean().default(true),
+    genshin: z.boolean().default(true),
+    zzz: z.boolean().default(true),
+    wuwa: z.boolean().default(true),
+    anonymousAccounts: z.boolean().default(true),
+    experimentalLuckScore: z.boolean().default(false),
+});
 
 export type Flags = z.infer<typeof flagSchema>;
 
@@ -29,10 +36,14 @@ export type Flags = z.infer<typeof flagSchema>;
  * On a cache miss, reads from Turso and warms the cache.
  */
 export async function getFlags(): Promise<Flags> {
-    const cached = await redis.get(REDIS_FLAGS_KEY);
-    if (cached) {
-        const parsed = flagSchema.safeParse(JSON.parse(cached));
-        if (parsed.success) return parsed.data;
+    try {
+        const cached = await redis.get(REDIS_FLAGS_KEY);
+        if (cached) {
+            const parsed = flagSchema.safeParse(JSON.parse(cached));
+            if (parsed.success) return parsed.data;
+        }
+    } catch (error) {
+        console.warn("Failed to parse cached feature flags:", error);
     }
 
     const rows = await db.select().from(featureFlag);
