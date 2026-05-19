@@ -109,11 +109,21 @@ function parseDate(dateStr: string): number | null {
     dateStr = dateStr.replace(/\[\[|\]\]/g, "").trim();
     dateStr = dateStr.split("<")[0].trim();
 
-    const normalized = dateStr.replace(/(\d{4}-\d{2}-\d{2})\s+(\d):/, "$1 0$2:");
+    // Standardize format: 2024-05-22 10:00:00
+    let normalized = dateStr.replace(/(\d{4}-\d{2}-\d{2})\s+(\d):/, "$1 0$2:");
 
-    const isoString = `${normalized.replace(" ", "T")}+08:00`;
+    // Add time if missing (e.g. 2024-05-22)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+        normalized += " 00:00:00";
+    }
+
+    // Assume UTC+8 if no offset is present
+    const hasOffset = /GMT|UTC|[+-]\d{2}:?\d{2}/i.test(dateStr);
+    const isoString = hasOffset
+        ? normalized.replace(" ", "T")
+        : `${normalized.replace(" ", "T")}+08:00`;
+
     const timestamp = new Date(isoString).getTime();
-
     return isNaN(timestamp) ? null : timestamp;
 }
 

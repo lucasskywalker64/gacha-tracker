@@ -199,9 +199,11 @@ foreach ($gachaType in $bannerTypes) {
                 }
             }
 
-            $endId = $list[-1].id
-            $page++
-            Start-Sleep -Milliseconds 300 # Be gentle on Hoyo servers
+            if ($hasNext) {
+                $endId = $list[-1].id
+                $page++
+                Start-Sleep -Milliseconds 300 # Be gentle on Hoyo servers
+            }
         } catch {
             Write-Host "Failed to fetch pulls: $_" -ForegroundColor Red
             break
