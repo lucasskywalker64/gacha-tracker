@@ -74,7 +74,7 @@ export const hsrAdapter: GameAdapter = {
                     }
                 }
 
-                let sequenceBannerId = mainId || bannerType;
+                let sequenceBannerId = mainId || pull.bannerType;
 
                 if (has5050 && activePhase) {
                     if (featuredIds.includes(pull.itemId)) {
@@ -108,7 +108,7 @@ export const hsrAdapter: GameAdapter = {
                       : "";
             }
 
-            const sequenceBannerId = mainId || bannerType;
+            const sequenceBannerId = mainId || lastPull.bannerType;
 
             for (const p of currentSequence) {
                 p.bannerId = sequenceBannerId;
