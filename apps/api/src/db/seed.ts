@@ -1,10 +1,11 @@
 import { db } from "./client";
 import { game } from "./schema/game";
+import { featureFlag } from "./schema/feature-flag";
 
 /**
- * Seeds the database with the supported games.
+ * Seeds the database with the supported games and default feature flags.
  *
- * This is idempotent and will not overwrite existing games.
+ * This is idempotent and will not overwrite existing entries.
  */
 export async function runSeed() {
     console.log("⏳ Seeding database...");
@@ -16,9 +17,25 @@ export async function runSeed() {
         { id: "wuwa", displayName: "Wuthering Waves", isActive: 1 },
     ];
 
+    const defaultFlags = [
+        { key: "starrail", enabled: 1 },
+        { key: "genshin", enabled: 1 },
+        { key: "zzz", enabled: 1 },
+        { key: "wuwa", enabled: 1 },
+        { key: "anonymousAccounts", enabled: 1 },
+        { key: "experimentalLuckScore", enabled: 0 },
+    ];
+
     try {
         for (const g of supportedGames) {
             await db.insert(game).values(g).onConflictDoNothing({ target: game.id });
+        }
+
+        for (const flag of defaultFlags) {
+            await db
+                .insert(featureFlag)
+                .values(flag)
+                .onConflictDoNothing({ target: featureFlag.key });
         }
 
         console.log("✅ Seeding completed");
