@@ -115,5 +115,21 @@ describe("Security Middleware", () => {
             );
             expect(resDisallowed.headers.get("Access-Control-Allow-Origin")).toBeNull();
         });
+
+        it("falls back to localhost when FRONTEND_URL is invalid in non-production mode", async () => {
+            const app = buildCorsApp(false, "not-a-valid-url");
+
+            const res = await app.handle(
+                new Request("http://localhost/test", {
+                    method: "OPTIONS",
+                    headers: {
+                        Origin: "http://localhost:5173",
+                        "Access-Control-Request-Method": "GET",
+                    },
+                })
+            );
+
+            expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
+        });
     });
 });
