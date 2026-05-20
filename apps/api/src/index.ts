@@ -10,12 +10,23 @@ import { redis } from "./lib/redis";
 import { cors } from "@elysiajs/cors";
 import { runMigrations } from "./db/migrate";
 import { config } from "./config";
+import { securityHeaders } from "./middleware/securityHeaders";
+
+const allowedOrigins = ["https://gacha-tracker.app", "https://dev.gacha-tracker.app"];
+if (!config.isProduction) {
+    try {
+        allowedOrigins.push(new URL(config.FRONTEND_URL).origin);
+    } catch {
+        allowedOrigins.push("http://localhost:5173");
+    }
+}
 
 const app = new Elysia()
+    .use(securityHeaders)
     .use(
         cors({
-            origin: true, // During development, true dynamically allows the requester origin
-            credentials: true, // Essential for Better Auth to set session cookies securely via cross-origin fetch
+            origin: allowedOrigins,
+            credentials: true,
         })
     )
     /**

@@ -53,6 +53,20 @@ describe("Shared Schemas", () => {
             });
             expect(result.success).toBe(false);
         });
+
+        it("rejects unknown fields due to strict mode", () => {
+            const result = rawPullSchema.safeParse({
+                pullId: "123456",
+                bannerType: "11",
+                itemId: "1001",
+                itemName: "Seele",
+                itemType: "Character",
+                rarity: 5,
+                pulledAt: "2023-05-01 12:00:00",
+                maliciousField: "hack",
+            });
+            expect(result.success).toBe(false);
+        });
     });
 
     describe("importPayloadSchema", () => {
@@ -73,6 +87,26 @@ describe("Shared Schemas", () => {
                 ],
             });
             expect(result.success).toBe(true);
+        });
+
+        it("rejects unknown fields in the payload", () => {
+            const result = importPayloadSchema.safeParse({
+                gameId: "zzz",
+                gameUid: "100001",
+                pulls: [
+                    {
+                        pullId: "1",
+                        bannerType: "1",
+                        itemId: "1",
+                        itemName: "Ellen",
+                        itemType: "Agent",
+                        rarity: 5,
+                        pulledAt: "2024-07-04",
+                    },
+                ],
+                extraUnexpectedField: "not allowed",
+            });
+            expect(result.success).toBe(false);
         });
     });
 });
