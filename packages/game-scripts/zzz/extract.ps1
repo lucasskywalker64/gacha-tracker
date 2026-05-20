@@ -188,7 +188,6 @@ foreach ($gachaType in $bannerTypes) {
                 if (-not $gameUid -and $uid) { $gameUid = $uid }
                 
                 $allPulls += @{
-                    uid        = $item.uid
                     pullId     = $item.id
                     bannerType = $item.gacha_type
                     itemId     = $item.item_id

@@ -16,23 +16,27 @@ export const paginationSchema = z.object({
 // Import Payload definitions
 // ---------------------------------------------------------------------------
 
-export const rawPullSchema = z.object({
-    pullId: z.string().min(1),
-    bannerType: z.string().min(1),
-    bannerId: z.string().optional(),
-    itemId: z.string(),
-    itemName: z.string().min(1),
-    itemType: z.string().min(1),
-    rarity: z.number().int().positive(),
-    pulledAt: z.string(),
-    extra: z.record(z.string(), z.unknown()).optional(),
-});
+export const rawPullSchema = z
+    .object({
+        pullId: z.string().min(1),
+        bannerType: z.string().min(1),
+        bannerId: z.string().optional(),
+        itemId: z.string(),
+        itemName: z.string().min(1),
+        itemType: z.string().min(1),
+        rarity: z.number().int().positive(),
+        pulledAt: z.string(),
+        extra: z.record(z.string(), z.unknown()).optional(),
+    })
+    .strict();
 
-export const importPayloadSchema = z.object({
-    gameId: z.enum(Object.keys(BANNER_NAMES) as [string, ...string[]]),
-    gameUid: z.string().min(1),
-    pulls: z.array(rawPullSchema),
-});
+export const importPayloadSchema = z
+    .object({
+        gameId: z.enum(Object.keys(BANNER_NAMES) as [string, ...string[]]),
+        gameUid: z.string().min(1),
+        pulls: z.array(rawPullSchema),
+    })
+    .strict();
 
 export type RawPullInput = z.infer<typeof rawPullSchema>;
 export type ImportPayloadInput = z.infer<typeof importPayloadSchema>;
