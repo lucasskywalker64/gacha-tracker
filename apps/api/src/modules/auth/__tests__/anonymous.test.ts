@@ -15,6 +15,14 @@ const redisMock = {
         if (value) redisStore.delete(key);
         return value;
     }),
+    incr: mock(async (key: string) => {
+        const current = redisStore.get(key);
+        const count = current ? parseInt(current, 10) + 1 : 1;
+        redisStore.set(key, count.toString());
+        return count;
+    }),
+    expire: mock(async () => 1),
+    ttl: mock(async () => 60),
 };
 
 mock.module("../../../lib/redis", () => ({ redis: redisMock }));
@@ -59,6 +67,17 @@ mock.module("../../../config", () => ({
 }));
 
 mock.module("../auth", () => ({
+    getUserAuthMethodsCount: mock(async () => ({
+        primaryEmail: "anon@example.com",
+        secondaryEmails: [],
+        socialAccounts: [],
+        hasAnonymousCode: true,
+        totalActiveCount: 2,
+    })),
+    signJWT: () => "test_signed_token",
+    verifyJWT: () => ({ userId: "user_abc" }),
+    generateSessionToken: () => "test_session_token",
+    signSessionToken: async () => "test_signed_token",
     auth: {
         api: {
             signUpEmail: mock(async (opts: { body: { email: string } }) => {
@@ -189,5 +208,37 @@ describe("anonymousAuthPlugin — /confirm", () => {
         const body = await res.json();
         expect(body.success).toBe(true);
         expect(typeof body.userId).toBe("string");
+    });
+});
+
+describe("anonymousAuthPlugin — Rate Limiting", () => {
+    beforeEach(() => {
+        redisStore.clear();
+        redisMock.get.mockReset();
+        redisMock.incr.mockReset();
+        redisMock.get.mockImplementation(async (key: string) => redisStore.get(key) ?? null);
+        redisMock.incr.mockImplementation(async (key: string) => {
+            const current = redisStore.get(key);
+            const count = current ? parseInt(current, 10) + 1 : 1;
+            redisStore.set(key, count.toString());
+            return count;
+        });
+    });
+
+    it("enforces rate limits on /anonymous/generate", async () => {
+        const app = await buildApp();
+
+        // Send 5 successful requests
+        for (let i = 0; i < 5; i++) {
+            const res = await app.handle(makeRequest("/anonymous/generate"));
+            expect(res.status).toBe(200);
+        }
+
+        // The 6th request must trigger a 429 Too Many Requests
+        const blockedRes = await app.handle(makeRequest("/anonymous/generate"));
+        expect(blockedRes.status).toBe(429);
+        const body = await blockedRes.json();
+        expect(body.success).toBe(false);
+        expect(body.error.code).toBe("TOO_MANY_REQUESTS");
     });
 });
