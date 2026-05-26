@@ -1,14 +1,13 @@
 import { Elysia, t } from "elysia";
 import { eq } from "drizzle-orm";
-import { auth } from "./auth";
+import { auth, generateSessionToken, signSessionToken } from "./auth";
 import { redis } from "../../lib/redis";
 import { db } from "../../db/client";
 import { user, session } from "../../db/schema";
 import { getFlags } from "../../config/flags";
-import { ANON_PENDING_TTL_SECONDS, config } from "../../config";
+import { ANON_PENDING_TTL_SECONDS } from "../../config";
 
 const BASE10 = "0123456789";
-const BASE62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const CODE_LENGTH = 16;
 const MAX_RETRIES = 3;
 
@@ -24,31 +23,6 @@ function generateCode(): string {
     return Array.from(bytes, (b) => BASE10[b % 10]).join("");
 }
 
-function generateSessionToken(): string {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    return Array.from(bytes, (b) => BASE62[b % 62]).join("");
-}
-
-/**
- * Produces the signed cookie value that Better-Auth expects:
- *   `rawToken.base64(HMAC-SHA256(rawToken, secret))`
- *
- * The DB stores only `rawToken`. On `getSession`, Better-Auth splits on
- * the last `.`, verifies the HMAC, then queries the DB by `rawToken`.
- */
-async function signSessionToken(rawToken: string): Promise<string> {
-    const key = await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(config.BETTER_AUTH_SECRET),
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"]
-    );
-    const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawToken));
-    const base64Sig = btoa(String.fromCharCode(...new Uint8Array(sig)));
-    return `${rawToken}.${base64Sig}`;
-}
-
 function getIdentifier(code: string): string {
     return Bun.SHA256.hash(code, "hex");
 }
@@ -60,6 +34,57 @@ async function hashCode(code: string): Promise<string> {
 function anonymousEmail(identifier: string): string {
     return `${identifier.substring(0, 12)}@anon.gacha-tracker.app`;
 }
+
+interface RateLimitResult {
+    limited: boolean;
+    remaining: number;
+    retryAfter: number; // Seconds until reset
+}
+
+/**
+ * Atomic fixed-window rate limiter using Redis.
+ */
+async function checkRateLimit(options: {
+    ip: string;
+    action: string;
+    limit: number;
+    windowSeconds: number;
+}): Promise<RateLimitResult> {
+    const { ip, action, limit, windowSeconds } = options;
+    const key = `rate_limit:${action}:${ip}`;
+
+    // Check current count before incrementing to avoid unnecessary increments if already blocked
+    const current = await redis.get(key);
+    const currentCount = current ? parseInt(current, 10) : 0;
+
+    if (currentCount >= limit) {
+        const ttl = await redis.ttl(key);
+        return {
+            limited: true,
+            remaining: 0,
+            retryAfter: ttl > 0 ? ttl : windowSeconds,
+        };
+    }
+
+    // Increment atomically
+    const newCount = await redis.incr(key);
+
+    // If it's a new key, set the expiry window
+    if (newCount === 1) {
+        await redis.expire(key, windowSeconds);
+    }
+
+    const ttl = await redis.ttl(key);
+
+    return {
+        limited: false,
+        remaining: Math.max(0, limit - newCount),
+        retryAfter: ttl > 0 ? ttl : windowSeconds,
+    };
+}
+
+// Compute timing-safe dummy hash once at application start-up
+const DUMMY_HASH = await Bun.password.hash("00000000000000000000000000000000", ARGON2_OPTIONS);
 
 export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
     /**
@@ -75,7 +100,31 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
      */
     .post(
         "/anonymous/generate",
-        async ({ status }) => {
+        async ({ request, status, set }) => {
+            // Apply IP rate limiting: 5 requests per 15 minutes
+            const ip =
+                request.headers.get("x-forwarded-for") ??
+                request.headers.get("x-real-ip") ??
+                "127.0.0.1";
+            const rate = await checkRateLimit({
+                ip,
+                action: "anon_gen",
+                limit: 5,
+                windowSeconds: 900,
+            });
+
+            if (rate.limited) {
+                set.headers["Retry-After"] = rate.retryAfter.toString();
+                return status(429, {
+                    success: false,
+                    error: {
+                        code: "TOO_MANY_REQUESTS",
+                        message: `Too many account generation requests. Please try again in ${Math.ceil(rate.retryAfter / 60)} minutes.`,
+                        retryAfter: rate.retryAfter,
+                    },
+                });
+            }
+
             const flags = await getFlags();
             if (!flags.anonymousAccounts) {
                 return status(403, {
@@ -126,6 +175,14 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                         message: t.String(),
                     }),
                 }),
+                429: t.Object({
+                    success: t.Boolean(),
+                    error: t.Object({
+                        code: t.String(),
+                        message: t.String(),
+                        retryAfter: t.Number(),
+                    }),
+                }),
                 500: t.Object({
                     success: t.Boolean(),
                     error: t.Object({
@@ -148,6 +205,30 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
     .post(
         "/anonymous/confirm",
         async ({ body, request, status, set }) => {
+            // Apply IP rate limiting: 10 requests per minute
+            const ip =
+                request.headers.get("x-forwarded-for") ??
+                request.headers.get("x-real-ip") ??
+                "127.0.0.1";
+            const rate = await checkRateLimit({
+                ip,
+                action: "anon_confirm",
+                limit: 10,
+                windowSeconds: 60,
+            });
+
+            if (rate.limited) {
+                set.headers["Retry-After"] = rate.retryAfter.toString();
+                return status(429, {
+                    success: false,
+                    error: {
+                        code: "TOO_MANY_REQUESTS",
+                        message: `Too many confirmation attempts. Please try again in ${rate.retryAfter} seconds.`,
+                        retryAfter: rate.retryAfter,
+                    },
+                });
+            }
+
             const { code } = body;
             const identifier = getIdentifier(code);
             const redisKey = `anon_pending:${identifier}`;
@@ -174,7 +255,7 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                         name: "Anonymous User",
                         isAnonymous: true,
                         codeHash,
-                    },
+                    } as unknown as { name: string; email: string; password: string },
                     headers: request.headers,
                     asResponse: true,
                 });
@@ -215,6 +296,14 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                         message: t.String(),
                     }),
                 }),
+                429: t.Object({
+                    success: t.Boolean(),
+                    error: t.Object({
+                        code: t.String(),
+                        message: t.String(),
+                        retryAfter: t.Number(),
+                    }),
+                }),
             },
         }
     )
@@ -232,7 +321,31 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
      */
     .post(
         "/anonymous/login",
-        async ({ body, status, set, request: { headers: requestHeaders } }) => {
+        async ({ body, status, set, request }) => {
+            // Apply IP rate limiting: 10 requests per minute
+            const ip =
+                request.headers.get("x-forwarded-for") ??
+                request.headers.get("x-real-ip") ??
+                "127.0.0.1";
+            const rate = await checkRateLimit({
+                ip,
+                action: "anon_login",
+                limit: 10,
+                windowSeconds: 60,
+            });
+
+            if (rate.limited) {
+                set.headers["Retry-After"] = rate.retryAfter.toString();
+                return status(429, {
+                    success: false,
+                    error: {
+                        code: "TOO_MANY_REQUESTS",
+                        message: `Too many login attempts. Please try again in ${rate.retryAfter} seconds.`,
+                        retryAfter: rate.retryAfter,
+                    },
+                });
+            }
+
             const { code } = body;
             const identifier = getIdentifier(code);
             const email = anonymousEmail(identifier);
@@ -241,12 +354,15 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                 where: eq(user.email, email),
             });
 
-            if (
-                candidate &&
-                candidate.codeHash &&
-                !candidate.deletedAt &&
-                (await Bun.password.verify(code, candidate.codeHash))
-            ) {
+            let isValid = false;
+            if (candidate && candidate.codeHash) {
+                isValid = await Bun.password.verify(code, candidate.codeHash);
+            } else {
+                // Timing oracle protection: verify against precomputed DUMMY_HASH to consume timing-equivalent cycles
+                await Bun.password.verify(code, DUMMY_HASH);
+            }
+
+            if (isValid && candidate) {
                 const rawToken = generateSessionToken();
                 const signedToken = await signSessionToken(rawToken);
                 const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -257,10 +373,10 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                     userId: candidate.id,
                     expiresAt,
                     ipAddress:
-                        requestHeaders.get("x-forwarded-for") ??
-                        requestHeaders.get("x-real-ip") ??
+                        request.headers.get("x-forwarded-for") ??
+                        request.headers.get("x-real-ip") ??
                         undefined,
-                    userAgent: requestHeaders.get("user-agent") ?? undefined,
+                    userAgent: request.headers.get("user-agent") ?? undefined,
                 });
 
                 set.headers["Set-Cookie"] = [
@@ -296,6 +412,14 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                     error: t.Object({
                         code: t.String(),
                         message: t.String(),
+                    }),
+                }),
+                429: t.Object({
+                    success: t.Boolean(),
+                    error: t.Object({
+                        code: t.String(),
+                        message: t.String(),
+                        retryAfter: t.Number(),
                     }),
                 }),
             },
