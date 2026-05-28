@@ -7,6 +7,40 @@ import * as schema from "../../db/schema";
 import { sendMagicLinkEmail } from "../../lib/email";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { anonymousAuthPlugin } from "./anonymous";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export function signJWT(payload: Record<string, unknown>, secret: string): string {
+    const header = { alg: "HS256", typ: "JWT" };
+    const headerPart = Buffer.from(JSON.stringify(header)).toString("base64url");
+    const payloadPart = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const unsignedToken = `${headerPart}.${payloadPart}`;
+    const signature = createHmac("sha256", secret).update(unsignedToken).digest("base64url");
+    return `${unsignedToken}.${signature}`;
+}
+
+export function verifyJWT(token: string, secret: string): Record<string, unknown> | null {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [headerPart, payloadPart, signaturePart] = parts;
+    const unsignedToken = `${headerPart}.${payloadPart}`;
+    const expectedSignature = createHmac("sha256", secret)
+        .update(unsignedToken)
+        .digest("base64url");
+
+    const sigA = Buffer.from(signaturePart);
+    const sigB = Buffer.from(expectedSignature);
+    if (sigA.length !== sigB.length || !timingSafeEqual(sigA, sigB)) {
+        return null;
+    }
+
+    try {
+        const payload = JSON.parse(Buffer.from(payloadPart, "base64url").toString("utf8"));
+        if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) return null;
+        return payload;
+    } catch {
+        return null;
+    }
+}
 
 /**
  * Better-Auth instance.
@@ -76,3 +110,23 @@ export const auth = betterAuth({
 });
 
 export type Auth = typeof auth;
+
+const BASE62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+export function generateSessionToken(): string {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    return Array.from(bytes, (b) => BASE62[b % 62]).join("");
+}
+
+export async function signSessionToken(rawToken: string): Promise<string> {
+    const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(config.BETTER_AUTH_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+    );
+    const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawToken));
+    const base64Sig = Buffer.from(sig).toString("base64url");
+    return `${rawToken}.${base64Sig}`;
+}

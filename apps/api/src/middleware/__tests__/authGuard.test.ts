@@ -4,6 +4,10 @@ import { Elysia } from "elysia";
 const mockGetSession = mock(async () => null as unknown);
 
 mock.module("../../modules/auth/auth", () => ({
+    signJWT: () => "test_signed_token",
+    verifyJWT: () => ({ userId: "user_abc" }),
+    generateSessionToken: () => "test_session_token",
+    signSessionToken: async () => "test_signed_token",
     auth: {
         api: {
             getSession: mockGetSession,

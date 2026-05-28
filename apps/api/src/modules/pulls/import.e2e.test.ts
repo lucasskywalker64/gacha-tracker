@@ -45,7 +45,26 @@ describe("HSR Pull Import E2E", () => {
         // Mock modules BEFORE dynamic import
         mock.module("../../lib/redis", () => ({ redis: mockRedis }));
         mock.module("../../db/client", () => ({ db: testDb }));
-        mock.module("../auth", () => ({ authPlugin: mockAuthPlugin }));
+        mock.module("../auth", () => ({
+            authPlugin: mockAuthPlugin,
+            signJWT: () => "test_signed_token",
+            verifyJWT: () => ({ userId: "user_abc" }),
+            generateSessionToken: () => "test_session_token",
+            signSessionToken: async () => "test_signed_token",
+            getUserAuthMethodsCount: mock(async () => ({
+                primaryEmail: "test@example.com",
+                secondaryEmails: [],
+                socialAccounts: [],
+                hasAnonymousCode: false,
+                totalActiveCount: 1,
+            })),
+            auth: {
+                api: {
+                    getSession: () => Promise.resolve(null),
+                    revokeSessions: () => Promise.resolve(),
+                },
+            },
+        }));
 
         // Setup Database (Matching Drizzle schema)
         console.log("[TEST] Creating tables...");

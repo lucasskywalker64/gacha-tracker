@@ -28,9 +28,6 @@ mock.module("../../db/client", () => ({
     db: dbMock,
 }));
 
-// Now import the code under test
-import { getFlags, invalidateFlags } from "../flags";
-
 describe("Feature Flags", () => {
     beforeEach(() => {
         redisStore.clear();
@@ -42,6 +39,7 @@ describe("Feature Flags", () => {
     });
 
     it("should return fallback defaults when Redis and DB are empty (cache miss)", async () => {
+        const { getFlags } = await import("../flags");
         const flags = await getFlags();
 
         expect(flags).toEqual({
@@ -71,6 +69,7 @@ describe("Feature Flags", () => {
     });
 
     it("should use values from database on cache miss and warm cache", async () => {
+        const { getFlags } = await import("../flags");
         dbRows.push({ key: "starrail", enabled: 0 }, { key: "experimentalLuckScore", enabled: 1 });
 
         const flags = await getFlags();
@@ -89,6 +88,7 @@ describe("Feature Flags", () => {
     });
 
     it("should return cached values on cache hit and not query the DB", async () => {
+        const { getFlags } = await import("../flags");
         const cachedFlags = {
             starrail: false,
             genshin: false,
@@ -107,6 +107,7 @@ describe("Feature Flags", () => {
     });
 
     it("should invalidate the cache successfully", async () => {
+        const { invalidateFlags } = await import("../flags");
         redisStore.set("flags", "some-cached-data");
 
         await invalidateFlags();
@@ -116,6 +117,7 @@ describe("Feature Flags", () => {
     });
 
     it("should fallback to defaults if Redis has invalid/corrupted data", async () => {
+        const { getFlags } = await import("../flags");
         redisStore.set("flags", "invalid-json-string{");
 
         const flags = await getFlags();
