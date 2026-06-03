@@ -32,6 +32,42 @@
 	});
 
 	let saving = $state(false);
+	let settingsLoaderError = $state(false);
+	let retrying = $state(false);
+
+	$effect(() => {
+		settingsLoaderError = data.settingsLoaderError;
+	});
+
+	async function retryFetch() {
+		retrying = true;
+		try {
+			const { data: fetchedSettings, error } = await api.user.settings.get();
+			if (!error && fetchedSettings) {
+				settings = fetchedSettings;
+				theme =
+					(fetchedSettings.theme as 'system' | 'quantum-dark' | 'amber-dawn' | 'wobbly-waves') ||
+					'system';
+				originalTheme =
+					(fetchedSettings.theme as 'system' | 'quantum-dark' | 'amber-dawn' | 'wobbly-waves') ||
+					'system';
+				pityDisplayMode =
+					(fetchedSettings.pityDisplayMode as 'count_up' | 'count_down') || 'count_up';
+				settingsLoaderError = false;
+				updateClientTheme(theme);
+			} else {
+				const errorMsg =
+					error && typeof error === 'object' && 'value' in error
+						? String((error as Record<string, unknown>).value)
+						: String(error);
+				alert('Failed to retrieve settings: ' + (errorMsg || 'Unknown error'));
+			}
+		} catch (err) {
+			console.error('Failed to retry fetch:', err);
+		} finally {
+			retrying = false;
+		}
+	}
 
 	onMount(async () => {
 		// No auth methods fetching needed for themes
@@ -109,6 +145,35 @@
 
 		<!-- PREFERENCES PANEL -->
 		<Tabs.Content value="preferences" class="space-y-6 outline-none">
+			{#if settingsLoaderError}
+				<div
+					class="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300"
+				>
+					<div class="flex items-center gap-3">
+						<span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping shrink-0"></span>
+						<div>
+							<p class="text-sm font-bold text-white">Connection Error</p>
+							<p class="text-xs text-zinc-400 mt-0.5">
+								Failed to load settings. Please check your connection and try again.
+							</p>
+						</div>
+					</div>
+					<Button
+						onclick={retryFetch}
+						disabled={retrying}
+						variant="destructive"
+						class="font-bold px-4 py-2 rounded-xl text-xs gap-1.5 cursor-pointer bg-red-600 hover:bg-red-500 text-white"
+					>
+						{#if retrying}
+							<LoaderCircle class="h-3.5 w-3.5 animate-spin" />
+							Retrying...
+						{:else}
+							Retry Loading
+						{/if}
+					</Button>
+				</div>
+			{/if}
+
 			<Card.Root
 				class="bg-zinc-950/60 backdrop-blur-xl border-zinc-800 rounded-2xl overflow-hidden shadow-xl shadow-black/30"
 			>
@@ -136,10 +201,11 @@
 									theme = 'system';
 									updateClientTheme('system');
 								}}
+								disabled={settingsLoaderError || !settings}
 								class="p-4 rounded-2xl bg-zinc-900/40 hover:bg-zinc-900/80 border text-left transition-all hover:scale-[1.01] cursor-pointer {theme ===
 								'system'
 									? 'border-violet-500 ring-4 ring-violet-500/10'
-									: 'border-zinc-800'}"
+									: 'border-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/40 disabled:scale-100"
 							>
 								<span class="text-sm font-bold text-white block">Default Dark</span>
 								<span class="text-xs text-zinc-500 block mt-1.5"
@@ -153,10 +219,11 @@
 									theme = 'quantum-dark';
 									updateClientTheme('quantum-dark');
 								}}
+								disabled={settingsLoaderError || !settings}
 								class="p-4 rounded-2xl bg-zinc-900/40 hover:bg-zinc-900/80 border text-left transition-all hover:scale-[1.01] cursor-pointer {theme ===
 								'quantum-dark'
 									? 'border-purple-500 ring-4 ring-purple-500/10'
-									: 'border-zinc-800'}"
+									: 'border-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/40 disabled:scale-100"
 							>
 								<span class="text-sm font-bold text-white block">Quantum Dark</span>
 								<span class="text-xs text-purple-400 block mt-1.5"
@@ -170,10 +237,11 @@
 									theme = 'amber-dawn';
 									updateClientTheme('amber-dawn');
 								}}
+								disabled={settingsLoaderError || !settings}
 								class="p-4 rounded-2xl bg-zinc-900/40 hover:bg-zinc-900/80 border text-left transition-all hover:scale-[1.01] cursor-pointer {theme ===
 								'amber-dawn'
 									? 'border-yellow-600 ring-4 ring-yellow-600/10'
-									: 'border-zinc-800'}"
+									: 'border-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/40 disabled:scale-100"
 							>
 								<span class="text-sm font-bold text-white block">Amber Dawn</span>
 								<span class="text-xs text-yellow-500 block mt-1.5"
@@ -187,10 +255,11 @@
 									theme = 'wobbly-waves';
 									updateClientTheme('wobbly-waves');
 								}}
+								disabled={settingsLoaderError || !settings}
 								class="p-4 rounded-2xl bg-zinc-900/40 hover:bg-zinc-900/80 border text-left transition-all hover:scale-[1.01] cursor-pointer {theme ===
 								'wobbly-waves'
 									? 'border-teal-500 ring-4 ring-teal-500/10'
-									: 'border-zinc-800'}"
+									: 'border-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/40 disabled:scale-100"
 							>
 								<span class="text-sm font-bold text-white block">Wobbly Waves</span>
 								<span class="text-xs text-teal-400 block mt-1.5"
@@ -211,10 +280,11 @@
 							<button
 								type="button"
 								onclick={() => (pityDisplayMode = 'count_up')}
+								disabled={settingsLoaderError || !settings}
 								class="p-4 rounded-xl bg-zinc-900/40 hover:bg-zinc-900/80 border text-left cursor-pointer transition-all {pityDisplayMode ===
 								'count_up'
 									? 'border-zinc-400 ring-2 ring-white/5'
-									: 'border-zinc-800'}"
+									: 'border-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/40"
 							>
 								<span class="text-sm font-bold text-white block">Standard Count-Up</span>
 								<span class="text-xs text-zinc-500 block mt-1.5"
@@ -224,10 +294,11 @@
 							<button
 								type="button"
 								onclick={() => (pityDisplayMode = 'count_down')}
+								disabled={settingsLoaderError || !settings}
 								class="p-4 rounded-xl bg-zinc-900/40 hover:bg-zinc-900/80 border text-left cursor-pointer transition-all {pityDisplayMode ===
 								'count_down'
 									? 'border-zinc-400 ring-2 ring-white/5'
-									: 'border-zinc-800'}"
+									: 'border-zinc-800'} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-900/40"
 							>
 								<span class="text-sm font-bold text-white block">Hard Pity Countdown</span>
 								<span class="text-xs text-zinc-500 block mt-1.5"
@@ -241,7 +312,7 @@
 					<div class="flex justify-end pt-4">
 						<Button
 							onclick={savePreferences}
-							disabled={saving}
+							disabled={saving || settingsLoaderError || !settings}
 							class="bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-violet-600/10 gap-2 cursor-pointer"
 						>
 							{#if saving}

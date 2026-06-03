@@ -5,12 +5,7 @@ export const load = async () => {
 	const { data: settings, error: settingsError } = await api.user.settings.get();
 
 	return {
-		settings:
-			settingsError || !settings
-				? {
-						theme: 'system',
-						pityDisplayMode: 'count_up'
-					}
-				: settings
+		settings: settings ?? null,
+		settingsLoaderError: Boolean(settingsError)
 	};
 };
