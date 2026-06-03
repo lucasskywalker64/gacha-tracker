@@ -1,8 +1,25 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { api } from '$lib/api/client';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 
 	let { children } = $props();
+
+	onMount(async () => {
+		try {
+			const { data: settings } = await api.user.settings.get();
+			if (settings?.theme) {
+				const root = window.document.documentElement;
+				root.classList.remove('theme-quantum-dark', 'theme-amber-dawn', 'theme-wobbly-waves');
+				if (settings.theme !== 'system' && settings.theme !== 'light') {
+					root.classList.add(`theme-${settings.theme}`);
+				}
+			}
+		} catch (err) {
+			console.error('Failed to load global theme settings:', err);
+		}
+	});
 </script>
 
 <Sidebar.Provider>
