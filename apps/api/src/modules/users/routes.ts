@@ -63,8 +63,17 @@ export const userRouter = new Elysia({ prefix: "/user" })
         },
         {
             body: t.Object({
-                theme: t.Optional(t.String()),
-                pityDisplayMode: t.Optional(t.String()),
+                theme: t.Optional(
+                    t.Union([
+                        t.Literal("system"),
+                        t.Literal("quantum-dark"),
+                        t.Literal("amber-dawn"),
+                        t.Literal("wobbly-waves"),
+                    ])
+                ),
+                pityDisplayMode: t.Optional(
+                    t.Union([t.Literal("count_up"), t.Literal("count_down")])
+                ),
             }),
         }
     );

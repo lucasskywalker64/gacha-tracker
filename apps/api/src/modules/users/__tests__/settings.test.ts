@@ -146,4 +146,29 @@ describe("userRouter — /settings", () => {
         expect(dbUpdateCalledWith?.theme).toBe("wobbly-waves");
         expect(dbUpdateCalledWith?.pityDisplayMode).toBe("count_down");
     });
+
+    it("PATCH /user/settings fails with 422 when invalid values are provided", async () => {
+        const app = await buildApp();
+        const res = await app.handle(
+            new Request("http://localhost/user/settings", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    theme: "invalid-theme",
+                }),
+            })
+        );
+        expect(res.status).toBe(422);
+
+        const res2 = await app.handle(
+            new Request("http://localhost/user/settings", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pityDisplayMode: "invalid-mode",
+                }),
+            })
+        );
+        expect(res2.status).toBe(422);
+    });
 });

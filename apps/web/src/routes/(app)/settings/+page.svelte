@@ -13,17 +13,21 @@
 	let settings = $state<PageData['settings'] | null>(null);
 
 	// Editable fields
-	let theme = $state('system');
-	let originalTheme = $state('system');
-	let pityDisplayMode = $state('count_up');
+	let theme = $state<'system' | 'quantum-dark' | 'amber-dawn' | 'wobbly-waves'>('system');
+	let originalTheme = $state<'system' | 'quantum-dark' | 'amber-dawn' | 'wobbly-waves'>('system');
+	let pityDisplayMode = $state<'count_up' | 'count_down'>('count_up');
 
 	// Sync local state when page data updates
 	$effect(() => {
 		if (data.settings) {
 			settings = data.settings;
-			theme = data.settings.theme || 'system';
-			originalTheme = data.settings.theme || 'system';
-			pityDisplayMode = data.settings.pityDisplayMode || 'count_up';
+			theme =
+				(data.settings.theme as 'system' | 'quantum-dark' | 'amber-dawn' | 'wobbly-waves') ||
+				'system';
+			originalTheme =
+				(data.settings.theme as 'system' | 'quantum-dark' | 'amber-dawn' | 'wobbly-waves') ||
+				'system';
+			pityDisplayMode = (data.settings.pityDisplayMode as 'count_up' | 'count_down') || 'count_up';
 		}
 	});
 
@@ -168,7 +172,7 @@
 								}}
 								class="p-4 rounded-2xl bg-zinc-900/40 hover:bg-zinc-900/80 border text-left transition-all hover:scale-[1.01] cursor-pointer {theme ===
 								'amber-dawn'
-									? 'border-yellow-600 ring-4 ring-yellow-650/10'
+									? 'border-yellow-600 ring-4 ring-yellow-600/10'
 									: 'border-zinc-800'}"
 							>
 								<span class="text-sm font-bold text-white block">Amber Dawn</span>
