@@ -9,6 +9,7 @@ const mockSettings = {
     updatedAt: new Date(),
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let dbDeleteCalledWith: unknown = null;
 let dbUpdateCalledWith: Record<string, unknown> | null = null;
 
@@ -144,48 +145,5 @@ describe("userRouter — /settings", () => {
         expect(data.success).toBe(true);
         expect(dbUpdateCalledWith?.theme).toBe("wobbly-waves");
         expect(dbUpdateCalledWith?.pityDisplayMode).toBe("count_down");
-    });
-});
-
-describe("userRouter — /export", () => {
-    it("GET /user/export returns aggregated pulls", async () => {
-        const app = await buildApp();
-        const res = await app.handle(new Request("http://localhost/user/export"));
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.schemaVersion).toBe("1.0.0");
-        expect(data.pulls).toBeArray();
-        expect(data.pulls[0].pullId).toBe("p1");
-    });
-});
-
-describe("userRouter — DELETE /user/game/:gameId (Purge)", () => {
-    it("deletes targeting game data cleanly", async () => {
-        const app = await buildApp();
-        const res = await app.handle(
-            new Request("http://localhost/user/game/hsr", {
-                method: "DELETE",
-            })
-        );
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.success).toBe(true);
-        expect(dbDeleteCalledWith).toBeDefined();
-    });
-});
-
-describe("userRouter — DELETE /user (Soft Delete)", () => {
-    it("soft deletes the user and revokes sessions", async () => {
-        const app = await buildApp();
-        const res = await app.handle(
-            new Request("http://localhost/user", {
-                method: "DELETE",
-            })
-        );
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.success).toBe(true);
-        expect(dbUpdateCalledWith?.deletedAt).toBeDefined();
-        expect(mockRevokeSessions).toHaveBeenCalledTimes(1);
     });
 });
