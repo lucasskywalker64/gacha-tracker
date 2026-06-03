@@ -11,22 +11,21 @@ export const userRouter = new Elysia({ prefix: "/user" })
     // GET /user/settings - Retrieve preferences (create defaults if non-existent)
     .get("/settings", async ({ user: sessionUser }) => {
         const userId = sessionUser!.id;
-        let settings = await db.query.userSettings.findFirst({
+        await db
+            .insert(userSettings)
+            .values({
+                userId,
+                theme: "system",
+                pityDisplayMode: "count_up",
+            })
+            .onConflictDoNothing();
+
+        const settings = await db.query.userSettings.findFirst({
             where: eq(userSettings.userId, userId),
         });
 
         if (!settings) {
-            // Seed default settings on-the-fly
-            const newSettings = {
-                userId,
-                theme: "system",
-                pityDisplayMode: "count_up",
-            };
-            await db.insert(userSettings).values(newSettings);
-            settings = {
-                ...newSettings,
-                updatedAt: new Date(),
-            };
+            throw new Error("Failed to retrieve user settings");
         }
 
         return settings;
@@ -38,26 +37,20 @@ export const userRouter = new Elysia({ prefix: "/user" })
         async ({ user: sessionUser, body }) => {
             const userId = sessionUser!.id;
 
-            // Ensure settings row exists first
-            const existing = await db.query.userSettings.findFirst({
-                where: eq(userSettings.userId, userId),
-            });
-
-            if (!existing) {
-                await db.insert(userSettings).values({
+            await db
+                .insert(userSettings)
+                .values({
                     userId,
                     theme: body.theme ?? "system",
                     pityDisplayMode: body.pityDisplayMode ?? "count_up",
-                });
-            } else {
-                await db
-                    .update(userSettings)
-                    .set({
+                })
+                .onConflictDoUpdate({
+                    target: userSettings.userId,
+                    set: {
                         ...body,
                         updatedAt: new Date(),
-                    })
-                    .where(eq(userSettings.userId, userId));
-            }
+                    },
+                });
 
             return { success: true };
         },

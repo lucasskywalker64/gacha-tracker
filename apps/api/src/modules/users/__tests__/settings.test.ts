@@ -20,11 +20,19 @@ mock.module("../../../db/client", () => ({
                 findFirst: mock(async () => mockSettings),
             },
         },
-        insert: mock(() => ({
-            values: mock(async () => {
-                return undefined;
-            }),
-        })),
+        insert: mock(() => {
+            const chain = {
+                values: mock(() => chain),
+                onConflictDoNothing: mock(async () => undefined),
+                onConflictDoUpdate: mock(async (options?: { set?: Record<string, unknown> }) => {
+                    if (options?.set) {
+                        dbUpdateCalledWith = options.set;
+                    }
+                    return undefined;
+                }),
+            };
+            return chain;
+        }),
         update: mock(() => ({
             set: mock((vals: Record<string, unknown>) => {
                 dbUpdateCalledWith = vals;
