@@ -9,8 +9,6 @@ const mockSettings = {
     updatedAt: new Date(),
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let dbDeleteCalledWith: unknown = null;
 let dbUpdateCalledWith: Record<string, unknown> | null = null;
 
 mock.module("../../../db/client", () => ({
@@ -41,8 +39,7 @@ mock.module("../../../db/client", () => ({
                 };
             }),
         })),
-        delete: mock((table: unknown) => {
-            dbDeleteCalledWith = table;
+        delete: mock(() => {
             return {
                 where: mock(async () => undefined),
             };
@@ -61,8 +58,7 @@ mock.module("../../../db/client", () => ({
                 }) => Promise<unknown>
             ) => {
                 return await callback({
-                    delete: mock((table: unknown) => {
-                        dbDeleteCalledWith = table;
+                    delete: mock(() => {
                         return {
                             where: mock(async () => undefined),
                         };
@@ -121,7 +117,6 @@ async function buildApp() {
 
 describe("userRouter — /settings", () => {
     beforeEach(() => {
-        dbDeleteCalledWith = null;
         dbUpdateCalledWith = null;
         mockRevokeSessions.mockClear();
     });
