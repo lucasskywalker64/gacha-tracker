@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { authPlugin } from "./modules/auth";
 import { gamesRouter } from "./modules/games/routes";
+import { userRouter } from "./modules/users/routes";
 import { importRouter } from "./modules/pulls/import";
 import { queryRouter } from "./modules/pulls/query";
 import { eventsRouter } from "./modules/pulls/events";
@@ -35,6 +36,7 @@ const app = new Elysia()
      */
     .use(authPlugin)
     .use(gamesRouter)
+    .use(userRouter)
     .use(importRouter)
     .use(queryRouter)
     .use(eventsRouter)

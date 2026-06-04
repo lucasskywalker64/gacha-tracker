@@ -29,4 +29,37 @@
 		color: var(--color-foreground);
 		font-family: var(--font-sans);
 	}
+
+	/* Quantum Dark (HSR-inspired: deep purple & obsidian) */
+	.theme-quantum-dark {
+		--color-background: #04010a;
+		--color-surface-1: #0c071a;
+		--color-surface-2: #160e2d;
+		--color-accent: #8b5cf6;
+		--color-accent-hover: #7c3aed;
+		--color-border: #231644;
+		--sidebar-border: #231644;
+	}
+
+	/* Amber Dawn (Genshin-inspired: warm golds & stones) */
+	.theme-amber-dawn {
+		--color-background: #0d0903;
+		--color-surface-1: #181106;
+		--color-surface-2: #241a0d;
+		--color-accent: #d97706;
+		--color-accent-hover: #b45309;
+		--color-border: #33240e;
+		--sidebar-border: #33240e;
+	}
+
+	/* Wobbly Waves (WuWa-inspired: glowing emeralds & navy) */
+	.theme-wobbly-waves {
+		--color-background: #01080a;
+		--color-surface-1: #031317;
+		--color-surface-2: #082329;
+		--color-accent: #0d9488;
+		--color-accent-hover: #0f766e;
+		--color-border: #0b313a;
+		--sidebar-border: #0b313a;
+	}
 }

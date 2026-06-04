@@ -73,7 +73,7 @@
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
 					<Sidebar.MenuItem>
-						<Sidebar.MenuButton>
+						<Sidebar.MenuButton isActive={currentPath === '/settings'}>
 							{#snippet child({ props })}
 								<a href="/settings" {...props}>
 									<Settings class="w-4 h-4" />
