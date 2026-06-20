@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, mock } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, mock } from "bun:test";
 import { Elysia } from "elysia";
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
@@ -25,19 +25,16 @@ const mockRedis = {
 const sqlite = createClient({ url: "file::memory:?cache=shared" });
 const testDb = drizzle(sqlite, { schema });
 
-const mockAuthPlugin = new Elysia({ name: "auth" })
-    .derive(() => ({
-        user: { id: "test-user-id", email: "test@example.com" },
-    }))
-    .macro({
-        auth: () => ({
-            resolve: () => ({ user: { id: "test-user-id" } }),
-        }),
-    });
-
 // --- Test Suite ---
 describe("HSR Pull Import E2E", () => {
     let app: Elysia;
+    let originalAuth: typeof import("../auth/auth");
+
+    afterAll(() => {
+        if (originalAuth) {
+            mock.module("../auth/auth", () => originalAuth);
+        }
+    });
 
     beforeAll(async () => {
         console.log("[TEST] Setting up mocks and environment...");
@@ -45,8 +42,11 @@ describe("HSR Pull Import E2E", () => {
         // Mock modules BEFORE dynamic import
         mock.module("../../lib/redis", () => ({ redis: mockRedis }));
         mock.module("../../db/client", () => ({ db: testDb }));
-        mock.module("../auth", () => ({
-            authPlugin: mockAuthPlugin,
+
+        originalAuth = await import("../auth/auth");
+
+        mock.module("../auth/auth", () => ({
+            ...originalAuth,
             signJWT: () => "test_signed_token",
             verifyJWT: () => ({ userId: "user_abc" }),
             generateSessionToken: () => "test_session_token",
@@ -59,8 +59,14 @@ describe("HSR Pull Import E2E", () => {
                 totalActiveCount: 1,
             })),
             auth: {
+                ...originalAuth.auth,
                 api: {
-                    getSession: () => Promise.resolve(null),
+                    ...originalAuth.auth.api,
+                    getSession: () =>
+                        Promise.resolve({
+                            user: { id: "test-user-id", email: "test@example.com" },
+                            session: { token: "session_token" },
+                        }),
                     revokeSessions: () => Promise.resolve(),
                 },
             },
