@@ -29,6 +29,27 @@
             "when": 1780522299320,
             "tag": "0003_add_user_settings_check_constraints",
             "breakpoints": true
+        },
+        {
+            "idx": 4,
+            "version": "6",
+            "when": 1780678707715,
+            "tag": "0004_remove_deleted_at_from_user_table",
+            "breakpoints": true
+        },
+        {
+            "idx": 5,
+            "version": "6",
+            "when": 1780678835226,
+            "tag": "0005_add_user_emails_table",
+            "breakpoints": true
+        },
+        {
+            "idx": 6,
+            "version": "6",
+            "when": 1781554470427,
+            "tag": "0006_add_verified_at_to_user_emails",
+            "breakpoints": true
         }
     ]
 }

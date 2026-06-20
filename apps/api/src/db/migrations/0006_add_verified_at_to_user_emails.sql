@@ -1,0 +1,1 @@
+ALTER TABLE `user_emails` ADD `verified_at` integer;
