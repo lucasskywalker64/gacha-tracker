@@ -12,6 +12,7 @@ import { cors } from "@elysiajs/cors";
 import { runMigrations } from "./db/migrate";
 import { config } from "./config";
 import { securityHeaders } from "./middleware/securityHeaders";
+import { isAPIError } from "better-auth/api";
 
 const allowedOrigins = ["https://gacha-tracker.app", "https://dev.gacha-tracker.app"];
 if (!config.isProduction) {
@@ -23,6 +24,40 @@ if (!config.isProduction) {
 }
 
 const app = new Elysia()
+    .onError(({ error, set, request }) => {
+        const err = error as { message?: string };
+        if (isAPIError(err) && err.message?.startsWith("account_conflict:")) {
+            const token = err.message.split(":")[1];
+            const url = new URL(request.url);
+            if (url.pathname.includes("/auth/callback/")) {
+                set.redirect = `${config.FRONTEND_URL}/auth/callback?error=account_conflict&token=${token}`;
+                return;
+            }
+        }
+    })
+    .mapResponse(async ({ responseValue, request }) => {
+        const url = new URL(request.url);
+        if (url.pathname.includes("/auth/callback/") && responseValue instanceof Response) {
+            if (responseValue.status === 400 || responseValue.status === 500) {
+                try {
+                    const cloned = responseValue.clone();
+                    const body = (await cloned.json()) as Record<string, unknown>;
+                    const errorMsg = body.message || body.error;
+                    if (typeof errorMsg === "string") {
+                        if (errorMsg.startsWith("account_conflict:")) {
+                            const token = errorMsg.split(":")[1];
+                            return Response.redirect(
+                                `${config.FRONTEND_URL}/auth/callback?error=account_conflict&token=${token}`,
+                                302
+                            );
+                        }
+                    }
+                } catch {
+                    // Ignore JSON parse errors
+                }
+            }
+        }
+    })
     .use(securityHeaders)
     .use(
         cors({
@@ -109,6 +144,7 @@ const app = new Elysia()
             },
         }
     );
+
 await runMigrations();
 
 app.listen(config.PORT);
