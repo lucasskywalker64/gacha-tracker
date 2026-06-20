@@ -3,6 +3,8 @@
     "main": "src/index.ts",
     "types": "src/index.ts",
     "scripts": {
+        "db:generate": "drizzle-kit generate",
+        "db:migrate": "drizzle-kit migrate",
         "dev": "bun run --watch src/index.ts",
         "format": "prettier --write .",
         "lint": "eslint .",
