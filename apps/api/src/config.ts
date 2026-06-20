@@ -32,7 +32,23 @@ if (!result.success) {
     }
 }
 
-const parsedConfig = result.success ? result.data : ({} as z.infer<typeof configSchema>);
+const parsedConfig = result.success
+    ? result.data
+    : {
+          DATABASE_URL: "libsql://dummy-db-url.com",
+          DATABASE_AUTH_TOKEN: "dummy-auth-token",
+          REDIS_URL: "redis://localhost:6379",
+          BETTER_AUTH_URL: "http://localhost:3000",
+          BETTER_AUTH_SECRET: "dummy-secret-key-minimum-length-32-characters",
+          FRONTEND_URL: "http://localhost:5173",
+          DISCORD_CLIENT_ID: "discord-client-id",
+          DISCORD_CLIENT_SECRET: "discord-client-secret",
+          GOOGLE_CLIENT_ID: "google-client-id",
+          GOOGLE_CLIENT_SECRET: "google-client-secret",
+          RESEND_API_KEY: "re_dummy",
+          NODE_ENV: "test" as const,
+          PORT: 3000,
+      };
 
 export const config = {
     ...parsedConfig,

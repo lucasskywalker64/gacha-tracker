@@ -1,0 +1,76 @@
+<div
+    style="
+        font-family:
+            -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, Helvetica, Arial,
+            sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #09090b;
+        color: #fafafa;
+        padding: 32px;
+        border-radius: 16px;
+        border: 1px solid #27272a;
+        box-sizing: border-box;
+    "
+>
+    <!-- Logo / Brand Header -->
+    <div style="margin-bottom: 32px; text-align: center">
+        <span
+            style="
+                font-size: 20px;
+                font-weight: 800;
+                background: linear-gradient(135deg, #a78bfa, #60a5fa);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                letter-spacing: -0.02em;
+            "
+            >Gacha Tracker</span
+        >
+    </div>
+
+    <!-- Heading -->
+    <h2
+        style="
+            font-size: 22px;
+            font-weight: 700;
+            color: #fafafa;
+            margin: 0 0 16px 0;
+            text-align: center;
+            letter-spacing: -0.01em;
+        "
+    >
+        {{heading}}
+    </h2>
+
+    <!-- Body text -->
+    <p
+        style="
+            font-size: 15px;
+            line-height: 1.6;
+            color: #a1a1aa;
+            margin: 0 0 24px 0;
+            text-align: center;
+        "
+    >
+        {{bodyText}}
+    </p>
+
+    <!-- Dynamic Interactive Section (Button or Code Block) -->
+    <div style="margin: 32px 0; text-align: center">{{actionContent}}</div>
+
+    <!-- Footer -->
+    <p
+        style="
+            font-size: 13px;
+            line-height: 1.5;
+            color: #71717a;
+            margin: 24px 0 0 0;
+            text-align: center;
+            border-top: 1px solid #27272a;
+            padding-top: 24px;
+        "
+    >
+        {{footerText}}
+    </p>
+</div>

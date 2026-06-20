@@ -27,7 +27,9 @@
 	);
 </script>
 
-<Card class="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm overflow-hidden flex flex-col">
+<Card
+	class="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm overflow-hidden flex flex-col p-0 gap-0"
+>
 	<div class="p-6 border-b border-zinc-800/50 bg-linear-to-br from-zinc-800/20 to-transparent">
 		<div class="flex justify-between items-start mb-4">
 			<div class="flex items-center gap-3">

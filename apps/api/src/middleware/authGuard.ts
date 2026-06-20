@@ -5,10 +5,7 @@ import { auth } from "../modules/auth/auth";
  * authGuard
  *
  * Validates Better-Auth session cookie on every request in the guarded group.
- * On success, attaches `user` and `session` to the request context.
  * On failure, returns 401 Unauthorized.
- *
- * Soft-deleted users (deletedAt is set) are rejected with 401.
  *
  * Usage:
  *   app.guard({ beforeHandle: authGuard }, app => app.use(somePlugin))
@@ -26,15 +23,10 @@ export const authGuard = new Elysia({ name: "auth-guard" }).derive(
         }
 
         const user = session.user as typeof session.user & {
-            deletedAt: number | null;
             isAnonymous: boolean;
             role: string;
             banned: boolean;
         };
-
-        if (user.deletedAt !== null && user.deletedAt !== undefined) {
-            return status(401, "Unauthorized: account deleted");
-        }
 
         if (user.banned) {
             return status(403, "Forbidden: account banned");
@@ -50,7 +42,6 @@ export type AuthenticatedUser = {
     email: string;
     emailVerified: boolean;
     image?: string | null | undefined;
-    deletedAt: number | null;
     isAnonymous: boolean;
     role: string;
     banned: boolean;

@@ -13,7 +13,6 @@ export const user = sqliteTable("user", {
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
         .notNull()
         .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
     codeHash: text("code_hash"),
     isAnonymous: integer("is_anonymous", { mode: "boolean" }).notNull().default(false),
     role: text("role").notNull().default("user"),
@@ -113,4 +112,21 @@ export const passkey = sqliteTable(
         index("passkey_user_id_idx").on(table.userId),
         index("passkey_credential_id_idx").on(table.credentialID),
     ]
+);
+
+export const userEmails = sqliteTable(
+    "user_emails",
+    {
+        id: text("id").primaryKey(),
+        userId: text("user_id")
+            .notNull()
+            .references(() => user.id, { onDelete: "cascade" }),
+        email: text("email").notNull().unique(),
+        verified: integer("verified", { mode: "boolean" }).notNull().default(false),
+        verifiedAt: integer("verified_at", { mode: "timestamp_ms" }),
+        createdAt: integer("created_at", { mode: "timestamp_ms" })
+            .notNull()
+            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+    },
+    (table) => [index("user_emails_user_id_idx").on(table.userId)]
 );
