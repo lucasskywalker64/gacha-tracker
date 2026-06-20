@@ -2,10 +2,12 @@ import { Elysia, t } from "elysia";
 import { eq } from "drizzle-orm";
 import { auth, generateSessionToken, signSessionToken } from "./auth";
 import { redis } from "../../lib/redis";
+import { RedisKeys } from "../../lib/redis-keys";
 import { db } from "../../db/client";
 import { user, session } from "../../db/schema";
 import { getFlags } from "../../config/flags";
 import { ANON_PENDING_TTL_SECONDS } from "../../config";
+import { checkRateLimit } from "../../lib/rateLimit";
 
 const BASE10 = "0123456789";
 const CODE_LENGTH = 16;
@@ -33,54 +35,6 @@ async function hashCode(code: string): Promise<string> {
 
 function anonymousEmail(identifier: string): string {
     return `${identifier.substring(0, 12)}@anon.gacha-tracker.app`;
-}
-
-interface RateLimitResult {
-    limited: boolean;
-    remaining: number;
-    retryAfter: number; // Seconds until reset
-}
-
-/**
- * Atomic fixed-window rate limiter using Redis.
- */
-async function checkRateLimit(options: {
-    ip: string;
-    action: string;
-    limit: number;
-    windowSeconds: number;
-}): Promise<RateLimitResult> {
-    const { ip, action, limit, windowSeconds } = options;
-    const key = `rate_limit:${action}:${ip}`;
-
-    // Check current count before incrementing to avoid unnecessary increments if already blocked
-    const current = await redis.get(key);
-    const currentCount = current ? parseInt(current, 10) : 0;
-
-    if (currentCount >= limit) {
-        const ttl = await redis.ttl(key);
-        return {
-            limited: true,
-            remaining: 0,
-            retryAfter: ttl > 0 ? ttl : windowSeconds,
-        };
-    }
-
-    // Increment atomically
-    const newCount = await redis.incr(key);
-
-    // If it's a new key, set the expiry window
-    if (newCount === 1) {
-        await redis.expire(key, windowSeconds);
-    }
-
-    const ttl = await redis.ttl(key);
-
-    return {
-        limited: false,
-        remaining: Math.max(0, limit - newCount),
-        retryAfter: ttl > 0 ? ttl : windowSeconds,
-    };
 }
 
 // Compute timing-safe dummy hash once at application start-up
@@ -139,7 +93,7 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                 const code = generateCode();
                 const identifier = getIdentifier(code);
                 const email = anonymousEmail(identifier);
-                const redisKey = `anon_pending:${identifier}`;
+                const redisKey = RedisKeys.anonPending(identifier);
 
                 const [existsInRedis, existsInDb] = await Promise.all([
                     redis.exists(redisKey),
@@ -231,7 +185,7 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
 
             const { code } = body;
             const identifier = getIdentifier(code);
-            const redisKey = `anon_pending:${identifier}`;
+            const redisKey = RedisKeys.anonPending(identifier);
 
             const existed = (await redis.getdel(redisKey)) as string | null;
 
@@ -408,6 +362,13 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                     success: t.Boolean(),
                 }),
                 401: t.Object({
+                    success: t.Boolean(),
+                    error: t.Object({
+                        code: t.String(),
+                        message: t.String(),
+                    }),
+                }),
+                403: t.Object({
                     success: t.Boolean(),
                     error: t.Object({
                         code: t.String(),

@@ -101,6 +101,9 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 return status(401, { success: false, error: "Invalid or expired import token" });
             }
 
+            // Immediately delete the token to prevent reuse
+            await redis.del(`import_token:${token}`);
+
             const payload = importPayloadSchema.parse(body);
             const adapter = getAdapter(payload.gameId);
 
