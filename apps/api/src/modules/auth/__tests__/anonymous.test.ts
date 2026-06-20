@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach, beforeAll, afterAll, mock } from "bun:test";
 import { Elysia } from "elysia";
 
 const redisStore = new Map<string, string>();
@@ -25,84 +25,103 @@ const redisMock = {
     ttl: mock(async () => 60),
 };
 
-mock.module("../../../lib/redis", () => ({ redis: redisMock }));
-
 const dbUsers: Array<{
     id: string;
     email: string;
     codeHash: string | null;
     isAnonymous: boolean;
-    deletedAt: number | null;
 }> = [];
 
-mock.module("../../../db/client", () => ({
-    db: {
-        query: {
-            user: {
-                findFirst: mock(async () => null),
-                findMany: mock(async () => dbUsers.filter((u) => u.isAnonymous)),
+const flagsMock = { anonymousAccounts: true };
+
+let originalAuth: typeof import("../auth");
+
+beforeAll(async () => {
+    mock.module("../../../lib/redis", () => ({ redis: redisMock }));
+
+    mock.module("../../../db/client", () => ({
+        db: {
+            query: {
+                user: {
+                    findFirst: mock(async () => null),
+                    findMany: mock(async () => dbUsers.filter((u) => u.isAnonymous)),
+                },
+                verification: {
+                    findFirst: mock(async () => null),
+                    findMany: mock(async () => []),
+                },
+            },
+            update: mock(() => ({
+                set: mock(() => ({ where: mock(async () => undefined) })),
+            })),
+            insert: mock(() => ({
+                values: mock(async () => undefined),
+            })),
+        },
+    }));
+
+    mock.module("../../../config/flags", () => ({
+        getFlags: mock(async () => flagsMock),
+    }));
+
+    mock.module("../../../config", () => ({
+        config: {
+            BETTER_AUTH_URL: "http://localhost:3000",
+            BETTER_AUTH_SECRET: "test",
+        },
+        ANON_PENDING_TTL_SECONDS: 300,
+        IMPORT_TOKEN_TTL_SECONDS: 900,
+    }));
+
+    originalAuth = await import("../auth");
+
+    mock.module("../auth", () => ({
+        ...originalAuth,
+        getUserAuthMethodsCount: mock(async () => ({
+            primaryEmail: "anon@example.com",
+            secondaryEmails: [],
+            socialAccounts: [],
+            hasAnonymousCode: true,
+            totalActiveCount: 2,
+        })),
+        signJWT: () => "test_signed_token",
+        verifyJWT: () => ({ userId: "user_abc" }),
+        generateSessionToken: () => "test_session_token",
+        signSessionToken: async () => "test_signed_token",
+        auth: {
+            ...originalAuth.auth,
+            api: {
+                ...originalAuth.auth.api,
+                signUpEmail: mock(async (opts: { body: { email: string } }) => {
+                    const data = {
+                        user: {
+                            id: `user_${Date.now()}`,
+                            email: opts.body.email,
+                            name: "Anonymous User",
+                        },
+                        session: {
+                            token: "test_session_token",
+                            expiresAt: new Date(Date.now() + 100000),
+                        },
+                    };
+                    return new Response(JSON.stringify(data), {
+                        headers: {
+                            "set-cookie":
+                                "better-auth.session_token=test_signed_token; Path=/; HttpOnly",
+                        },
+                    });
+                }),
+                signInEmail: mock(async () => ({ user: null, session: null })),
             },
         },
-        update: mock(() => ({
-            set: mock(() => ({ where: mock(async () => undefined) })),
-        })),
-        insert: mock(() => ({
-            values: mock(async () => undefined),
-        })),
-    },
-}));
+    }));
+});
 
-const flagsMock = { anonymousAccounts: true };
-mock.module("../../../config/flags", () => ({
-    getFlags: mock(async () => flagsMock),
-}));
-
-mock.module("../../../config", () => ({
-    config: {
-        BETTER_AUTH_URL: "http://localhost:3000",
-        BETTER_AUTH_SECRET: "test",
-    },
-    ANON_PENDING_TTL_SECONDS: 300,
-    IMPORT_TOKEN_TTL_SECONDS: 900,
-}));
-
-mock.module("../auth", () => ({
-    getUserAuthMethodsCount: mock(async () => ({
-        primaryEmail: "anon@example.com",
-        secondaryEmails: [],
-        socialAccounts: [],
-        hasAnonymousCode: true,
-        totalActiveCount: 2,
-    })),
-    signJWT: () => "test_signed_token",
-    verifyJWT: () => ({ userId: "user_abc" }),
-    generateSessionToken: () => "test_session_token",
-    signSessionToken: async () => "test_signed_token",
-    auth: {
-        api: {
-            signUpEmail: mock(async (opts: { body: { email: string } }) => {
-                const data = {
-                    user: {
-                        id: `user_${Date.now()}`,
-                        email: opts.body.email,
-                        name: "Anonymous User",
-                    },
-                    session: {
-                        token: "test_session_token",
-                        expiresAt: new Date(Date.now() + 100000),
-                    },
-                };
-                return new Response(JSON.stringify(data), {
-                    headers: {
-                        "set-cookie":
-                            "better-auth.session_token=test_signed_token; Path=/; HttpOnly",
-                    },
-                });
-            }),
-            signInEmail: mock(async () => ({ user: null, session: null })),
-        },
-    },
-}));
+afterAll(() => {
+    if (originalAuth) {
+        mock.module("../auth", () => originalAuth);
+    }
+});
 
 async function buildApp() {
     const { anonymousAuthPlugin } = await import("../anonymous");
