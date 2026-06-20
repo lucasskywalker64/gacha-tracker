@@ -1,13 +1,33 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, magicLink } from "better-auth/plugins";
+import { admin, emailOTP } from "better-auth/plugins";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "../../db/client";
 import { config } from "../../config";
 import * as schema from "../../db/schema";
-import { sendMagicLinkEmail } from "../../lib/email";
+import { sendOtpEmail } from "../../lib/email";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { anonymousAuthPlugin } from "./anonymous";
+import { APIError, getOAuthState } from "better-auth/api";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { redis } from "../../lib/redis";
+import { RedisKeys } from "../../lib/redis-keys";
+import { socialProvidersConfig } from "./social";
+
+interface BetterAuthHookContext {
+    request?: Request;
+    setCookie?: (
+        name: string,
+        value: string,
+        options?: {
+            maxAge?: number;
+            path?: string;
+            secure?: boolean;
+            httpOnly?: boolean;
+            sameSite?: "lax" | "strict" | "none";
+        }
+    ) => void;
+}
 
 export function signJWT(payload: Record<string, unknown>, secret: string): string {
     const header = { alg: "HS256", typ: "JWT" };
@@ -42,6 +62,77 @@ export function verifyJWT(token: string, secret: string): Record<string, unknown
     }
 }
 
+export async function getUserAuthMethodsCount(userId: string): Promise<{
+    primaryEmail: string | null;
+    secondaryEmails: Array<{ email: string; verified: boolean; verifiedAt: string | null }>;
+    socialAccounts: Array<{ providerId: string }>;
+    hasAnonymousCode: boolean;
+    totalActiveCount: number;
+}> {
+    const userRecord = await db.query.user.findFirst({
+        where: eq(schema.user.id, userId),
+    });
+    if (!userRecord) {
+        return {
+            primaryEmail: null,
+            secondaryEmails: [],
+            socialAccounts: [],
+            hasAnonymousCode: false,
+            totalActiveCount: 0,
+        };
+    }
+
+    const secondary = await db.query.userEmails.findMany({
+        where: eq(schema.userEmails.userId, userId),
+        orderBy: (emails, { asc }) => [asc(emails.createdAt)],
+    });
+
+    const social = await db.query.account.findMany({
+        where: eq(schema.account.userId, userId),
+    });
+
+    const primaryEmailReal = !userRecord.email.endsWith("@anon.gacha-tracker.app");
+
+    const hasAnonymousCode = !!(userRecord.isAnonymous && userRecord.codeHash);
+
+    // Count how many active login methods there are:
+    let totalActiveCount = 0;
+    if (primaryEmailReal) totalActiveCount++;
+    totalActiveCount += secondary.filter((e) => e.verified).length;
+    totalActiveCount += social.length;
+    if (hasAnonymousCode) totalActiveCount++;
+
+    return {
+        primaryEmail: primaryEmailReal ? userRecord.email : null,
+        secondaryEmails: secondary.map((e) => ({
+            email: e.email,
+            verified: !!e.verified,
+            verifiedAt: e.verifiedAt ? e.verifiedAt.toISOString() : null,
+        })),
+        socialAccounts: social.map((a) => ({ providerId: a.providerId })),
+        hasAnonymousCode: hasAnonymousCode,
+        totalActiveCount,
+    };
+}
+
+export async function assertUserOwnsEmail(
+    userId: string,
+    emailLower: string,
+    userRecord: { email: string }
+): Promise<boolean> {
+    const isPrimary =
+        userRecord.email === emailLower && !userRecord.email.endsWith("@anon.gacha-tracker.app");
+    if (isPrimary) return true;
+    const secondary = await db.query.userEmails.findFirst({
+        where: and(
+            eq(schema.userEmails.userId, userId),
+            eq(schema.userEmails.email, emailLower),
+            eq(schema.userEmails.verified, true)
+        ),
+    });
+    return !!secondary;
+}
+
 /**
  * Better-Auth instance.
  *
@@ -63,11 +154,219 @@ export function verifyJWT(token: string, secret: string): Record<string, unknown
  *
  * The database is the single source of truth between generate/confirm/login.
  */
+async function safeGetOAuthState() {
+    try {
+        return await getOAuthState();
+    } catch {
+        return null;
+    }
+}
+
 export const auth = betterAuth({
     database: drizzleAdapter(db, {
         provider: "sqlite",
         schema,
     }),
+
+    databaseHooks: {
+        user: {
+            create: {
+                before: async (user) => {
+                    const oauthState = (await safeGetOAuthState()) as { isolate?: boolean } | null;
+                    if (oauthState?.isolate === true) {
+                        user.email = `${crypto.randomUUID()}@anon.gacha-tracker.app`;
+                        user.emailVerified = false;
+                        return { data: user };
+                    }
+                    return { data: user };
+                },
+            },
+        },
+        account: {
+            create: {
+                before: async (account, ctx) => {
+                    const typedCtx = ctx as unknown as BetterAuthHookContext;
+                    const url = typedCtx?.request?.url || "";
+                    const isCallback = url.includes("/callback/");
+                    if (!isCallback) {
+                        return { data: account };
+                    }
+                    const oauthState = (await safeGetOAuthState()) as {
+                        isolate?: boolean;
+                        reauth?: boolean;
+                    } | null;
+                    if (oauthState?.reauth === true) {
+                        throw new APIError("UNAUTHORIZED", {
+                            message: "Cannot link new accounts during re-authentication.",
+                        });
+                    }
+                    if (oauthState?.isolate === true) {
+                        return { data: account };
+                    }
+                    const session = await auth.api.getSession({
+                        headers: typedCtx?.request?.headers ?? new Headers(),
+                    });
+                    if (session) {
+                        return { data: account };
+                    }
+                    const existingUser = await db.query.user.findFirst({
+                        where: eq(schema.user.id, account.userId),
+                    });
+                    if (existingUser) {
+                        const [existingAccounts, hasVerifiedSecondary] = await Promise.all([
+                            db.query.account.findFirst({
+                                where: eq(schema.account.userId, existingUser.id),
+                            }),
+                            db.query.userEmails.findFirst({
+                                where: and(
+                                    eq(schema.userEmails.userId, existingUser.id),
+                                    eq(schema.userEmails.verified, true)
+                                ),
+                            }),
+                        ]);
+
+                        const hasOtherMethods =
+                            !!existingAccounts || !!hasVerifiedSecondary || !!existingUser.codeHash;
+
+                        if (hasOtherMethods) {
+                            const oauthEmail = (account as unknown as { email?: string }).email
+                                ?.toLowerCase()
+                                .trim();
+                            let realEmail = existingUser.email;
+                            if (oauthEmail) {
+                                const secondaryMatch = await db.query.userEmails.findFirst({
+                                    where: and(
+                                        eq(schema.userEmails.email, oauthEmail),
+                                        eq(schema.userEmails.verified, true)
+                                    ),
+                                });
+                                if (secondaryMatch) {
+                                    realEmail = oauthEmail;
+                                }
+                            }
+                            const conflictToken = Buffer.from(
+                                crypto.getRandomValues(new Uint8Array(32))
+                            ).toString("hex");
+                            const provider = url.includes("google")
+                                ? "google"
+                                : url.includes("discord")
+                                  ? "discord"
+                                  : "email";
+                            const maskEmail = (emailStr: string): string => {
+                                const [local, domain] = emailStr.split("@");
+                                if (!local || !domain) return "u***@example.com";
+                                if (local.length <= 2) return `${local[0]}***@${domain}`;
+                                return `${local[0]}***${local[local.length - 1]}@${domain}`;
+                            };
+                            await redis.set(
+                                RedisKeys.authConflict(conflictToken),
+                                JSON.stringify({
+                                    maskedEmail: maskEmail(realEmail),
+                                    realEmail,
+                                    userId: existingUser.id,
+                                    provider,
+                                    accountData: account,
+                                }),
+                                "EX",
+                                300
+                            );
+                            throw new APIError("BAD_REQUEST", {
+                                message: `account_conflict:${conflictToken}`,
+                            });
+                        }
+                    }
+                    return { data: account };
+                },
+            },
+            delete: {
+                before: async (account, ctx) => {
+                    const typedCtx = ctx as unknown as BetterAuthHookContext;
+                    const userId = account.userId;
+
+                    const userRecord = await db.query.user.findFirst({
+                        where: eq(schema.user.id, userId),
+                    });
+
+                    // Enforce primary email OTP verification for unlinking auth method (social provider)
+                    if (userRecord && !userRecord.email.endsWith("@anon.gacha-tracker.app")) {
+                        const verifiedKey = RedisKeys.sensitiveActionVerified(
+                            userId,
+                            "unlink-social",
+                            account.providerId
+                        );
+                        const deleteKey = RedisKeys.sensitiveActionVerified(
+                            userId,
+                            "delete-account",
+                            ""
+                        );
+
+                        const [isUnlinkVerified, isDeleteVerified] = await Promise.all([
+                            redis.get(verifiedKey),
+                            redis.get(deleteKey),
+                        ]);
+
+                        if (isUnlinkVerified !== "verified" && isDeleteVerified !== "verified") {
+                            throw new APIError("UNAUTHORIZED", {
+                                message:
+                                    "OTP verification through primary email required to unlink provider.",
+                            });
+                        }
+
+                        if (isUnlinkVerified === "verified") {
+                            await redis.del(verifiedKey);
+                        }
+                    }
+
+                    const currentSession = await auth.api.getSession({
+                        headers: typedCtx?.request?.headers ?? new Headers(),
+                    });
+
+                    if (currentSession) {
+                        // Delete all of this user's sessions EXCEPT the current active session
+                        await db
+                            .delete(schema.session)
+                            .where(
+                                and(
+                                    eq(schema.session.userId, userId),
+                                    ne(schema.session.id, currentSession.session.id)
+                                )
+                            );
+                    } else {
+                        // Fallback: revoke all sessions if we cannot identify the current one
+                        await auth.api.revokeUserSessions({ body: { userId } });
+                    }
+                },
+            },
+        },
+        session: {
+            create: {
+                before: async (session) => {
+                    const oauthState = (await safeGetOAuthState()) as {
+                        reauth?: boolean;
+                        userId?: string;
+                    } | null;
+                    if (oauthState?.reauth === true) {
+                        if (!oauthState.userId || oauthState.userId !== session.userId) {
+                            throw new APIError("UNAUTHORIZED", {
+                                message: "Re-authentication user mismatch.",
+                            });
+                        }
+                        await redis.set(
+                            RedisKeys.deleteAuth(session.userId),
+                            "verified",
+                            "EX",
+                            300
+                        );
+                    }
+                    return { data: session };
+                },
+            },
+        },
+    },
+
+    onAPIError: {
+        throw: true,
+    },
 
     baseURL: config.BETTER_AUTH_URL,
     basePath: "/auth",
@@ -79,6 +378,14 @@ export const auth = betterAuth({
         },
     },
 
+    account: {
+        accountLinking: {
+            enabled: true,
+            allowDifferentEmails: true,
+            allowUnlinkingAll: true,
+        },
+    },
+
     user: {
         additionalFields: {
             isAnonymous: { type: "boolean", required: false, input: true },
@@ -86,25 +393,18 @@ export const auth = betterAuth({
         },
     },
 
-    socialProviders: {
-        discord: {
-            clientId: config.DISCORD_CLIENT_ID,
-            clientSecret: config.DISCORD_CLIENT_SECRET,
-        },
-        google: {
-            clientId: config.GOOGLE_CLIENT_ID,
-            clientSecret: config.GOOGLE_CLIENT_SECRET,
-        },
-    },
+    socialProviders: socialProvidersConfig,
 
     emailAndPassword: {
         enabled: true,
     },
     plugins: [
         admin(),
-        magicLink({
-            sendMagicLink: sendMagicLinkEmail,
-            expiresIn: 300, // 5 minutes
+        emailOTP({
+            sendVerificationOTP: async ({ email, otp, type }) => {
+                await sendOtpEmail({ email, code: otp, type });
+            },
+            expiresIn: 300,
         }),
     ],
 });
@@ -127,6 +427,6 @@ export async function signSessionToken(rawToken: string): Promise<string> {
         ["sign"]
     );
     const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawToken));
-    const base64Sig = Buffer.from(sig).toString("base64url");
+    const base64Sig = Buffer.from(sig).toString("base64");
     return `${rawToken}.${base64Sig}`;
 }
