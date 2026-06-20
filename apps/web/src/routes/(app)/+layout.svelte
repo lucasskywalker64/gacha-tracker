@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
+	import { authClient } from '$lib/api/auth';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import AppSidebar from '$lib/components/navigation/app-sidebar.svelte';
 
@@ -18,6 +19,21 @@
 			}
 		} catch (err) {
 			console.error('Failed to load global theme settings:', err);
+		}
+
+		// Check client-assisted linking intent across tab boundaries
+		try {
+			const raw = localStorage.getItem('pending_social_link');
+			if (raw) {
+				localStorage.removeItem('pending_social_link'); // Consume/clean up immediately
+				const intent = JSON.parse(raw);
+				if (intent && Date.now() < intent.expiresAt) {
+					// Trigger standard Better-Auth linking trip
+					await authClient.linkSocial({ provider: intent.provider });
+				}
+			}
+		} catch (e) {
+			console.error('Failed to parse or trigger pending social link:', e);
 		}
 	});
 </script>
