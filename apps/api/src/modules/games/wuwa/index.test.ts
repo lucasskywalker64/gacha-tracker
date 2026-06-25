@@ -299,5 +299,78 @@ describe("Wuthering Waves Game Adapter", () => {
             expect(processedChar[0].pityAtPull).toBe(1);
             expect(processedStandard[1].pityAtPull).toBe(2);
         });
+
+        it("should correctly handle collab character (11) and collab weapon (12) banners", () => {
+            banners.games.wuwa = [
+                {
+                    phase: "Collab_Phase",
+                    name: "Lucy Banner",
+                    featuredCharacters: ["1511"], // Lucy
+                    mainCharacterId: "1511",
+                    featuredWeapons: ["21030056"], // Spectral Trigger
+                    mainWeaponId: "21030056",
+                    startTime: 0,
+                    endTime: 10,
+                },
+            ];
+
+            const collabCharPulls: NormalizedPull[] = [
+                {
+                    pullId: "collab-c1",
+                    gameUid: "123",
+                    bannerType: "11",
+                    itemId: "1503", // Verina (standard character)
+                    itemName: "Verina",
+                    itemType: "Resonator",
+                    rarity: 5,
+                    pulledAt: new Date(1),
+                    pityAtPull: 0,
+                    wasGuaranteed: 0,
+                },
+                {
+                    pullId: "collab-c2",
+                    gameUid: "123",
+                    bannerType: "11",
+                    itemId: "1511", // Lucy (collab featured character)
+                    itemName: "Lucy",
+                    itemType: "Resonator",
+                    rarity: 5,
+                    pulledAt: new Date(2),
+                    pityAtPull: 0,
+                    wasGuaranteed: 0,
+                },
+            ];
+
+            const processedCollabChar = wuwaAdapter.computePity(collabCharPulls, "11");
+            // Lost 50/50 on first pull
+            expect(processedCollabChar[0].pityAtPull).toBe(1);
+            expect(processedCollabChar[0].wasGuaranteed).toBe(0);
+            expect(processedCollabChar[0].bannerId).toBe("1511");
+
+            // Won featured on second pull due to guarantee
+            expect(processedCollabChar[1].pityAtPull).toBe(1);
+            expect(processedCollabChar[1].wasGuaranteed).toBe(1);
+            expect(processedCollabChar[1].bannerId).toBe("1511");
+
+            const collabWeapPulls: NormalizedPull[] = [
+                {
+                    pullId: "collab-w1",
+                    gameUid: "123",
+                    bannerType: "12",
+                    itemId: "21030056", // Spectral Trigger (collab featured weapon)
+                    itemName: "Spectral Trigger",
+                    itemType: "Weapon",
+                    rarity: 5,
+                    pulledAt: new Date(1),
+                    pityAtPull: 0,
+                    wasGuaranteed: 0,
+                },
+            ];
+
+            const processedCollabWeap = wuwaAdapter.computePity(collabWeapPulls, "12");
+            expect(processedCollabWeap[0].pityAtPull).toBe(1);
+            expect(processedCollabWeap[0].wasGuaranteed).toBe(0);
+            expect(processedCollabWeap[0].bannerId).toBe("21030056");
+        });
     });
 });

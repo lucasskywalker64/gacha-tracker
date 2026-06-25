@@ -416,7 +416,7 @@ $headers = @{
 # 4: Standard Weapon
 # 5: Novice Convene
 # 6: Beginner's Choice
-$bannerTypes = @("1", "2", "3", "4", "5", "6")
+$bannerTypes = @("1", "2", "3", "4", "5", "6", "11", "12")
 $bannerNames = @{
     "1" = "Featured Resonator"
     "2" = "Featured Weapon"
@@ -424,6 +424,8 @@ $bannerNames = @{
     "4" = "Standard Weapon"
     "5" = "Novice Convene"
     "6" = "Beginner's Choice"
+    "11" = "Collab Resonator"
+    "12" = "Collab Weapon"
 }
 $allPulls = @()
 $cursorObj = $null
