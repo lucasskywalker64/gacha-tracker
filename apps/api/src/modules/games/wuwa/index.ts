@@ -49,9 +49,16 @@ export const wuwaAdapter: GameAdapter = {
 
     computePity(pulls: NormalizedPull[], poolKey: string): NormalizedPull[] {
         const has5050 =
-            poolKey === String(WUWA_BANNERS.CHARACTER) || poolKey === String(WUWA_BANNERS.WEAPON);
-        const isCharacterBanner = poolKey === String(WUWA_BANNERS.CHARACTER);
-        const isWeaponBanner = poolKey === String(WUWA_BANNERS.WEAPON);
+            poolKey === String(WUWA_BANNERS.CHARACTER) ||
+            poolKey === String(WUWA_BANNERS.WEAPON) ||
+            poolKey === String(WUWA_BANNERS.COLLAB_CHARACTER) ||
+            poolKey === String(WUWA_BANNERS.COLLAB_WEAPON);
+        const isCharacterBanner =
+            poolKey === String(WUWA_BANNERS.CHARACTER) ||
+            poolKey === String(WUWA_BANNERS.COLLAB_CHARACTER);
+        const isWeaponBanner =
+            poolKey === String(WUWA_BANNERS.WEAPON) ||
+            poolKey === String(WUWA_BANNERS.COLLAB_WEAPON);
 
         const wuwaBanners = banners.games.wuwa || [];
 

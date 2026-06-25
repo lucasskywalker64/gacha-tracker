@@ -77,6 +77,8 @@ export const WUWA_BANNERS = {
     STANDARD_WEAPON: 4,
     BEGINNER: 5,
     BEGINNER_CHOICE: 6,
+    COLLAB_CHARACTER: 11,
+    COLLAB_WEAPON: 12,
 } as const;
 
 export const WUWA_BANNER_NAMES: Record<number, string> = {
@@ -86,6 +88,8 @@ export const WUWA_BANNER_NAMES: Record<number, string> = {
     [WUWA_BANNERS.STANDARD_WEAPON]: "Standard Weapon Convene",
     [WUWA_BANNERS.BEGINNER]: "Novice Convene",
     [WUWA_BANNERS.BEGINNER_CHOICE]: "Beginner's Choice Convene",
+    [WUWA_BANNERS.COLLAB_CHARACTER]: "Collab Resonator Convene",
+    [WUWA_BANNERS.COLLAB_WEAPON]: "Collab Weapon Convene",
 };
 
 export const WUWA_RARITY_TIERS = [3, 4, 5] as const;
@@ -319,6 +323,8 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 [WUWA_BANNERS.STANDARD_WEAPON]: 64,
                 [WUWA_BANNERS.BEGINNER]: 40,
                 [WUWA_BANNERS.BEGINNER_CHOICE]: 64,
+                [WUWA_BANNERS.COLLAB_CHARACTER]: 64,
+                [WUWA_BANNERS.COLLAB_WEAPON]: 64,
             },
             hardPity: {
                 [WUWA_BANNERS.CHARACTER]: 80,
@@ -327,11 +333,15 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 [WUWA_BANNERS.STANDARD_WEAPON]: 80,
                 [WUWA_BANNERS.BEGINNER]: 50,
                 [WUWA_BANNERS.BEGINNER_CHOICE]: 80,
+                [WUWA_BANNERS.COLLAB_CHARACTER]: 80,
+                [WUWA_BANNERS.COLLAB_WEAPON]: 80,
             },
             guaranteeAfterFailed: true,
             bannerOrder: [
                 String(WUWA_BANNERS.CHARACTER),
                 String(WUWA_BANNERS.WEAPON),
+                String(WUWA_BANNERS.COLLAB_CHARACTER),
+                String(WUWA_BANNERS.COLLAB_WEAPON),
                 String(WUWA_BANNERS.STANDARD_CHARACTER),
                 String(WUWA_BANNERS.STANDARD_WEAPON),
                 String(WUWA_BANNERS.BEGINNER),
