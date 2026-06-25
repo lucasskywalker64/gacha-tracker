@@ -142,8 +142,13 @@ export async function updateWuwaBanners() {
     const { map: idMap, reverseMap: reverseIdMap } = await fetchWuwaMapping();
     console.log(`Loaded ${idMap.size} items from Encore.moe.`);
 
-    const charPages = await fetchWikiPages("Category:Featured_Resonator_Convenes");
-    const weaponPages = await fetchWikiPages("Category:Featured_Weapon_Convenes");
+    const featuredCharPages = await fetchWikiPages("Category:Featured_Resonator_Convenes");
+    const collabCharPages = await fetchWikiPages("Category:Collab_Resonator_Convenes");
+    const charPages = [...featuredCharPages, ...collabCharPages];
+
+    const featuredWeaponPages = await fetchWikiPages("Category:Featured_Weapon_Convenes");
+    const collabWeaponPages = await fetchWikiPages("Category:Collab_Weapon_Convenes");
+    const weaponPages = [...featuredWeaponPages, ...collabWeaponPages];
 
     const phasesMap = new Map<string, ProcessingPhase>();
 
@@ -174,11 +179,11 @@ export async function updateWuwaBanners() {
             return;
         }
 
-        // Group by start time (allowing 2 hour tolerance)
+        // Group by start time (allowing 24 hour tolerance to handle wiki date mismatches)
         let phaseKey = "";
         for (const [key] of Array.from(phasesMap.entries())) {
             const [kStart] = key.split("_").map(Number);
-            if (Math.abs(kStart - startTimestamp) <= 2 * 3600 * 1000) {
+            if (Math.abs(kStart - startTimestamp) <= 24 * 3600 * 1000) {
                 phaseKey = key;
                 break;
             }
