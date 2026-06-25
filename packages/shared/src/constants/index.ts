@@ -401,5 +401,5 @@ export const SCRIPT_VERSIONS = {
     starrail: "98e2576cbe4895b3cbdb48ed45c90888e704a7af",
     genshin: "16551f872fc78ad55418f0c035df610393018aab",
     zzz: "98e2576cbe4895b3cbdb48ed45c90888e704a7af",
-    wuwa: "16551f872fc78ad55418f0c035df610393018aab",
+    wuwa: "5961561e1aefacf026e367e5f46ec481f1d295cf",
 } as const;
