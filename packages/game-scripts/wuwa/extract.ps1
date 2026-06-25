@@ -13,6 +13,18 @@ function Write-DebugLog {
     }
 }
 
+function Get-RedactedUrl {
+    param([string]$Url)
+    if ([string]::IsNullOrEmpty($Url)) { return $Url }
+    return $Url -replace '\b(player_id|record_id|svr_id|serverId|server_id)=[^&"''\s]*', '$1=***'
+}
+
+function Get-RedactedJson {
+    param([string]$Json)
+    if ([string]::IsNullOrEmpty($Json)) { return $Json }
+    return $Json -replace '"(playerId|recordId|serverId)"\s*:\s*(?:"[^"]*"|\d+)', '"$1":"***"'
+}
+
 function ReadSharedFileBytes {
     param([string]$Path)
     $stream = $null
@@ -125,7 +137,7 @@ try {
     Write-DebugLog "Sending start notification to $ApiUrl/pulls/import/start"
     Invoke-RestMethod -Uri "$ApiUrl/pulls/import/start" -Method Post `
         -Headers @{ "Authorization" = "Bearer $ImportToken"; "Content-Type" = "application/json" } `
-        -Body (@{ gameId = "wuwa" } | ConvertTo-Json -Compress) | Out-Null
+        -Body (@{ gameId = "wuwa" } | ConvertTo-Json -Compress) -TimeoutSec 15 | Out-Null
     Write-DebugLog "Start notification sent successfully."
 } catch {
     Write-DebugLog "Failed to notify tracker: $_`n$($_.ScriptStackTrace)"
@@ -295,9 +307,9 @@ if (Test-Path $logPath) {
     }
     
     try {
-        Write-DebugLog "Attempting to read first line of Client.log..."
-        $testRead = Get-Content -Path $logPath -TotalCount 1 -ErrorAction Stop
-        Write-DebugLog "Successfully read first line of Client.log."
+        Write-DebugLog "Attempting to read Client.log with shared reader..."
+        [void](ReadSharedFileBytes $logPath)
+        Write-DebugLog "Successfully read Client.log with shared reader."
     } catch {
         Write-Host "Adjusting log file permissions to allow reading..." -ForegroundColor Yellow
         Write-DebugLog "Read test failed: $_"
@@ -320,7 +332,7 @@ if (Test-Path $logPath) {
         Write-DebugLog "Found $($urlMatches.Count) URL matches in decrypted Client.log."
         if ($urlMatches.Count -gt 0) {
             $conveneUrl = $urlMatches[$urlMatches.Count - 1].Value
-            Write-DebugLog "Selected latest decrypted Convene URL: $conveneUrl"
+            Write-DebugLog "Selected latest decrypted Convene URL: $(Get-RedactedUrl $conveneUrl)"
         } else {
             Write-DebugLog "No matches found in decrypted content. Trying raw plain text content..."
             $rawContent = GetSharedFileContent $logPath
@@ -328,7 +340,7 @@ if (Test-Path $logPath) {
             Write-DebugLog "Found $($urlMatches.Count) URL matches in raw Client.log."
             if ($urlMatches.Count -gt 0) {
                 $conveneUrl = $urlMatches[$urlMatches.Count - 1].Value
-                Write-DebugLog "Selected latest raw Convene URL: $conveneUrl"
+                Write-DebugLog "Selected latest raw Convene URL: $(Get-RedactedUrl $conveneUrl)"
             }
         }
     } catch {
@@ -343,7 +355,7 @@ if (-not $conveneUrl -and $webviewLogPath -and (Test-Path $webviewLogPath)) {
     Write-DebugLog "Found $($webviewMatches.Count) URL matches in debug.log."
     if ($webviewMatches.Count -gt 0) {
         $conveneUrl = $webviewMatches[-1]
-        Write-DebugLog "Selected latest Convene URL: $conveneUrl"
+        Write-DebugLog "Selected latest Convene URL: $(Get-RedactedUrl $conveneUrl)"
     }
 }
 
@@ -359,7 +371,7 @@ $qIndex = $conveneUrl.IndexOf('?')
 if ($qIndex -ge 0) {
     $queryString = $conveneUrl.Substring($qIndex)
 }
-Write-DebugLog "Query string parsed: $queryString"
+Write-DebugLog "Query string parsed: $(Get-RedactedUrl $queryString)"
 
 $query = [Web.HttpUtility]::ParseQueryString($queryString)
 $player_id = $query.Get("player_id")
@@ -368,21 +380,21 @@ $server_id = $query.Get("svr_id")
 if (-not $server_id) { $server_id = $query.Get("serverId") }
 if (-not $server_id) { $server_id = $query.Get("server_id") }
 
-Write-DebugLog "Parsed player_id: $player_id"
-Write-DebugLog "Parsed record_id: $record_id"
-Write-DebugLog "Parsed server_id: $server_id"
+Write-DebugLog "Parsed player_id: ***"
+Write-DebugLog "Parsed record_id: ***"
+Write-DebugLog "Parsed server_id: ***"
 
-if (-not $player_id -or -not $record_id) {
+if (-not $player_id -or -not $record_id -or -not $server_id) {
     Write-Host "Error: Could not parse session parameters from the Convene URL." -ForegroundColor Red
     Write-Host "Please open the in-game 'Convene History' screen to refresh the cache, then try again."
     
     if ($DebugMode) {
         Write-Host "`n--- Extraction Diagnostics ---" -ForegroundColor Yellow
-        Write-Host "Extracted URL: $conveneUrl" -ForegroundColor Yellow
-        Write-Host "Query Substring: $queryString" -ForegroundColor Yellow
-        Write-Host "player_id parsed: '$player_id'" -ForegroundColor Yellow
-        Write-Host "record_id parsed: '$record_id'" -ForegroundColor Yellow
-        Write-Host "server_id parsed: '$server_id'" -ForegroundColor Yellow
+        Write-Host "Extracted URL: $(Get-RedactedUrl $conveneUrl)" -ForegroundColor Yellow
+        Write-Host "Query Substring: $(Get-RedactedUrl $queryString)" -ForegroundColor Yellow
+        Write-Host "player_id parsed: '***'" -ForegroundColor Yellow
+        Write-Host "record_id parsed: '***'" -ForegroundColor Yellow
+        Write-Host "server_id parsed: '***'" -ForegroundColor Yellow
         Write-Host "------------------------------`n" -ForegroundColor Yellow
     }
     return
@@ -402,7 +414,7 @@ if ($qIndex -ge 0) {
     $queryString = $conveneUrl.Substring($qIndex)
 }
 $kuroApiUrl = "$apiDomain/gacha/record/query$queryString"
-Write-DebugLog "Kuro API URL: $kuroApiUrl"
+Write-DebugLog "Kuro API URL: $(Get-RedactedUrl $kuroApiUrl)"
 
 $headers = @{
     "Content-Type" = "application/json"
@@ -456,10 +468,10 @@ foreach ($gachaType in $bannerTypes) {
         languageCode = "en"
     }
     $bodyJson = $body | ConvertTo-Json -Compress
-    Write-DebugLog "API Request Body: $bodyJson"
+    Write-DebugLog "API Request Body: $(Get-RedactedJson $bodyJson)"
 
     try {
-        $response = Invoke-RestMethod -Uri $kuroApiUrl -Method Post -Headers $headers -Body $bodyJson
+        $response = Invoke-RestMethod -Uri $kuroApiUrl -Method Post -Headers $headers -Body $bodyJson -TimeoutSec 15
         Write-DebugLog "API Response Code: $($response.code)"
         Write-DebugLog "API Response Msg: $($response.msg)"
         
@@ -563,7 +575,7 @@ try {
     $result = Invoke-RestMethod -Uri $importUrl -Method Post -Headers @{
         "Authorization" = "Bearer $ImportToken"
         "Content-Type"  = "application/json"
-    } -Body $payloadJson
+    } -Body $payloadJson -TimeoutSec 30
     Write-DebugLog "Tracker response success: $($result.success), message: $($result.message), error: $($result.error)"
 
     if ($result.success) {
