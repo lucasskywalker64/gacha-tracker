@@ -1,7 +1,14 @@
+import { execSync } from "child_process";
+import path from "path";
+import { fileURLToPath } from "url";
 import { updateHsrBanners } from "./hsr/index.js";
 import { updateGenshinBanners } from "./genshin/index.js";
 import { updateZzzBanners } from "./zzz/index.js";
 import { updateWuwaBanners } from "./wuwa/index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const BANNERS_PATH = path.resolve(__dirname, "../../shared/src/data/banners.json");
 
 async function main() {
     const args = process.argv.slice(2);
@@ -24,6 +31,12 @@ async function main() {
     if (config) {
         console.log(`Updating ${config.name} banners...`);
         await config.update();
+        console.log("Formatting banners.json...");
+        try {
+            execSync(`npx prettier --write "${BANNERS_PATH}"`, { stdio: "inherit" });
+        } catch (error) {
+            console.error("Failed to format banners.json:", error);
+        }
     } else {
         console.error(`Error: Unknown game: ${game}`);
         process.exit(1);
