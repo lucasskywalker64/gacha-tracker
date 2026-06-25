@@ -475,31 +475,19 @@ foreach ($gachaType in $bannerTypes) {
         }
         Write-DebugLog "API Response data count for banner ${gachaType}: $($list.Count)"
 
-        # Sort raw list oldest first so we can assign deterministic indices chronologically
-        $sortedList = $list | Sort-Object -Property time
+        # Sort raw list oldest first using native id chronologically
+        $sortedList = $list | Sort-Object -Property id
         
-        # Group pulls by timestamp to handle multiple pulls in the same second
-        $pullsByTime = @{}
         $bannerPulls = @()
         
         foreach ($item in $sortedList) {
-            $timeKey = $item.time
-            if (-not $pullsByTime.ContainsKey($timeKey)) {
-                $pullsByTime[$timeKey] = 0
-            } else {
-                $pullsByTime[$timeKey] = $pullsByTime[$timeKey] + 1
-            }
-            $indexWithinSecond = $pullsByTime[$timeKey]
-            
             $itemType = "Weapon"
             $charMatch = "Resonator|$([char]0x89d2)$([char]0x8272)"
             if ($item.resourceType -match $charMatch) {
                 $itemType = "Resonator"
             }
             
-            # Generate deterministic pullId
-            $cleanTime = $item.time -replace '[\s:]', '-'
-            $pullId = "${player_id}_${gachaType}_${cleanTime}_${indexWithinSecond}"
+            $pullId = [string]$item.id
             
             $bannerPulls += @{
                 pullId     = $pullId
@@ -514,7 +502,6 @@ foreach ($gachaType in $bannerTypes) {
                     resourceId            = [string]$item.resourceId
                     qualityLevel          = [int]$item.qualityLevel
                     cardPoolType          = [int]$gachaType
-                    pullIndexWithinSecond = [int]$indexWithinSecond
                 }
             }
         }
