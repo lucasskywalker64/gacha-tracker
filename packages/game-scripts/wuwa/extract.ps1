@@ -431,7 +431,7 @@ $headers = @{
 # 4: Standard Weapon
 # 5: Novice Convene
 # 6: Beginner's Choice
-$bannerTypes = @("1", "2", "3", "4", "5", "6", "11", "12")
+$bannerTypes = @("1", "2", "3", "4", "5", "6", "10", "11")
 $bannerNames = @{
     "1" = "Featured Resonator"
     "2" = "Featured Weapon"
@@ -439,8 +439,8 @@ $bannerNames = @{
     "4" = "Standard Weapon"
     "5" = "Novice Convene"
     "6" = "Beginner's Choice"
-    "11" = "Collab Resonator"
-    "12" = "Collab Weapon"
+    "10" = "Collab Resonator"
+    "11" = "Collab Weapon"
 }
 $allPulls = @()
 $cursorObj = $null
@@ -490,19 +490,30 @@ foreach ($gachaType in $bannerTypes) {
         }
         Write-DebugLog "API Response data count for banner ${gachaType}: $($list.Count)"
 
-        # Sort raw list oldest first using native id chronologically
-        $sortedList = $list | Sort-Object -Property id
-        
+        # Process the newest-first API response list backwards to get chronological oldest-first order stably
         $bannerPulls = @()
+        $pullsByTime = @{}
         
-        foreach ($item in $sortedList) {
+        for ($i = $list.Count - 1; $i -ge 0; $i--) {
+            $item = $list[$i]
+            
+            $timeKey = $item.time
+            if (-not $pullsByTime.ContainsKey($timeKey)) {
+                $pullsByTime[$timeKey] = 0
+            } else {
+                $pullsByTime[$timeKey] = $pullsByTime[$timeKey] + 1
+            }
+            $indexWithinSecond = $pullsByTime[$timeKey]
+            
             $itemType = "Weapon"
             $charMatch = "Resonator|$([char]0x89d2)$([char]0x8272)"
             if ($item.resourceType -match $charMatch) {
                 $itemType = "Resonator"
             }
             
-            $pullId = [string]$item.id
+            # Generate deterministic stable pullId
+            $cleanTime = $item.time -replace '[\s:]', '-'
+            $pullId = "${player_id}_${gachaType}_${cleanTime}_${indexWithinSecond}"
             
             $bannerPulls += @{
                 pullId     = $pullId

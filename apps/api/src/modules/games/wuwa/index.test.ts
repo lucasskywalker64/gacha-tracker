@@ -300,7 +300,7 @@ describe("Wuthering Waves Game Adapter", () => {
             expect(processedStandard[1].pityAtPull).toBe(2);
         });
 
-        it("should correctly handle collab character (11) and collab weapon (12) banners", () => {
+        it("should correctly handle collab character (10) and collab weapon (11) banners", () => {
             banners.games.wuwa = [
                 {
                     phase: "Collab_Phase",
@@ -318,7 +318,7 @@ describe("Wuthering Waves Game Adapter", () => {
                 {
                     pullId: "collab-c1",
                     gameUid: "123",
-                    bannerType: "11",
+                    bannerType: "10",
                     itemId: "1503", // Verina (standard character)
                     itemName: "Verina",
                     itemType: "Resonator",
@@ -330,7 +330,7 @@ describe("Wuthering Waves Game Adapter", () => {
                 {
                     pullId: "collab-c2",
                     gameUid: "123",
-                    bannerType: "11",
+                    bannerType: "10",
                     itemId: "1511", // Lucy (collab featured character)
                     itemName: "Lucy",
                     itemType: "Resonator",
@@ -341,7 +341,7 @@ describe("Wuthering Waves Game Adapter", () => {
                 },
             ];
 
-            const processedCollabChar = wuwaAdapter.computePity(collabCharPulls, "11");
+            const processedCollabChar = wuwaAdapter.computePity(collabCharPulls, "10");
             // Lost 50/50 on first pull
             expect(processedCollabChar[0].pityAtPull).toBe(1);
             expect(processedCollabChar[0].wasGuaranteed).toBe(0);
@@ -356,7 +356,7 @@ describe("Wuthering Waves Game Adapter", () => {
                 {
                     pullId: "collab-w1",
                     gameUid: "123",
-                    bannerType: "12",
+                    bannerType: "11",
                     itemId: "21030056", // Spectral Trigger (collab featured weapon)
                     itemName: "Spectral Trigger",
                     itemType: "Weapon",
@@ -367,7 +367,7 @@ describe("Wuthering Waves Game Adapter", () => {
                 },
             ];
 
-            const processedCollabWeap = wuwaAdapter.computePity(collabWeapPulls, "12");
+            const processedCollabWeap = wuwaAdapter.computePity(collabWeapPulls, "11");
             expect(processedCollabWeap[0].pityAtPull).toBe(1);
             expect(processedCollabWeap[0].wasGuaranteed).toBe(0);
             expect(processedCollabWeap[0].bannerId).toBe("21030056");

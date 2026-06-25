@@ -77,8 +77,8 @@ export const WUWA_BANNERS = {
     STANDARD_WEAPON: 4,
     BEGINNER: 5,
     BEGINNER_CHOICE: 6,
-    COLLAB_CHARACTER: 11,
-    COLLAB_WEAPON: 12,
+    COLLAB_CHARACTER: 10,
+    COLLAB_WEAPON: 11,
 } as const;
 
 export const WUWA_BANNER_NAMES: Record<number, string> = {
