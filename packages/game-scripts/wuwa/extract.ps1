@@ -380,9 +380,12 @@ $server_id = $query.Get("svr_id")
 if (-not $server_id) { $server_id = $query.Get("serverId") }
 if (-not $server_id) { $server_id = $query.Get("server_id") }
 
-Write-DebugLog "Parsed player_id: ***"
-Write-DebugLog "Parsed record_id: ***"
-Write-DebugLog "Parsed server_id: ***"
+$playerStatus = if ($player_id) { "<redacted>" } else { "<missing>" }
+$recordStatus = if ($record_id) { "<redacted>" } else { "<missing>" }
+$serverStatus = if ($server_id) { "<redacted>" } else { "<missing>" }
+Write-DebugLog "Parsed player_id: $playerStatus"
+Write-DebugLog "Parsed record_id: $recordStatus"
+Write-DebugLog "Parsed server_id: $serverStatus"
 
 if (-not $player_id -or -not $record_id -or -not $server_id) {
     Write-Host "Error: Could not parse session parameters from the Convene URL." -ForegroundColor Red
@@ -392,9 +395,9 @@ if (-not $player_id -or -not $record_id -or -not $server_id) {
         Write-Host "`n--- Extraction Diagnostics ---" -ForegroundColor Yellow
         Write-Host "Extracted URL: $(Get-RedactedUrl $conveneUrl)" -ForegroundColor Yellow
         Write-Host "Query Substring: $(Get-RedactedUrl $queryString)" -ForegroundColor Yellow
-        Write-Host "player_id parsed: '***'" -ForegroundColor Yellow
-        Write-Host "record_id parsed: '***'" -ForegroundColor Yellow
-        Write-Host "server_id parsed: '***'" -ForegroundColor Yellow
+        Write-Host "player_id parsed: '$playerStatus'" -ForegroundColor Yellow
+        Write-Host "record_id parsed: '$recordStatus'" -ForegroundColor Yellow
+        Write-Host "server_id parsed: '$serverStatus'" -ForegroundColor Yellow
         Write-Host "------------------------------`n" -ForegroundColor Yellow
     }
     return
