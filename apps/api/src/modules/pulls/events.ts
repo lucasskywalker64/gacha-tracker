@@ -53,7 +53,7 @@ export const eventsRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get
                 const keepAlive = setInterval(() => {
                     if (isClosed) return;
                     try {
-                        controller.enqueue(":\\n\\n");
+                        controller.enqueue(":\n\n");
                     } catch {
                         safeClose();
                     }
