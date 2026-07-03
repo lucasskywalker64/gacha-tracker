@@ -101,6 +101,36 @@ export interface TrackerAdapter {
 }
 
 // ---------------------------------------------------------------------------
+// Export / Backup Types
+// ---------------------------------------------------------------------------
+
+export interface ExportPullData {
+    pullId: string;
+    bannerType: string;
+    bannerId?: string | null;
+    itemId: string;
+    itemName: string;
+    itemType: string;
+    rarity: number;
+    pulledAt: string;
+    pityAtPull: number;
+    wasGuaranteed: number;
+    extra?: Record<string, unknown> | null;
+}
+
+export interface ExportGameData {
+    gameId: string;
+    gameUid: string;
+    pulls: ExportPullData[];
+}
+
+export interface NativeExportData {
+    version: number;
+    exportedAt: string;
+    games: ExportGameData[];
+}
+
+// ---------------------------------------------------------------------------
 // API response shapes (used by both Eden Treaty client and server handlers)
 // ---------------------------------------------------------------------------
 
