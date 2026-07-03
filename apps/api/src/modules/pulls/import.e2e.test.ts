@@ -3,6 +3,7 @@ import { Elysia } from "elysia";
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import * as schema from "../../db/schema";
+import { createTestTables } from "./db-setup.helper";
 
 // --- Mocks ---
 const redisStore = new Map<string, string>();
@@ -74,27 +75,11 @@ describe("HSR Pull Import E2E", () => {
 
         // Setup Database (Matching Drizzle schema)
         console.log("[TEST] Creating tables...");
-        await sqlite.execute(
-            `CREATE TABLE IF NOT EXISTS user (id TEXT PRIMARY KEY, name TEXT, email TEXT, email_verified INTEGER, image TEXT, created_at INTEGER, updated_at INTEGER, deleted_at INTEGER, code_hash TEXT, is_anonymous INTEGER, is_admin INTEGER)`
-        );
-        await sqlite.execute(
-            `CREATE TABLE IF NOT EXISTS game (id TEXT PRIMARY KEY, display_name TEXT, icon_url TEXT, is_active INTEGER, config TEXT, created_at INTEGER)`
-        );
-        await sqlite.execute(
-            `CREATE TABLE IF NOT EXISTS user_game (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, last_import INTEGER, latest_pull_ids TEXT, created_at INTEGER)`
-        );
-        await sqlite.execute(
-            `CREATE TABLE IF NOT EXISTS pull (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, game_uid TEXT, pull_id TEXT, banner_type TEXT, banner_id TEXT, item_id TEXT, item_name TEXT, item_type TEXT, rarity INTEGER, pulled_at INTEGER, pity_at_pull INTEGER, was_guaranteed INTEGER, pity_version INTEGER, extra TEXT, created_at INTEGER)`
-        );
+        await createTestTables(sqlite);
 
-        // Add required indexes for ON CONFLICT
-        await sqlite.execute(
-            `CREATE UNIQUE INDEX IF NOT EXISTS user_game_user_game_idx ON user_game (user_id, game_id)`
-        );
-        await sqlite.execute(
-            `CREATE UNIQUE INDEX IF NOT EXISTS pull_dedup_idx ON pull (user_id, game_id, pull_id)`
-        );
-
+        await sqlite.execute(`DELETE FROM pull`);
+        await sqlite.execute(`DELETE FROM user_game`);
+        await sqlite.execute(`DELETE FROM game`);
         await sqlite.execute(
             `INSERT INTO game (id, display_name, is_active, config, created_at) VALUES ('starrail', 'Honkai: Star Rail', 1, '{}', 0)`
         );
