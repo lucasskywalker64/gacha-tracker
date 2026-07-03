@@ -63,8 +63,22 @@
 				body: JSON.stringify({ email })
 			});
 
+			if (!res.ok) {
+				let errorMsg = `Failed to send verification code (${res.status}).`;
+				try {
+					const errorData = await res.json();
+					if (errorData?.error?.message) {
+						errorMsg = errorData.error.message;
+					}
+				} catch {
+					// Fallback
+				}
+				errorMessage = errorMsg;
+				return;
+			}
+
 			const data = await res.json();
-			if (res.ok && data.success) {
+			if (data.success) {
 				primaryEmail = email;
 				showOtpInput = true;
 			} else {

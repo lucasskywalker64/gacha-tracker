@@ -819,11 +819,20 @@
 				body: formData
 			});
 
-			const result = await res.json();
 			if (!res.ok) {
-				throw new Error(result.error || 'Import failed');
+				let errorMsg = `Import failed (${res.status})`;
+				try {
+					const errorData = await res.json();
+					if (errorData?.error) {
+						errorMsg = errorData.error;
+					}
+				} catch {
+					// Fallback if not JSON or empty
+				}
+				throw new Error(errorMsg);
 			}
 
+			const result = await res.json();
 			importSuccess = result.summary;
 			importFile = null;
 			if (fileInputRef) {
