@@ -11,6 +11,7 @@
 		LoaderCircle,
 		Trash2,
 		Download,
+		Upload,
 		TriangleAlert,
 		ShieldCheck,
 		Link2,
@@ -21,6 +22,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
 	import GoogleIcon from '$lib/components/icons/GoogleIcon.svelte';
+	import { PUBLIC_API_URL } from '$env/static/public';
 
 	let { data }: { data: PageData } = $props();
 
@@ -673,21 +675,166 @@
 
 	async function exportData() {
 		try {
-			const { data: exportObj, error } = await api.user.export.get();
-			if (!error && exportObj) {
-				const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement('a');
-				a.href = url;
-				a.download = `gacha-tracker-export-${new Date().toISOString().slice(0, 10)}.json`;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-			} else {
-				alert('Failed to export data: ' + error?.value);
+			const res = await fetch(`${PUBLIC_API_URL}/pulls/export`, {
+				credentials: 'include'
+			});
+			if (!res.ok) throw new Error('Export failed');
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `gacha-tracker-export-${new Date().toISOString().slice(0, 10)}.json`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
+		} catch (err) {
+			console.error(err);
+			alert('Failed to export data.');
+		}
+	}
+
+	// Data Management
+	let formats = $state<Array<{ id: string; displayName: string; acceptedExtensions: string }>>([]);
+	let loadingFormats = $state(true);
+
+	let selectedFormat = $state('gacha-tracker-json');
+	let selectedFormatObj = $derived(formats.find((f) => f.id === selectedFormat));
+	let acceptedExtensions = $derived(selectedFormatObj?.acceptedExtensions || '.json');
+	let importFile = $state<File | null>(null);
+	let fileInputRef = $state<HTMLInputElement | null>(null);
+	let importing = $state(false);
+	let importError = $state('');
+	let importSuccess = $state<
+		| { gameId: string; gameUid: string; imported: number; message: string; success: boolean }[]
+		| null
+	>(null);
+
+	let importStatusSummary = $derived.by(() => {
+		if (!importSuccess || importSuccess.length === 0) return null;
+		const total = importSuccess.length;
+		const successes = importSuccess.filter((s) => s.success).length;
+		if (successes === total) {
+			return {
+				title: 'Import Completed Successfully',
+				bgClass: 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400',
+				titleClass: 'text-emerald-400'
+			};
+		} else if (successes === 0) {
+			return {
+				title: 'Import Failed',
+				bgClass: 'bg-red-500/5 border-red-500/20 text-red-400',
+				titleClass: 'text-red-400'
+			};
+		} else {
+			return {
+				title: 'Import Complete with Warnings',
+				bgClass: 'bg-amber-500/5 border-amber-500/20 text-amber-400',
+				titleClass: 'text-amber-400'
+			};
+		}
+	});
+
+	onMount(async () => {
+		try {
+			const { data: res } = await api.pulls.import.formats.get();
+			if (res?.formats) {
+				formats = res.formats;
+			}
+		} catch (err) {
+			console.error('Failed to load import formats:', err);
+		} finally {
+			loadingFormats = false;
+		}
+	});
+
+	function validateImportFile(file: File): { isValid: boolean; error: string } {
+		// Validate file type/extension
+		const allowedList = acceptedExtensions
+			.toLowerCase()
+			.split(',')
+			.map((ext) => ext.trim());
+		const fileName = file.name.toLowerCase();
+		const isValidExt = allowedList.some((ext) => fileName.endsWith(ext));
+
+		if (!isValidExt) {
+			return {
+				isValid: false,
+				error: `Invalid file type. Expected ${acceptedExtensions
+					.split(',')
+					.map((ext) => ext.trim().replace(/^\./, ''))
+					.join(', ')
+					.toUpperCase()} format.`
+			};
+		}
+
+		// Validate file size (Max 2MB)
+		if (file.size > 2 * 1024 * 1024) {
+			return {
+				isValid: false,
+				error: 'File size exceeds the 2MB limit.'
+			};
+		}
+
+		return { isValid: true, error: '' };
+	}
+
+	function handleFileChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		if (target.files && target.files.length > 0) {
+			const file = target.files[0];
+			const validation = validateImportFile(file);
+			if (!validation.isValid) {
+				importError = validation.error;
+				importFile = null;
+				target.value = '';
+				return;
+			}
+			importFile = file;
+			importError = '';
+			importSuccess = null;
+		}
+	}
+
+	async function handleImport() {
+		if (!importFile) return;
+
+		const validation = validateImportFile(importFile);
+		if (!validation.isValid) {
+			importError = validation.error;
+			return;
+		}
+		importing = true;
+		importError = '';
+		importSuccess = null;
+
+		try {
+			const formData = new FormData();
+			formData.append('format', selectedFormat);
+			formData.append('file', importFile);
+
+			const res = await fetch(`${PUBLIC_API_URL}/pulls/import/file`, {
+				method: 'POST',
+				credentials: 'include',
+				body: formData
+			});
+
+			const result = await res.json();
+			if (!res.ok) {
+				throw new Error(result.error || 'Import failed');
+			}
+
+			importSuccess = result.summary;
+			importFile = null;
+			if (fileInputRef) {
+				fileInputRef.value = '';
 			}
 		} catch (err) {
 			console.error(err);
+			const message = err instanceof Error ? err.message : String(err);
+			importError = message || 'An unexpected error occurred during import.';
+		} finally {
+			importing = false;
 		}
 	}
 
@@ -805,7 +952,7 @@
 
 	<Tabs.Root value="account" class="w-full">
 		<Tabs.List
-			class="grid h-auto w-full grid-cols-3 bg-zinc-900/50 border border-zinc-800 rounded-xl p-1 mb-6"
+			class="grid h-auto w-full grid-cols-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-1 mb-6"
 		>
 			<Tabs.Trigger
 				value="account"
@@ -818,6 +965,12 @@
 				class="rounded-lg text-sm font-semibold text-zinc-400 data-[state=active]:bg-zinc-800 data-[state=active]:text-white cursor-pointer py-2"
 			>
 				Preferences
+			</Tabs.Trigger>
+			<Tabs.Trigger
+				value="data"
+				class="rounded-lg text-sm font-semibold text-zinc-400 data-[state=active]:bg-zinc-800 data-[state=active]:text-white cursor-pointer py-2"
+			>
+				Data Management
 			</Tabs.Trigger>
 			<Tabs.Trigger
 				value="danger"
@@ -1403,6 +1556,185 @@
 							{/if}
 						</Button>
 					</div>
+				</Card.Content>
+			</Card.Root>
+		</Tabs.Content>
+
+		<!-- DATA MANAGEMENT PANEL -->
+		<Tabs.Content value="data" class="space-y-6 outline-none">
+			<Card.Root
+				class="bg-zinc-950/60 backdrop-blur-xl border-zinc-800 rounded-2xl overflow-hidden shadow-xl shadow-black/30 p-0 gap-0"
+			>
+				<Card.Header
+					class="bg-linear-to-b from-zinc-900/50 to-transparent p-6 border-b border-zinc-900"
+				>
+					<div class="flex items-center gap-3">
+						<Download class="w-5 h-5 text-indigo-400" />
+						<Card.Title class="text-white text-lg font-bold">Backup & Export</Card.Title>
+					</div>
+					<Card.Description class="text-zinc-500 mt-1"
+						>Export your entire gacha history across all games to a JSON file.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="p-6 space-y-6">
+					<div
+						class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl bg-zinc-900/20 border border-zinc-800/80 gap-4"
+					>
+						<div class="space-y-1">
+							<span class="text-sm font-bold text-white block">Download JSON Backup</span>
+							<span class="text-xs text-zinc-500 block leading-relaxed"
+								>Saves all your tracked pull logs. Keep this file safe to restore your data at any
+								time.</span
+							>
+						</div>
+						<Button
+							size="sm"
+							onclick={exportData}
+							class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white rounded-xl px-5 py-2.5 font-bold w-full sm:w-auto cursor-pointer gap-2 shrink-0"
+						>
+							<Download class="h-4 w-4" /> Export Data
+						</Button>
+					</div>
+				</Card.Content>
+			</Card.Root>
+
+			<Card.Root
+				class="bg-zinc-950/60 backdrop-blur-xl border-zinc-800 rounded-2xl overflow-hidden shadow-xl shadow-black/30 p-0 gap-0"
+			>
+				<Card.Header
+					class="bg-linear-to-b from-zinc-900/50 to-transparent p-6 border-b border-zinc-900"
+				>
+					<div class="flex items-center gap-3">
+						<Upload class="w-5 h-5 text-indigo-400" />
+						<Card.Title class="text-white text-lg font-bold">Import History</Card.Title>
+					</div>
+					<Card.Description class="text-zinc-500 mt-1"
+						>Upload your gacha history files to merge them with your current logs.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="p-6 space-y-6">
+					<!-- Format Selection -->
+					<div class="grid gap-2">
+						<label
+							for="import-format"
+							class="text-xs font-bold text-zinc-400 uppercase tracking-wider">Import Format</label
+						>
+						{#if loadingFormats}
+							<div
+								class="h-10 w-full bg-zinc-900/40 animate-pulse border border-zinc-800 rounded-xl"
+							></div>
+						{:else}
+							<select
+								id="import-format"
+								bind:value={selectedFormat}
+								class="w-full rounded-xl bg-zinc-900 border border-zinc-800 p-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer"
+							>
+								{#each formats as format (format.id)}
+									<option value={format.id}>{format.displayName}</option>
+								{/each}
+							</select>
+						{/if}
+					</div>
+
+					<!-- File Dropzone -->
+					<div class="grid gap-2">
+						<span
+							id="backup-file-label"
+							class="text-xs font-bold text-zinc-400 uppercase tracking-wider"
+							>Select Backup File</span
+						>
+						<div
+							class="border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900/10 hover:bg-zinc-900/30 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative min-h-[160px] focus-within:ring-2 focus-within:ring-indigo-500/40 focus-within:border-indigo-500/50"
+						>
+							<input
+								type="file"
+								id="backup-file-input"
+								bind:this={fileInputRef}
+								aria-labelledby="backup-file-label"
+								accept={acceptedExtensions}
+								onchange={handleFileChange}
+								class="absolute inset-0 opacity-0 cursor-pointer focus:outline-none"
+								disabled={importing}
+							/>
+							{#if importFile}
+								<div class="flex flex-col items-center gap-2">
+									<div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-400">
+										<Upload class="w-6 h-6" />
+									</div>
+									<span class="text-sm font-bold text-zinc-200">{importFile.name}</span>
+									<span class="text-xs text-zinc-500">{(importFile.size / 1024).toFixed(1)} KB</span
+									>
+								</div>
+							{:else}
+								<div class="flex flex-col items-center gap-2">
+									<div class="p-3 bg-zinc-850 rounded-xl text-zinc-500">
+										<Upload class="w-6 h-6 animate-pulse" />
+									</div>
+									<span class="text-sm font-bold text-zinc-350"
+										>Drag and drop file or click to browse</span
+									>
+									<span class="text-xs text-zinc-500"
+										>Supports {acceptedExtensions.replace(/^\./, '').toUpperCase()} backups (Max 2MB)</span
+									>
+								</div>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Import Action -->
+					<div class="flex justify-end pt-2">
+						<Button
+							onclick={handleImport}
+							disabled={importing || !importFile}
+							class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/10 gap-2 cursor-pointer"
+						>
+							{#if importing}
+								<LoaderCircle class="h-4 w-4 animate-spin" /> Importing...
+							{:else}
+								<Upload class="h-4 w-4" /> Start Import
+							{/if}
+						</Button>
+					</div>
+
+					<!-- Import feedback -->
+					{#if importError}
+						<div
+							class="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400 animate-in fade-in slide-in-from-top-1 duration-200"
+						>
+							<strong>Import Failed:</strong>
+							{importError}
+						</div>
+					{/if}
+
+					{#if importSuccess && importStatusSummary}
+						<div
+							class="p-5 rounded-xl border space-y-3 animate-in fade-in slide-in-from-top-1 duration-200 {importStatusSummary.bgClass}"
+						>
+							<span class="text-sm font-bold block {importStatusSummary.titleClass}"
+								>{importStatusSummary.title}</span
+							>
+							<div
+								class="divide-y divide-zinc-900 border border-zinc-900 rounded-xl overflow-hidden bg-zinc-950/40"
+							>
+								{#each importSuccess as item (item.gameId + ':' + item.gameUid)}
+									<div class="p-3.5 flex items-center justify-between text-xs">
+										<div class="space-y-1">
+											<span
+												class="font-bold text-zinc-200 block uppercase tracking-wider text-[10px]"
+												>{item.gameId}</span
+											>
+											<span class="text-zinc-500 block">Account UID: {item.gameUid}</span>
+										</div>
+										<span
+											class="font-bold px-2.5 py-1 rounded-full {item.success
+												? 'text-emerald-400 bg-emerald-500/10'
+												: 'text-red-400 bg-red-500/10'}">{item.message}</span
+										>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		</Tabs.Content>
