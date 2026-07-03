@@ -5,8 +5,14 @@ import { eq, and, sql } from "drizzle-orm";
 import { redis } from "../../lib/redis";
 import { getAdapter } from "../games/registry";
 import { authPlugin } from "../auth";
-import { importPayloadSchema, type NormalizedPull } from "@gacha-tracker/shared";
+import { ZodError } from "zod";
+import {
+    importPayloadSchema,
+    type NormalizedPull,
+    type ExportPullData,
+} from "@gacha-tracker/shared";
 import { IMPORT_TOKEN_TTL_SECONDS } from "../../config";
+import { getParser, getSupportedFormats } from "./parsers/registry";
 
 export const importRouter = new Elysia({ prefix: "/pulls" })
     .use(authPlugin)
@@ -115,157 +121,16 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 return status(200, { success: true, imported: 0, message: "No pulls to import" });
             }
 
-            let newCount = 0;
-
-            await db.transaction(async (tx) => {
-                // Find existing userGame
-                let currentUserGame = await tx.query.userGame.findFirst({
-                    where: and(eq(userGame.userId, userId), eq(userGame.gameId, payload.gameId)),
-                });
-
-                if (!currentUserGame) {
-                    const userGameId = crypto.randomUUID();
-                    await tx.insert(userGame).values({
-                        id: userGameId,
-                        userId,
-                        gameId: payload.gameId,
-                        latestPullIds: "{}",
-                    });
-
-                    currentUserGame = {
-                        id: userGameId,
-                        userId,
-                        gameId: payload.gameId,
-                        lastImport: null,
-                        latestPullIds: "{}",
-                        createdAt: new Date(),
-                    };
-                }
-
-                // We should group pulls by bannerType to calculate pity easily.
-                // Or if we want generic pity computed, we can get all existing pulls from the DB,
-                // merge them with the new pulls, and recompute pity.
-                // For Phase 1, we can just fetch existing pulls for this user/game,
-                // compute pity on the combined array, and then upsert everything.
-
-                const existingDbPulls = await tx.query.pull.findMany({
-                    where: and(eq(pull.userId, userId), eq(pull.gameId, payload.gameId)),
-                    orderBy: (pull, { asc }) => [asc(pull.pulledAt)], // Needs to be sorted properly
-                });
-
-                // Convert existing DB pulls to NormalizedPull format
-                const existingNormalizedPulls: NormalizedPull[] = existingDbPulls.map((p) => ({
-                    pullId: p.pullId,
-                    gameUid: p.gameUid,
-                    bannerType: p.bannerType,
-                    ...(p.bannerId ? { bannerId: p.bannerId } : {}),
-                    itemId: p.itemId,
-                    itemName: p.itemName,
-                    itemType: p.itemType,
-                    rarity: p.rarity,
-                    pulledAt: new Date(p.pulledAt),
-                    pityAtPull: p.pityAtPull,
-                    wasGuaranteed: p.wasGuaranteed,
-                    extra: p.extra ? JSON.parse(p.extra) : undefined,
-                }));
-
-                // Merge existing and new pulls, removing duplicates
-                const combinedPullsMap = new Map(existingNormalizedPulls.map((p) => [p.pullId, p]));
-
-                for (const p of allPulls) {
-                    if (!combinedPullsMap.has(p.pullId)) {
-                        combinedPullsMap.set(p.pullId, p);
-                        newCount++;
-                    }
-                }
-
-                if (newCount === 0) {
-                    return;
-                }
-
-                // Group by pity pool to compute pity
-                const pullsByPool = new Map<string, NormalizedPull[]>();
-                for (const pull of Array.from(combinedPullsMap.values())) {
-                    const poolKey = adapter.pityPools?.[pull.bannerType] || pull.bannerType;
-                    const arr = pullsByPool.get(poolKey) || [];
-                    arr.push(pull as NormalizedPull);
-                    pullsByPool.set(poolKey, arr);
-                }
-
-                // Calculate Pity and collect them to insert/update
-                const pullsToUpsert = [];
-                const latestIds: Record<string, string> = {};
-
-                for (const [poolKey, pullsInPool] of Array.from(pullsByPool.entries())) {
-                    // Sort explicitly by pulledAt then pullId to break ties predictably
-                    pullsInPool.sort((a: NormalizedPull, b: NormalizedPull) => {
-                        if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
-                            return a.pullId.localeCompare(b.pullId);
-                        }
-                        return a.pulledAt.getTime() - b.pulledAt.getTime();
-                    });
-
-                    // Run the game adapter's pity calculation
-                    const processedPulls = adapter.computePity(pullsInPool, poolKey);
-
-                    for (const p of processedPulls) {
-                        pullsToUpsert.push({
-                            id: crypto.randomUUID(), // we will overwrite id if it exists
-                            userId,
-                            gameId: payload.gameId,
-                            gameUid: payload.gameUid,
-                            pullId: p.pullId,
-                            bannerType: p.bannerType,
-                            bannerId: p.bannerId || null,
-                            itemId: p.itemId,
-                            itemName: p.itemName,
-                            itemType: p.itemType,
-                            rarity: p.rarity,
-                            pulledAt: p.pulledAt,
-                            pityAtPull: p.pityAtPull,
-                            wasGuaranteed: p.wasGuaranteed,
-                            extra: p.extra ? JSON.stringify(p.extra) : null,
-                            pityVersion: 1, // hardcoded for phase 1
-                        });
-
-                        latestIds[p.bannerType] = p.pullId;
-                    }
-                }
-
-                // Chunk inserts for SQLite (max variables limits)
-                const CHUNK_SIZE = 100;
-                for (let i = 0; i < pullsToUpsert.length; i += CHUNK_SIZE) {
-                    const chunk = pullsToUpsert.slice(i, i + CHUNK_SIZE);
-                    await tx
-                        .insert(pull)
-                        .values(chunk)
-                        .onConflictDoUpdate({
-                            target: [pull.userId, pull.gameId, pull.pullId],
-                            set: {
-                                pityAtPull: sql`excluded.pity_at_pull`,
-                                wasGuaranteed: sql`excluded.was_guaranteed`,
-                                pityVersion: sql`excluded.pity_version`,
-                                bannerId: sql`excluded.banner_id`,
-                            },
-                        });
-                }
-
-                // Update userGame
-                await tx
-                    .update(userGame)
-                    .set({
-                        lastImport: new Date(),
-                        latestPullIds: JSON.stringify(latestIds),
-                    })
-                    .where(eq(userGame.id, currentUserGame.id));
-            });
+            const { imported } = await executePullsImport(
+                userId,
+                payload.gameId,
+                payload.gameUid,
+                allPulls
+            );
 
             const channel = `import:${userId}:${payload.gameId}`;
 
-            // Invalidate stats cache so the dashboard shows fresh pity immediately
-            await redis.del(`stats:${userId}:${payload.gameId}`);
-
-            if (newCount === 0) {
+            if (imported === 0) {
                 await redis.publish(
                     channel,
                     JSON.stringify({ type: "complete", imported: 0, gameId: payload.gameId })
@@ -275,12 +140,12 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
 
             await redis.publish(
                 channel,
-                JSON.stringify({ type: "complete", imported: newCount, gameId: payload.gameId })
+                JSON.stringify({ type: "complete", imported, gameId: payload.gameId })
             );
 
             return status(200, {
                 success: true,
-                imported: newCount,
+                imported,
                 message: "Pulls imported successfully",
             });
         },
@@ -298,4 +163,373 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 }),
             },
         }
+    )
+
+    // 4. Export all user data as native JSON
+    .get(
+        "/export",
+        async ({ user, set }) => {
+            const userId = user!.id;
+
+            const userPulls = await db.query.pull.findMany({
+                where: eq(pull.userId, userId),
+                orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
+            });
+
+            const gamesMap = new Map<
+                string,
+                { gameId: string; gameUid: string; pulls: ExportPullData[] }
+            >();
+
+            for (const p of userPulls) {
+                const key = `${p.gameId}:${p.gameUid}`;
+                if (!gamesMap.has(key)) {
+                    gamesMap.set(key, {
+                        gameId: p.gameId,
+                        gameUid: p.gameUid,
+                        pulls: [],
+                    });
+                }
+                gamesMap.get(key)!.pulls.push({
+                    pullId: p.pullId,
+                    bannerType: p.bannerType,
+                    bannerId: p.bannerId,
+                    itemId: p.itemId,
+                    itemName: p.itemName,
+                    itemType: p.itemType,
+                    rarity: p.rarity,
+                    pulledAt: p.pulledAt.toISOString(),
+                    pityAtPull: p.pityAtPull,
+                    wasGuaranteed: p.wasGuaranteed,
+                    extra: p.extra ? JSON.parse(p.extra) : null,
+                });
+            }
+
+            const exportData = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                games: Array.from(gamesMap.values()),
+            };
+
+            set.headers["content-type"] = "application/json";
+            set.headers["content-disposition"] =
+                `attachment; filename="gacha-tracker-export-${Date.now()}.json"`;
+
+            return JSON.stringify(exportData, null, 2);
+        },
+        {
+            auth: true,
+        }
+    )
+
+    // 5. Import from uploaded file
+    .post(
+        "/import/file",
+        async ({ user, body, status }) => {
+            const userId = user!.id;
+            const { file, format } = body;
+
+            try {
+                const parser = getParser(format);
+                const buffer = Buffer.from(await file.arrayBuffer());
+                const parsed = await parser.parse(buffer);
+
+                const summary: {
+                    gameId: string;
+                    gameUid: string;
+                    imported: number;
+                    message: string;
+                    success: boolean;
+                }[] = [];
+
+                for (const gameData of parsed.games) {
+                    try {
+                        const normalizedPulls: NormalizedPull[] = gameData.pulls.map((p) => ({
+                            pullId: p.pullId,
+                            gameUid: gameData.gameUid,
+                            bannerType: p.bannerType,
+                            bannerId: p.bannerId || undefined,
+                            itemId: p.itemId,
+                            itemName: p.itemName,
+                            itemType: p.itemType,
+                            rarity: p.rarity,
+                            pulledAt: p.pulledAt,
+                            pityAtPull: 0,
+                            wasGuaranteed: 0,
+                            extra: p.extra || undefined,
+                        }));
+
+                        const { imported } = await executePullsImport(
+                            userId,
+                            gameData.gameId,
+                            gameData.gameUid,
+                            normalizedPulls
+                        );
+
+                        summary.push({
+                            gameId: gameData.gameId,
+                            gameUid: gameData.gameUid,
+                            imported,
+                            message: `Imported ${imported} new pulls.`,
+                            success: true,
+                        });
+                    } catch (gameErr) {
+                        console.error(
+                            `[file-import] Failed to import game ${gameData.gameId}:`,
+                            gameErr
+                        );
+
+                        let errMsg = "An unexpected error occurred while saving data.";
+                        if (gameErr instanceof Error) {
+                            const msg = gameErr.message;
+                            // Safe to expose game/adapter validation failures
+                            if (
+                                msg.includes("Game adapter not found") ||
+                                msg.includes("Unsupported game")
+                            ) {
+                                errMsg = msg;
+                            } else if (
+                                msg.includes("Invalid time value") ||
+                                msg.includes("invalid date")
+                            ) {
+                                errMsg = "Invalid pull date format detected in backup.";
+                            }
+                        }
+
+                        summary.push({
+                            gameId: gameData.gameId,
+                            gameUid: gameData.gameUid,
+                            imported: 0,
+                            message: errMsg,
+                            success: false,
+                        });
+                    }
+                }
+
+                return status(200, {
+                    success: summary.length > 0 && summary.some((s) => s.success),
+                    summary,
+                });
+            } catch (err) {
+                console.error("[file-import] Failed to import file:", err);
+                let message = "Failed to process import file.";
+                if (err instanceof ZodError) {
+                    const issueMessages = err.issues.map((issue) => {
+                        const path = issue.path.join(".");
+                        return `${path ? `[${path}] ` : ""}${issue.message}`;
+                    });
+                    message = `Invalid backup data structure: ${issueMessages.join("; ")}`;
+                } else if (err instanceof Error) {
+                    const msg = err.message;
+                    // Safe to expose format and parsing structure errors
+                    if (msg.includes("Unsupported import format") || msg.includes("validation")) {
+                        message = msg;
+                    } else if (err instanceof SyntaxError) {
+                        message =
+                            "Invalid JSON structure. Please ensure the file is a valid JSON backup.";
+                    }
+                }
+                return status(422, {
+                    success: false,
+                    error: message,
+                });
+            }
+        },
+        {
+            auth: true,
+            body: t.Object({
+                file: t.File({
+                    maxSize: 2 * 1024 * 1024,
+                }),
+                format: t.String(),
+            }),
+            response: {
+                200: t.Object({
+                    success: t.Boolean(),
+                    summary: t.Array(
+                        t.Object({
+                            gameId: t.String(),
+                            gameUid: t.String(),
+                            imported: t.Number(),
+                            message: t.String(),
+                            success: t.Boolean(),
+                        })
+                    ),
+                }),
+                422: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                }),
+            },
+        }
+    )
+
+    // 6. Get list of supported import formats
+    .get(
+        "/import/formats",
+        async () => {
+            return {
+                formats: getSupportedFormats(),
+            };
+        },
+        {
+            auth: true,
+            response: {
+                200: t.Object({
+                    formats: t.Array(
+                        t.Object({
+                            id: t.String(),
+                            displayName: t.String(),
+                            acceptedExtensions: t.String(),
+                        })
+                    ),
+                }),
+            },
+        }
     );
+
+export async function executePullsImport(
+    userId: string,
+    gameId: string,
+    gameUid: string,
+    allPulls: NormalizedPull[]
+): Promise<{ imported: number }> {
+    if (allPulls.length === 0) {
+        return { imported: 0 };
+    }
+
+    const adapter = getAdapter(gameId);
+    let newCount = 0;
+
+    await db.transaction(async (tx) => {
+        let currentUserGame = await tx.query.userGame.findFirst({
+            where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
+        });
+
+        if (!currentUserGame) {
+            const userGameId = crypto.randomUUID();
+            await tx.insert(userGame).values({
+                id: userGameId,
+                userId,
+                gameId,
+                latestPullIds: "{}",
+            });
+
+            currentUserGame = {
+                id: userGameId,
+                userId,
+                gameId,
+                lastImport: null,
+                latestPullIds: "{}",
+                createdAt: new Date(),
+            };
+        }
+
+        const existingDbPulls = await tx.query.pull.findMany({
+            where: and(eq(pull.userId, userId), eq(pull.gameId, gameId)),
+            orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
+        });
+
+        const existingNormalizedPulls: NormalizedPull[] = existingDbPulls.map((p) => ({
+            pullId: p.pullId,
+            gameUid: p.gameUid,
+            bannerType: p.bannerType,
+            ...(p.bannerId ? { bannerId: p.bannerId } : {}),
+            itemId: p.itemId,
+            itemName: p.itemName,
+            itemType: p.itemType,
+            rarity: p.rarity,
+            pulledAt: new Date(p.pulledAt),
+            pityAtPull: p.pityAtPull,
+            wasGuaranteed: p.wasGuaranteed,
+            extra: p.extra ? JSON.parse(p.extra) : undefined,
+        }));
+
+        const combinedPullsMap = new Map(existingNormalizedPulls.map((p) => [p.pullId, p]));
+
+        for (const p of allPulls) {
+            if (!combinedPullsMap.has(p.pullId)) {
+                combinedPullsMap.set(p.pullId, p);
+                newCount++;
+            }
+        }
+
+        if (newCount === 0) {
+            return;
+        }
+
+        const pullsByPool = new Map<string, NormalizedPull[]>();
+        for (const p of Array.from(combinedPullsMap.values())) {
+            const poolKey = adapter.pityPools?.[p.bannerType] || p.bannerType;
+            const arr = pullsByPool.get(poolKey) || [];
+            arr.push(p as NormalizedPull);
+            pullsByPool.set(poolKey, arr);
+        }
+
+        const pullsToUpsert = [];
+        const latestIds: Record<string, string> = {};
+
+        for (const [poolKey, pullsInPool] of Array.from(pullsByPool.entries())) {
+            pullsInPool.sort((a: NormalizedPull, b: NormalizedPull) => {
+                if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
+                    return a.pullId.localeCompare(b.pullId);
+                }
+                return a.pulledAt.getTime() - b.pulledAt.getTime();
+            });
+
+            const processedPulls = adapter.computePity(pullsInPool, poolKey);
+
+            for (const p of processedPulls) {
+                pullsToUpsert.push({
+                    id: crypto.randomUUID(),
+                    userId,
+                    gameId,
+                    gameUid,
+                    pullId: p.pullId,
+                    bannerType: p.bannerType,
+                    bannerId: p.bannerId || null,
+                    itemId: p.itemId,
+                    itemName: p.itemName,
+                    itemType: p.itemType,
+                    rarity: p.rarity,
+                    pulledAt: p.pulledAt,
+                    pityAtPull: p.pityAtPull,
+                    wasGuaranteed: p.wasGuaranteed,
+                    extra: p.extra ? JSON.stringify(p.extra) : null,
+                    pityVersion: 1,
+                });
+
+                latestIds[p.bannerType] = p.pullId;
+            }
+        }
+
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < pullsToUpsert.length; i += CHUNK_SIZE) {
+            const chunk = pullsToUpsert.slice(i, i + CHUNK_SIZE);
+            await tx
+                .insert(pull)
+                .values(chunk)
+                .onConflictDoUpdate({
+                    target: [pull.userId, pull.gameId, pull.pullId],
+                    set: {
+                        pityAtPull: sql`excluded.pity_at_pull`,
+                        wasGuaranteed: sql`excluded.was_guaranteed`,
+                        pityVersion: sql`excluded.pity_version`,
+                        bannerId: sql`excluded.banner_id`,
+                    },
+                });
+        }
+
+        await tx
+            .update(userGame)
+            .set({
+                lastImport: new Date(),
+                latestPullIds: JSON.stringify(latestIds),
+            })
+            .where(eq(userGame.id, currentUserGame.id));
+    });
+
+    await redis.del(`stats:${userId}:${gameId}`);
+
+    return { imported: newCount };
+}
