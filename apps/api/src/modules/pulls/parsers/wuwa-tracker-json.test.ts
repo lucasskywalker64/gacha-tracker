@@ -102,4 +102,31 @@ describe("WuWaTrackerJsonParser", () => {
         const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
         expect(parser.parse(buffer)).rejects.toThrow();
     });
+
+    it("should throw an error for duplicate pullId collisions (repeated group index at same timestamp)", async () => {
+        const mockExport = {
+            playerId: "123456789",
+            pulls: [
+                {
+                    cardPoolType: 1,
+                    resourceId: 1205,
+                    qualityLevel: 5,
+                    name: "Changli",
+                    time: "2026-02-05T14:03:09+00:00",
+                    group: 1, // Duplicate group index
+                },
+                {
+                    cardPoolType: 1,
+                    resourceId: 21020013,
+                    qualityLevel: 3,
+                    name: "Sword of Night",
+                    time: "2026-02-05T14:03:09+00:00",
+                    group: 1, // Duplicate group index
+                },
+            ],
+        };
+
+        const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
+        expect(parser.parse(buffer)).rejects.toThrow("Duplicate pullId collision detected");
+    });
 });

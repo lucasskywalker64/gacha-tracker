@@ -37,6 +37,7 @@ export class WuWaTrackerJsonParser implements ImportParser {
         // Group and reverse the pulls to restore chronological order (oldest-first)
         // since WuWaTracker stores them newest-first.
         const rawPulls = [...validated.pulls].reverse();
+        const seenPullIds = new Set<string>();
 
         const pulls = rawPulls.map((p) => {
             const date = new Date(p.time);
@@ -54,6 +55,11 @@ export class WuWaTrackerJsonParser implements ImportParser {
 
             // Stable and deterministic pullId matching extract.ps1
             const pullId = `${gameUid}_${bannerType}_${cleanTime}_${indexWithinSecond}`;
+
+            if (seenPullIds.has(pullId)) {
+                throw new Error(`Duplicate pullId collision detected in import file: ${pullId}`);
+            }
+            seenPullIds.add(pullId);
 
             // Resolve itemType based on resourceId length convention (4 digits = Resonator, 8 digits = Weapon)
             const itemType = itemId.length === 4 ? "Resonator" : "Weapon";
