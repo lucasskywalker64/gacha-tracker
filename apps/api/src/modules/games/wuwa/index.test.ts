@@ -4,25 +4,19 @@ import { type NormalizedPull, banners } from "@gacha-tracker/shared";
 
 describe("Wuthering Waves Game Adapter", () => {
     describe("normalizeImport", () => {
-        it("should correctly account for Kuro API fields from extra", async () => {
+        it("should correctly normalize pulls", async () => {
             const rawPayload = {
                 gameId: "wuwa",
                 gameUid: "123",
                 pulls: [
                     {
-                        pullId: "temp-1",
+                        pullId: "eebf2390a3b211efb4486b72a6b22591",
                         bannerType: "1",
-                        itemId: "temp-item",
+                        itemId: "1205", // Changli
                         itemName: "Unknown",
                         itemType: "Resonator",
-                        rarity: 3,
+                        rarity: 5,
                         pulledAt: new Date().toISOString(),
-                        extra: {
-                            recordId: "eebf2390a3b211efb4486b72a6b22591",
-                            resourceId: "1205", // Changli
-                            qualityLevel: 5,
-                            cardPoolType: 1,
-                        },
                     },
                 ],
             };

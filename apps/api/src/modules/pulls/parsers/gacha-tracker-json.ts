@@ -26,7 +26,6 @@ export class GachaTrackerJsonParser implements ImportParser {
                     itemType: p.itemType,
                     rarity: p.rarity,
                     pulledAt: new Date(p.pulledAt),
-                    extra: p.extra || null,
                 })),
             })),
         };

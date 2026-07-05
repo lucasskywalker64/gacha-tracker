@@ -86,10 +86,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
             schemaVersion: "1.0.0",
             userId,
             games,
-            pulls: pulls.map((p) => ({
-                ...p,
-                extra: p.extra ? JSON.parse(p.extra) : null,
-            })),
+            pulls,
         };
     })
 

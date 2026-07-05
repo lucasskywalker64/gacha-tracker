@@ -68,8 +68,6 @@ export const pull = sqliteTable(
          * identified and recomputed via a migration without a re-import.
          */
         pityVersion: integer("pity_version").notNull().default(1),
-        /** Game-specific overflow / extra data serialised as JSON. */
-        extra: text("extra"),
         createdAt: integer("created_at", { mode: "timestamp_ms" })
             .notNull()
             .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),

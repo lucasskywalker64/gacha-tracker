@@ -1,0 +1,1 @@
+ALTER TABLE `pull` DROP COLUMN `extra`;

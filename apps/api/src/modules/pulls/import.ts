@@ -201,7 +201,6 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     pulledAt: p.pulledAt.toISOString(),
                     pityAtPull: p.pityAtPull,
                     wasGuaranteed: p.wasGuaranteed,
-                    extra: p.extra ? JSON.parse(p.extra) : null,
                 });
             }
 
@@ -256,7 +255,6 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                             pulledAt: p.pulledAt,
                             pityAtPull: 0,
                             wasGuaranteed: 0,
-                            extra: p.extra || undefined,
                         }));
 
                         const { imported } = await executePullsImport(
@@ -442,7 +440,6 @@ export async function executePullsImport(
             pulledAt: new Date(p.pulledAt),
             pityAtPull: p.pityAtPull,
             wasGuaranteed: p.wasGuaranteed,
-            extra: p.extra ? JSON.parse(p.extra) : undefined,
         }));
 
         const combinedPullsMap = new Map(existingNormalizedPulls.map((p) => [p.pullId, p]));
@@ -495,7 +492,6 @@ export async function executePullsImport(
                     pulledAt: p.pulledAt,
                     pityAtPull: p.pityAtPull,
                     wasGuaranteed: p.wasGuaranteed,
-                    extra: p.extra ? JSON.stringify(p.extra) : null,
                     pityVersion: 1,
                 });
 

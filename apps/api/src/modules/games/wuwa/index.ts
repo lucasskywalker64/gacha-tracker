@@ -19,25 +19,18 @@ export const wuwaAdapter: GameAdapter = {
         const payload = raw as ImportPayloadInput;
 
         const pulls: NormalizedPull[] = payload.pulls.map((rawPull) => {
-            const recordId = rawPull.extra?.recordId;
-            const resourceId = rawPull.extra?.resourceId;
-            const qualityLevel = rawPull.extra?.qualityLevel;
-            const cardPoolType = rawPull.extra?.cardPoolType;
-
             return {
-                pullId:
-                    recordId != null && String(recordId) !== "" ? String(recordId) : rawPull.pullId,
+                pullId: rawPull.pullId,
                 gameUid: payload.gameUid,
-                bannerType: cardPoolType != null ? String(cardPoolType) : rawPull.bannerType,
+                bannerType: rawPull.bannerType,
                 bannerId: rawPull.bannerId,
-                itemId: resourceId != null ? String(resourceId) : rawPull.itemId,
+                itemId: rawPull.itemId,
                 itemName: rawPull.itemName,
                 itemType: rawPull.itemType,
-                rarity: qualityLevel != null ? Number(qualityLevel) : rawPull.rarity,
+                rarity: rawPull.rarity,
                 pulledAt: new Date(rawPull.pulledAt),
                 pityAtPull: 0,
                 wasGuaranteed: 0,
-                extra: rawPull.extra,
             };
         });
 

@@ -50,6 +50,13 @@
             "when": 1781554470427,
             "tag": "0006_add_verified_at_to_user_emails",
             "breakpoints": true
+        },
+        {
+            "idx": 7,
+            "version": "6",
+            "when": 1783212850317,
+            "tag": "0007_remove_extra_column",
+            "breakpoints": true
         }
     ]
 }
