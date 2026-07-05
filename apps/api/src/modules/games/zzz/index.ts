@@ -39,7 +39,6 @@ export const zzzAdapter: GameAdapter = {
                 pulledAt: new Date(rawPull.pulledAt),
                 pityAtPull: 0,
                 wasGuaranteed: 0,
-                extra: rawPull.extra,
             };
         });
 

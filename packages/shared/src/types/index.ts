@@ -49,7 +49,6 @@ export interface NormalizedPull {
     pulledAt: Date;
     pityAtPull: number;
     wasGuaranteed: number;
-    extra?: Record<string, unknown>;
 }
 
 export interface NormalizedImportResult {
@@ -115,7 +114,6 @@ export interface ExportPullData {
     pulledAt: string;
     pityAtPull: number;
     wasGuaranteed: number;
-    extra?: Record<string, unknown> | null;
 }
 
 export interface ExportGameData {
@@ -168,7 +166,6 @@ export interface Pull {
     pityAtPull: number;
     wasGuaranteed: number;
     pityVersion: number;
-    extra: Record<string, unknown> | null;
     createdAt: Date;
 }
 
@@ -204,7 +201,6 @@ export interface RawPull {
     itemType: string;
     rarity: number;
     pulledAt: string;
-    extra?: Record<string, unknown>;
 }
 
 export interface ImportResult {

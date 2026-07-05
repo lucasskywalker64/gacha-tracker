@@ -26,7 +26,6 @@ export const rawPullSchema = z
         itemType: z.string().min(1),
         rarity: z.number().int().positive(),
         pulledAt: z.string(),
-        extra: z.record(z.string(), z.unknown()).optional(),
     })
     .strict();
 
@@ -60,7 +59,6 @@ export const nativeExportSchema = z.object({
                     pulledAt: z.iso.datetime(),
                     pityAtPull: z.number().int().nonnegative(),
                     wasGuaranteed: z.number().int().min(0).max(1),
-                    extra: z.record(z.string(), z.unknown()).optional().nullable(),
                 })
             ),
         })

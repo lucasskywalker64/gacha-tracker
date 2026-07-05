@@ -27,18 +27,7 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
             .offset(offset);
 
         const hasNextPage = results.length > limit;
-        const items = (hasNextPage ? results.slice(0, limit) : results).map((p) => ({
-            ...p,
-            extra: p.extra
-                ? (() => {
-                      try {
-                          return JSON.parse(p.extra);
-                      } catch {
-                          return null;
-                      }
-                  })()
-                : null,
-        }));
+        const items = hasNextPage ? results.slice(0, limit) : results;
 
         const [{ count }] = await db
             .select({ count: sql<number>`count(*)` })

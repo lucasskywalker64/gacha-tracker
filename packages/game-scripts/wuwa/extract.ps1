@@ -523,12 +523,6 @@ foreach ($gachaType in $bannerTypes) {
                 itemType   = $itemType
                 rarity     = [int]$item.qualityLevel
                 pulledAt   = $item.time
-                extra      = @{
-                    recordId              = $pullId
-                    resourceId            = [string]$item.resourceId
-                    qualityLevel          = [int]$item.qualityLevel
-                    cardPoolType          = [int]$gachaType
-                }
             }
         }
         

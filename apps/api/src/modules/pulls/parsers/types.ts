@@ -7,7 +7,6 @@ export interface ParsedPull {
     itemType: string;
     rarity: number;
     pulledAt: Date;
-    extra?: Record<string, unknown> | null;
 }
 
 export interface ParsedGamePulls {
