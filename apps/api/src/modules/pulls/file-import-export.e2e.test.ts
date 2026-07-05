@@ -89,6 +89,9 @@ describe("Pull File Import/Export E2E", () => {
         await sqlite.execute(
             `INSERT INTO game (id, display_name, is_active, config, created_at) VALUES ('starrail', 'Honkai: Star Rail', 1, '{}', 0)`
         );
+        await sqlite.execute(
+            `INSERT INTO game (id, display_name, is_active, config, created_at) VALUES ('wuwa', 'Wuthering Waves', 1, '{}', 0)`
+        );
 
         // Seed some initial pulls
         await sqlite.execute(
@@ -347,5 +350,74 @@ describe("Pull File Import/Export E2E", () => {
         expect(body.success).toBe(false);
         expect(body.error).toContain("Invalid backup data structure");
         expect(body.error).toContain("[games.0.gameId]");
+    });
+
+    it("should import pulls from a WuWaTracker JSON export file", async () => {
+        const wuwaExport = {
+            playerId: "123456789",
+            pulls: [
+                {
+                    cardPoolType: 1,
+                    resourceId: 21020013,
+                    qualityLevel: 3,
+                    name: "Sword of Night",
+                    time: "2026-02-05T14:03:09+00:00",
+                    group: 2,
+                },
+                {
+                    cardPoolType: 1,
+                    resourceId: 1205,
+                    qualityLevel: 5,
+                    name: "Changli",
+                    time: "2026-02-05T14:03:09+00:00",
+                    group: 1,
+                },
+            ],
+        };
+
+        const formData = new FormData();
+        formData.append("format", "wuwa-tracker-json");
+        formData.append(
+            "file",
+            new Blob([JSON.stringify(wuwaExport)], { type: "application/json" }),
+            "wuwa_export.json"
+        );
+
+        const resp = await app.fetch(
+            new Request("http://localhost/pulls/import/file", {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer session_token",
+                },
+                body: formData,
+            })
+        );
+
+        expect(resp.status).toBe(200);
+        const body = await resp.json();
+        expect(body.success).toBe(true);
+        expect(body.summary.length).toBe(1);
+        expect(body.summary[0].gameId).toBe("wuwa");
+        expect(body.summary[0].imported).toBe(2);
+
+        // Verify pulls are in the database and sorted/attributed correctly
+        const pullsInDb = await testDb.query.pull.findMany({
+            where: (p, { eq }) => eq(p.gameId, "wuwa"),
+            orderBy: (p, { asc }) => [asc(p.pulledAt), asc(p.pullId)],
+        });
+
+        expect(pullsInDb.length).toBe(2);
+
+        // Changli (group 1) should be first
+        expect(pullsInDb[0].itemName).toBe("Changli");
+        expect(pullsInDb[0].itemType).toBe("Resonator");
+        expect(pullsInDb[0].pityAtPull).toBe(1); // First pull pity is 1
+        expect(pullsInDb[0].pullId).toBe("123456789_1_2026-02-05-14-03-09_0");
+
+        // Sword of Night (group 2) should be second
+        expect(pullsInDb[1].itemName).toBe("Sword of Night");
+        expect(pullsInDb[1].itemType).toBe("Weapon");
+        expect(pullsInDb[1].pityAtPull).toBe(1); // reset after 5* pull (Changli)
+        expect(pullsInDb[1].pullId).toBe("123456789_1_2026-02-05-14-03-09_1");
     });
 });
