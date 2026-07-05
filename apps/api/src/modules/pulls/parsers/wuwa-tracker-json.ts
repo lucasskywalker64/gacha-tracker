@@ -7,7 +7,7 @@ const wuwaTrackerPullSchema = z.object({
     resourceId: z.number().int(),
     qualityLevel: z.number().int(),
     name: z.string().min(1),
-    time: z.string().min(1),
+    time: z.iso.datetime({ offset: true }),
     isSorted: z.boolean().optional(),
     group: z.number().int().min(1).default(1),
 });
@@ -40,9 +40,6 @@ export class WuWaTrackerJsonParser implements ImportParser {
 
         const pulls = rawPulls.map((p) => {
             const date = new Date(p.time);
-            if (isNaN(date.getTime())) {
-                throw new Error(`Invalid date format detected: ${p.time}`);
-            }
 
             // Generate clean UTC time representation: YYYY-MM-DD-HH-mm-ss
             const cleanTime = date
