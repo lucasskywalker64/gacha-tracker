@@ -129,4 +129,23 @@ describe("WuWaTrackerJsonParser", () => {
         const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
         expect(parser.parse(buffer)).rejects.toThrow("Duplicate pullId collision detected");
     });
+
+    it("should throw an error for unexpected resourceId format/length", async () => {
+        const mockExport = {
+            playerId: "123456789",
+            pulls: [
+                {
+                    cardPoolType: 1,
+                    resourceId: 12345, // 5-digit ID (invalid)
+                    qualityLevel: 3,
+                    name: "Unknown Item",
+                    time: "2026-02-05T14:03:09+00:00",
+                    group: 1,
+                },
+            ],
+        };
+
+        const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
+        expect(parser.parse(buffer)).rejects.toThrow("Unknown resourceId format/length detected");
+    });
 });

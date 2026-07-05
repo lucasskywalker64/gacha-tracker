@@ -62,7 +62,14 @@ export class WuWaTrackerJsonParser implements ImportParser {
             seenPullIds.add(pullId);
 
             // Resolve itemType based on resourceId length convention (4 digits = Resonator, 8 digits = Weapon)
-            const itemType = itemId.length === 4 ? "Resonator" : "Weapon";
+            let itemType: string;
+            if (itemId.length === 4) {
+                itemType = "Resonator";
+            } else if (itemId.length === 8) {
+                itemType = "Weapon";
+            } else {
+                throw new Error(`Unknown resourceId format/length detected: ${itemId}`);
+            }
 
             return {
                 pullId,
