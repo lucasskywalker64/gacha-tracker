@@ -1683,7 +1683,10 @@
 										>Drag and drop file or click to browse</span
 									>
 									<span class="text-xs text-zinc-500"
-										>Supports {acceptedExtensions.replace(/^\./, '').toUpperCase()} backups (Max 2MB)</span
+										>Supports {acceptedExtensions
+											.split(',')
+											.map((ext) => ext.trim().replace(/^\./, '').toUpperCase())
+											.join(', ')} backups (Max 2MB)</span
 									>
 								</div>
 							{/if}
