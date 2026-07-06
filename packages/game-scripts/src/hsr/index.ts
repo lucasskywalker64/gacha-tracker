@@ -352,27 +352,37 @@ export async function updateHsrBanners() {
     console.log("Successfully updated banners.json for HSR");
 
     // Compile and write srgf_dict.json
-    const srgfDict: Record<string, { name: string; rarity: number; type: string }> = {};
-
-    if (charRawData) {
-        for (const [id, char] of Object.entries(charRawData)) {
-            if (char.name === "{NICKNAME}") continue;
-            srgfDict[id] = {
-                name: char.name,
-                rarity: char.rarity,
-                type: "Character",
-            };
-        }
+    if (!charRawData || !weaponRawData) {
+        throw new Error(
+            "Validation failed: StarRailRes raw character or weapon data is null. Aborting srgf_dict.json update to prevent data loss."
+        );
     }
 
-    if (weaponRawData) {
-        for (const [id, weapon] of Object.entries(weaponRawData)) {
-            srgfDict[id] = {
-                name: weapon.name,
-                rarity: weapon.rarity,
-                type: "Light Cone",
-            };
-        }
+    const charKeys = Object.keys(charRawData);
+    const weaponKeys = Object.keys(weaponRawData);
+    if (charKeys.length < 50 || weaponKeys.length < 100) {
+        throw new Error(
+            `Validation failed: scraped HSR mappings has abnormally low counts (chars: ${charKeys.length}, weapons: ${weaponKeys.length}). Aborting srgf_dict.json update to prevent data loss.`
+        );
+    }
+
+    const srgfDict: Record<string, { name: string; rarity: number; type: string }> = {};
+
+    for (const [id, char] of Object.entries(charRawData)) {
+        if (char.name === "{NICKNAME}") continue;
+        srgfDict[id] = {
+            name: char.name,
+            rarity: char.rarity,
+            type: "Character",
+        };
+    }
+
+    for (const [id, weapon] of Object.entries(weaponRawData)) {
+        srgfDict[id] = {
+            name: weapon.name,
+            rarity: weapon.rarity,
+            type: "Light Cone",
+        };
     }
 
     const DICT_PATH = path.resolve(__dirname, "../../../shared/src/data/srgf_dict.json");
