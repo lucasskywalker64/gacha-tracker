@@ -1,10 +1,12 @@
 import type { ImportParser } from "./types";
 import { GachaTrackerJsonParser } from "./gacha-tracker-json";
 import { WuWaTrackerJsonParser } from "./wuwa-tracker-json";
+import { StarRailStationParser } from "./starrail-station";
 
 const parsers: Record<string, ImportParser> = {
     "gacha-tracker-json": new GachaTrackerJsonParser(),
     "wuwa-tracker-json": new WuWaTrackerJsonParser(),
+    "starrail-station": new StarRailStationParser(),
 };
 
 export function getParser(formatId: string): ImportParser {
