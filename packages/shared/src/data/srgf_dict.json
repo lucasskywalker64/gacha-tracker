@@ -1,0 +1,1222 @@
+{
+    "1001": {
+        "name": "March 7th",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1002": {
+        "name": "Dan Heng",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1003": {
+        "name": "Himeko",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1004": {
+        "name": "Welt",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1005": {
+        "name": "Kafka",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1006": {
+        "name": "Silver Wolf",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1008": {
+        "name": "Arlan",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1009": {
+        "name": "Asta",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1013": {
+        "name": "Herta",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1014": {
+        "name": "Saber",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1015": {
+        "name": "Archer",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1101": {
+        "name": "Bronya",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1102": {
+        "name": "Seele",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1103": {
+        "name": "Serval",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1104": {
+        "name": "Gepard",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1105": {
+        "name": "Natasha",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1106": {
+        "name": "Pela",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1107": {
+        "name": "Clara",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1108": {
+        "name": "Sampo",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1109": {
+        "name": "Hook",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1110": {
+        "name": "Lynx",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1111": {
+        "name": "Luka",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1112": {
+        "name": "Topaz & Numby",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1201": {
+        "name": "Qingque",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1202": {
+        "name": "Tingyun",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1203": {
+        "name": "Luocha",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1204": {
+        "name": "Jing Yuan",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1205": {
+        "name": "Blade",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1206": {
+        "name": "Sushang",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1207": {
+        "name": "Yukong",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1208": {
+        "name": "Fu Xuan",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1209": {
+        "name": "Yanqing",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1210": {
+        "name": "Guinaifen",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1211": {
+        "name": "Bailu",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1212": {
+        "name": "Jingliu",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1213": {
+        "name": "Dan Heng • Imbibitor Lunae",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1214": {
+        "name": "Xueyi",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1215": {
+        "name": "Hanya",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1217": {
+        "name": "Huohuo",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1218": {
+        "name": "Jiaoqiu",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1220": {
+        "name": "Feixiao",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1221": {
+        "name": "Yunli",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1222": {
+        "name": "Lingsha",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1223": {
+        "name": "Moze",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1224": {
+        "name": "March 7th",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1225": {
+        "name": "Fugue",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1301": {
+        "name": "Gallagher",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1302": {
+        "name": "Argenti",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1303": {
+        "name": "Ruan Mei",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1304": {
+        "name": "Aventurine",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1305": {
+        "name": "Dr. Ratio",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1306": {
+        "name": "Sparkle",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1307": {
+        "name": "Black Swan",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1308": {
+        "name": "Acheron",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1309": {
+        "name": "Robin",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1310": {
+        "name": "Firefly",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1312": {
+        "name": "Misha",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "1313": {
+        "name": "Sunday",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1314": {
+        "name": "Jade",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1315": {
+        "name": "Boothill",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1317": {
+        "name": "Rappa",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1321": {
+        "name": "The Dahlia",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1401": {
+        "name": "The Herta",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1402": {
+        "name": "Aglaea",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1403": {
+        "name": "Tribbie",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1404": {
+        "name": "Mydei",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1405": {
+        "name": "Anaxa",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1406": {
+        "name": "Cipher",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1407": {
+        "name": "Castorice",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1408": {
+        "name": "Phainon",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1409": {
+        "name": "Hyacine",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1410": {
+        "name": "Hysilens",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1412": {
+        "name": "Cerydra",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1413": {
+        "name": "Evernight",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1414": {
+        "name": "Dan Heng • Permansor Terrae",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1415": {
+        "name": "Cyrene",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1501": {
+        "name": "Sparxie",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1502": {
+        "name": "Yao Guang",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1504": {
+        "name": "Ashveil",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1505": {
+        "name": "Evanescia",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1506": {
+        "name": "Silver Wolf LV.999",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "1507": {
+        "name": "Mortenax Blade",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "20000": {
+        "name": "Arrows",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20001": {
+        "name": "Cornucopia",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20002": {
+        "name": "Collapsing Sky",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20003": {
+        "name": "Amber",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20004": {
+        "name": "Void",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20005": {
+        "name": "Chorus",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20006": {
+        "name": "Data Bank",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20007": {
+        "name": "Darting Arrow",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20008": {
+        "name": "Fine Fruit",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20009": {
+        "name": "Shattered Home",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20010": {
+        "name": "Defense",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20011": {
+        "name": "Loop",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20012": {
+        "name": "Meshing Cogs",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20013": {
+        "name": "Passkey",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20014": {
+        "name": "Adversarial",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20015": {
+        "name": "Multiplication",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20016": {
+        "name": "Mutual Demise",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20017": {
+        "name": "Pioneering",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20018": {
+        "name": "Hidden Shadow",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20019": {
+        "name": "Mediation",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20020": {
+        "name": "Sagacity",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20021": {
+        "name": "Shadowburn",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20022": {
+        "name": "Reminiscence",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20023": {
+        "name": "Sneering",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "20024": {
+        "name": "Lingering Tear",
+        "rarity": 3,
+        "type": "Light Cone"
+    },
+    "21000": {
+        "name": "Post-Op Conversation",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21001": {
+        "name": "Good Night and Sleep Well",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21002": {
+        "name": "Day One of My New Life",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21003": {
+        "name": "Only Silence Remains",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21004": {
+        "name": "Memories of the Past",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21005": {
+        "name": "The Moles Welcome You",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21006": {
+        "name": "The Birth of the Self",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21007": {
+        "name": "Shared Feeling",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21008": {
+        "name": "Eyes of the Prey",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21009": {
+        "name": "Landau's Choice",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21010": {
+        "name": "Swordplay",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21011": {
+        "name": "Planetary Rendezvous",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21012": {
+        "name": "A Secret Vow",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21013": {
+        "name": "Make the World Clamor",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21014": {
+        "name": "Perfect Timing",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21015": {
+        "name": "Resolution Shines As Pearls of Sweat",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21016": {
+        "name": "Trend of the Universal Market",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21017": {
+        "name": "Subscribe for More!",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21018": {
+        "name": "Dance! Dance! Dance!",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21019": {
+        "name": "Under the Blue Sky",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21020": {
+        "name": "Geniuses' Repose",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21021": {
+        "name": "Quid Pro Quo",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21022": {
+        "name": "Fermata",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21023": {
+        "name": "We Are Wildfire",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21024": {
+        "name": "River Flows in Spring",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21025": {
+        "name": "Past and Future",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21026": {
+        "name": "Woof! Walk Time!",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21027": {
+        "name": "The Seriousness of Breakfast",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21028": {
+        "name": "Warmth Shortens Cold Nights",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21029": {
+        "name": "We Will Meet Again",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21030": {
+        "name": "This Is Me!",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21031": {
+        "name": "Return to Darkness",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21032": {
+        "name": "Carve the Moon, Weave the Clouds",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21033": {
+        "name": "Nowhere to Run",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21034": {
+        "name": "Today Is Another Peaceful Day",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21035": {
+        "name": "What Is Real?",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21036": {
+        "name": "Dreamville Adventure",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21037": {
+        "name": "Final Victor",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21038": {
+        "name": "Flames Afar",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21039": {
+        "name": "Destiny's Threads Forewoven",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21040": {
+        "name": "The Day The Cosmos Fell",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21041": {
+        "name": "It's Showtime",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21042": {
+        "name": "Indelible Promise",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21043": {
+        "name": "Concert for Two",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21044": {
+        "name": "Boundless Choreo",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21045": {
+        "name": "After the Charmony Fall",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21046": {
+        "name": "Poised to Bloom",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21047": {
+        "name": "Shadowed by Night",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21048": {
+        "name": "Dream's Montage",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21050": {
+        "name": "Victory In a Blink",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21051": {
+        "name": "Geniuses' Greetings",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21052": {
+        "name": "Sweat Now, Cry Less",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21053": {
+        "name": "Journey, Forever Peaceful",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21054": {
+        "name": "The Story's Next Page",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21055": {
+        "name": "Unto Tomorrow's Morrow",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21056": {
+        "name": "In Pursuit of the Wind",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21057": {
+        "name": "The Flower Remembers",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21058": {
+        "name": "A Trail of Bygone Blood",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21060": {
+        "name": "A Dream Scented in Wheat",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21061": {
+        "name": "Holiday Thermae Escapade",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21062": {
+        "name": "See You at the End",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21064": {
+        "name": "Mushy Shroomy's Adventures",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "21065": {
+        "name": "Today's Good Luck",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22000": {
+        "name": "Before the Tutorial Mission Starts",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22001": {
+        "name": "Hey, Over Here",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22002": {
+        "name": "For Tomorrow's Journey",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22003": {
+        "name": "Ninja Record: Sound Hunt",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22004": {
+        "name": "The Great Cosmic Enterprise",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22005": {
+        "name": "The Forever Victual",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22006": {
+        "name": "Fly Into a Pink Tomorrow",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "22007": {
+        "name": "Tomorrow, Together",
+        "rarity": 4,
+        "type": "Light Cone"
+    },
+    "23000": {
+        "name": "Night on the Milky Way",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23001": {
+        "name": "In the Night",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23002": {
+        "name": "Something Irreplaceable",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23003": {
+        "name": "But the Battle Isn't Over",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23004": {
+        "name": "In the Name of the World",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23005": {
+        "name": "Moment of Victory",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23006": {
+        "name": "Patience Is All You Need",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23007": {
+        "name": "Incessant Rain",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23008": {
+        "name": "Echoes of the Coffin",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23009": {
+        "name": "The Unreachable Side",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23010": {
+        "name": "Before Dawn",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23011": {
+        "name": "She Already Shut Her Eyes",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23012": {
+        "name": "Sleep Like the Dead",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23013": {
+        "name": "Time Waits for No One",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23014": {
+        "name": "I Shall Be My Own Sword",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23015": {
+        "name": "Brighter Than the Sun",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23016": {
+        "name": "Worrisome, Blissful",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23017": {
+        "name": "Night of Fright",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23018": {
+        "name": "An Instant Before A Gaze",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23019": {
+        "name": "Past Self in Mirror",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23020": {
+        "name": "Baptism of Pure Thought",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23021": {
+        "name": "Earthly Escapade",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23022": {
+        "name": "Reforged Remembrance",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23023": {
+        "name": "Inherently Unjust Destiny",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23024": {
+        "name": "Along the Passing Shore",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23025": {
+        "name": "Whereabouts Should Dreams Rest",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23026": {
+        "name": "Flowing Nightglow",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23027": {
+        "name": "Sailing Towards a Second Life",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23028": {
+        "name": "Yet Hope Is Priceless",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23029": {
+        "name": "Those Many Springs",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23030": {
+        "name": "Dance at Sunset",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23031": {
+        "name": "I Venture Forth to Hunt",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23032": {
+        "name": "Scent Alone Stays True",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23033": {
+        "name": "Ninjutsu Inscription: Dazzling Evilbreaker",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23034": {
+        "name": "A Grounded Ascent",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23035": {
+        "name": "Long Road Leads Home",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23036": {
+        "name": "Time Woven Into Gold",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23037": {
+        "name": "Into the Unreachable Veil",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23038": {
+        "name": "If Time Were a Flower",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23039": {
+        "name": "Flame of Blood, Blaze My Path",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23040": {
+        "name": "Make Farewells More Beautiful",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23041": {
+        "name": "Life Should Be Cast to Flames",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23042": {
+        "name": "Long May Rainbows Adorn the Sky",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23043": {
+        "name": "Lies Dance on the Breeze",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23044": {
+        "name": "Thus Burns the Dawn",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23045": {
+        "name": "A Thankless Coronation",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23046": {
+        "name": "The Hell Where Ideals Burn",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23047": {
+        "name": "Why Does the Ocean Sing",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23048": {
+        "name": "Epoch Etched in Golden Blood",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23049": {
+        "name": "To Evernight's Stars",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23050": {
+        "name": "Never Forget Her Flame",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23051": {
+        "name": "Though Worlds Apart",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23052": {
+        "name": "This Love, Forever",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23053": {
+        "name": "Dazzled by a Flowery World",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23054": {
+        "name": "When She Decided to See",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23056": {
+        "name": "The Finale of a Lie",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23057": {
+        "name": "Welcome to the Cosmic City",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23058": {
+        "name": "Until the Flowers Bloom Again",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "23059": {
+        "name": "Reforged in Hellfire",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "24000": {
+        "name": "On the Fall of an Aeon",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "24001": {
+        "name": "Cruising in the Stellar Sea",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "24002": {
+        "name": "Texture of Memories",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "24003": {
+        "name": "Solitary Healing",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "24004": {
+        "name": "Eternal Calculus",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "24005": {
+        "name": "Memory's Curtain Never Falls",
+        "rarity": 5,
+        "type": "Light Cone"
+    },
+    "24006": {
+        "name": "Elation Brimming With Blessings",
+        "rarity": 5,
+        "type": "Light Cone"
+    }
+}

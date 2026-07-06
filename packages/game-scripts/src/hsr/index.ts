@@ -30,7 +30,10 @@ async function fetchMapping(type: "characters" | "light_cones") {
     try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const data = (await res.json()) as Record<string, { name: string; id: string }>;
+        const data = (await res.json()) as Record<
+            string,
+            { name: string; id: string; rarity: number }
+        >;
         const map = new Map<string, string>();
         const reverseMap = new Map<string, string>();
         for (const key in data) {
@@ -39,10 +42,14 @@ async function fetchMapping(type: "characters" | "light_cones") {
             map.set(item.name.toLowerCase(), item.id);
             reverseMap.set(item.id, item.name);
         }
-        return { map, reverseMap };
+        return { map, reverseMap, rawData: data };
     } catch (error) {
         console.error(`Failed to fetch ${type} mapping:`, error);
-        return { map: new Map<string, string>(), reverseMap: new Map<string, string>() };
+        return {
+            map: new Map<string, string>(),
+            reverseMap: new Map<string, string>(),
+            rawData: null,
+        };
     }
 }
 
@@ -122,8 +129,16 @@ function parseDate(dateStr: string): number | null {
 
 export async function updateHsrBanners() {
     console.log("Fetching StarRailRes mappings...");
-    const { map: charMap, reverseMap: charReverseMap } = await fetchMapping("characters");
-    const { map: weaponMap, reverseMap: weaponReverseMap } = await fetchMapping("light_cones");
+    const {
+        map: charMap,
+        reverseMap: charReverseMap,
+        rawData: charRawData,
+    } = await fetchMapping("characters");
+    const {
+        map: weaponMap,
+        reverseMap: weaponReverseMap,
+        rawData: weaponRawData,
+    } = await fetchMapping("light_cones");
 
     console.log(`Loaded ${charMap.size} characters and ${weaponMap.size} weapons.`);
 
@@ -335,4 +350,42 @@ export async function updateHsrBanners() {
 
     fs.writeFileSync(BANNERS_PATH, JSON.stringify(existingData, null, 4));
     console.log("Successfully updated banners.json for HSR");
+
+    // Compile and write srgf_dict.json
+    if (!charRawData || !weaponRawData) {
+        throw new Error(
+            "Validation failed: StarRailRes raw character or weapon data is null. Aborting srgf_dict.json update to prevent data loss."
+        );
+    }
+
+    const charKeys = Object.keys(charRawData);
+    const weaponKeys = Object.keys(weaponRawData);
+    if (charKeys.length < 50 || weaponKeys.length < 100) {
+        throw new Error(
+            `Validation failed: scraped HSR mappings has abnormally low counts (chars: ${charKeys.length}, weapons: ${weaponKeys.length}). Aborting srgf_dict.json update to prevent data loss.`
+        );
+    }
+
+    const srgfDict: Record<string, { name: string; rarity: number; type: string }> = {};
+
+    for (const [id, char] of Object.entries(charRawData)) {
+        if (char.name === "{NICKNAME}") continue;
+        srgfDict[id] = {
+            name: char.name,
+            rarity: char.rarity,
+            type: "Character",
+        };
+    }
+
+    for (const [id, weapon] of Object.entries(weaponRawData)) {
+        srgfDict[id] = {
+            name: weapon.name,
+            rarity: weapon.rarity,
+            type: "Light Cone",
+        };
+    }
+
+    const DICT_PATH = path.resolve(__dirname, "../../../shared/src/data/srgf_dict.json");
+    fs.writeFileSync(DICT_PATH, JSON.stringify(srgfDict, null, 4));
+    console.log("Successfully updated srgf_dict.json for HSR");
 }
