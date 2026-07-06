@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import * as schema from "../../db/schema";
 import { createTestTables } from "./db-setup.helper";
+import LZString from "lz-string";
 
 // --- Mocks ---
 const redisStore = new Map<string, string>();
@@ -419,5 +420,109 @@ describe("Pull File Import/Export E2E", () => {
         expect(pullsInDb[1].itemType).toBe("Weapon");
         expect(pullsInDb[1].pityAtPull).toBe(1); // reset after 5* pull (Changli)
         expect(pullsInDb[1].pullId).toBe("123456789_1_2026-02-05-14-03-09_1");
+    });
+
+    it("should import pulls from a Star Rail Station CSV export file", async () => {
+        const csvContent = [
+            "uid,id,rarity,time,banner,type,manual",
+            "1682532600000704444,1009,4,2023-04-26T18:14:12.000Z,1001,1,false",
+        ].join("\n");
+
+        const formData = new FormData();
+        formData.append("format", "starrail-station");
+        formData.append(
+            "file",
+            new Blob([csvContent], { type: "text/csv" }),
+            "starrailstation-warp-data.csv"
+        );
+
+        const resp = await app.fetch(
+            new Request("http://localhost/pulls/import/file", {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer session_token",
+                },
+                body: formData,
+            })
+        );
+
+        expect(resp.status).toBe(200);
+        const body = await resp.json();
+        expect(body.success).toBe(true);
+        expect(body.summary.length).toBe(1);
+        expect(body.summary[0].gameId).toBe("starrail");
+        expect(body.summary[0].imported).toBe(1);
+
+        // Verify pulls are in the database
+        const pullsInDb = await testDb.query.pull.findMany({
+            where: (p, { eq }) => eq(p.gameId, "starrail"),
+        });
+        // Seed was '1001' Seele, Test 3 added '1002' Natasha. We now added '1682532600000704444' Asta.
+        expect(pullsInDb.length).toBe(3);
+        const astaPull = pullsInDb.find((p) => p.pullId === "1682532600000704444");
+        expect(astaPull).toBeDefined();
+        expect(astaPull!.itemName).toBe("Asta");
+        expect(astaPull!.itemType).toBe("Character");
+    });
+
+    it("should import pulls from a Star Rail Station DAT export file", async () => {
+        const mockBackup = {
+            data: {
+                stores: {
+                    "1_warp-v2": {
+                        items_12: [
+                            {
+                                uid: "1772565000000906744",
+                                itemId: 23002, // Something Irreplaceable
+                                rarity: 5,
+                                timestamp: 1772567454000,
+                                gachaType: 22, // LC rerun -> mapped to 12
+                            },
+                        ],
+                    },
+                },
+            },
+        };
+
+        const compressed = LZString.compressToUTF16(JSON.stringify(mockBackup));
+        const datBuffer = Buffer.concat([
+            Buffer.from("srs", "utf-8"),
+            Buffer.from(compressed, "utf-8"),
+        ]);
+
+        const formData = new FormData();
+        formData.append("format", "starrail-station");
+        formData.append(
+            "file",
+            new Blob([datBuffer], { type: "application/octet-stream" }),
+            "starrailstation-backup.dat"
+        );
+
+        const resp = await app.fetch(
+            new Request("http://localhost/pulls/import/file", {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer session_token",
+                },
+                body: formData,
+            })
+        );
+
+        expect(resp.status).toBe(200);
+        const body = await resp.json();
+        expect(body.success).toBe(true);
+        expect(body.summary.length).toBe(1);
+        expect(body.summary[0].gameId).toBe("starrail");
+        expect(body.summary[0].imported).toBe(1);
+
+        // Verify pulls are in the database
+        const pullsInDb = await testDb.query.pull.findMany({
+            where: (p, { eq }) => eq(p.gameId, "starrail"),
+        });
+        const lcPull = pullsInDb.find((p) => p.pullId === "1772565000000906744");
+        expect(lcPull).toBeDefined();
+        expect(lcPull!.itemName).toBe("Something Irreplaceable");
+        expect(lcPull!.itemType).toBe("Light Cone");
+        expect(lcPull!.bannerType).toBe("12"); // Mapped to 12
     });
 });
