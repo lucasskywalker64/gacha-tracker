@@ -21,7 +21,7 @@
         "drizzle-orm": "0.45.2",
         "elysia": "1.4.28",
         "ioredis": "5.4.1",
-        "lz-string": "^1.5.0",
+        "lz-string": "1.5.0",
         "resend": "6.12.0",
         "zod": "4.3.6"
     },
