@@ -748,6 +748,13 @@
 		}
 	});
 
+	function formatExtensionsList(extensions: string): string {
+		return extensions
+			.split(',')
+			.map((ext) => ext.trim().replace(/^\./, '').toUpperCase())
+			.join(', ');
+	}
+
 	function validateImportFile(file: File): { isValid: boolean; error: string } {
 		// Validate file type/extension
 		const allowedList = acceptedExtensions
@@ -760,11 +767,7 @@
 		if (!isValidExt) {
 			return {
 				isValid: false,
-				error: `Invalid file type. Expected ${acceptedExtensions
-					.split(',')
-					.map((ext) => ext.trim().replace(/^\./, ''))
-					.join(', ')
-					.toUpperCase()} format.`
+				error: `Invalid file type. Expected ${formatExtensionsList(acceptedExtensions)} format.`
 			};
 		}
 
@@ -1683,10 +1686,7 @@
 										>Drag and drop file or click to browse</span
 									>
 									<span class="text-xs text-zinc-500"
-										>Supports {acceptedExtensions
-											.split(',')
-											.map((ext) => ext.trim().replace(/^\./, '').toUpperCase())
-											.join(', ')} backups (Max 2MB)</span
+										>Supports {formatExtensionsList(acceptedExtensions)} backups (Max 2MB)</span
 									>
 								</div>
 							{/if}
