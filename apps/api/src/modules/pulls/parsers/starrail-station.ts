@@ -1,6 +1,38 @@
 import { srgfDict } from "@gacha-tracker/shared";
 import type { ImportParser, ParsedImportResult, ParsedPull } from "./types";
 import LZString from "lz-string";
+import { z } from "zod";
+
+const datWarpItemSchema = z.object({
+    uid: z.union([z.string(), z.number()]),
+    itemId: z.union([z.string(), z.number()]),
+    rarity: z.number().int(),
+    timestamp: z.number().int(),
+    gachaType: z.number().int(),
+});
+
+const starRailStationDatSchema = z.object({
+    data: z
+        .object({
+            stores: z
+                .object({
+                    "1_warp-v2": z
+                        .object({
+                            items_1: z.array(datWarpItemSchema).optional(),
+                            items_2: z.array(datWarpItemSchema).optional(),
+                            items_11: z.array(datWarpItemSchema).optional(),
+                            items_12: z.array(datWarpItemSchema).optional(),
+                            items_21: z.array(datWarpItemSchema).optional(),
+                            items_22: z.array(datWarpItemSchema).optional(),
+                        })
+                        .catchall(z.unknown())
+                        .optional(),
+                })
+                .catchall(z.unknown())
+                .optional(),
+        })
+        .optional(),
+});
 
 export class StarRailStationParser implements ImportParser {
     formatId = "starrail-station";
@@ -34,58 +66,38 @@ export class StarRailStationParser implements ImportParser {
             });
         }
 
-        const typedRoot = root as {
-            data?: {
-                stores?: {
-                    [key: string]:
-                        | {
-                              [key: string]:
-                                  | Array<{
-                                        uid?: string | number;
-                                        itemId?: string | number;
-                                        rarity?: number;
-                                        timestamp?: number;
-                                        gachaType?: number;
-                                    }>
-                                  | undefined;
-                          }
-                        | undefined;
-                };
-            };
-        };
+        const parsed = starRailStationDatSchema.safeParse(root);
+        if (!parsed.success) {
+            throw new Error("Invalid Star Rail Station backup structure: " + parsed.error.message);
+        }
 
-        const warpStore = typedRoot.data?.stores?.["1_warp-v2"];
+        const warpStore = parsed.data.data?.stores?.["1_warp-v2"];
         if (!warpStore) {
             throw new Error("Star Rail Station backup does not contain warp history data");
         }
 
         const pulls: ParsedPull[] = [];
         const seenPullIds = new Set<string>();
-        const itemKeys = ["items_1", "items_2", "items_11", "items_12", "items_21", "items_22"];
+        const itemKeys = [
+            "items_1",
+            "items_2",
+            "items_11",
+            "items_12",
+            "items_21",
+            "items_22",
+        ] as const;
 
         for (const key of itemKeys) {
             const items = warpStore[key];
-            if (!Array.isArray(items)) continue;
+            if (!items) continue;
 
             for (let idx = 0; idx < items.length; idx++) {
                 const item = items[idx];
-                const pullId = item.uid ? String(item.uid) : null;
-                const itemId = item.itemId ? String(item.itemId) : null;
-                const rarity = item.rarity !== undefined ? Number(item.rarity) : NaN;
-                const timestamp = item.timestamp !== undefined ? Number(item.timestamp) : NaN;
-                const rawGachaType = item.gachaType !== undefined ? Number(item.gachaType) : NaN;
-
-                if (
-                    !pullId ||
-                    !itemId ||
-                    isNaN(rarity) ||
-                    isNaN(timestamp) ||
-                    isNaN(rawGachaType)
-                ) {
-                    throw new Error(
-                        `Invalid warp record detected in backup at ${key} index ${idx}`
-                    );
-                }
+                const pullId = String(item.uid);
+                const itemId = String(item.itemId);
+                const rarity = item.rarity;
+                const timestamp = item.timestamp;
+                const rawGachaType = item.gachaType;
 
                 // Map SRS internal rerun gacha types (21, 22) back to official Hoyoverse types (11, 12)
                 let bannerType = String(rawGachaType);
