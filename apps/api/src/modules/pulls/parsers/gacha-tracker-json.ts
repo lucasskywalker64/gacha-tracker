@@ -3,7 +3,7 @@ import type { ImportParser, ParsedImportResult } from "./types";
 
 export class GachaTrackerJsonParser implements ImportParser {
     formatId = "gacha-tracker-json";
-    displayName = "Gacha Tracker Backup (JSON)";
+    displayName = "Gacha Tracker Backup";
     acceptedExtensions = ".json";
 
     async parse(buffer: Buffer): Promise<ParsedImportResult> {
