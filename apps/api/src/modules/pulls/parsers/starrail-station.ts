@@ -201,8 +201,9 @@ export class StarRailStationParser implements ImportParser {
             const line = lines[i];
             const parts = line.split(",").map((p) => p.trim().replace(/^["']|["']$/g, ""));
             if (parts.length < headers.length) {
-                // Skip malformed/incomplete lines silently or throw
-                continue;
+                throw new Error(
+                    `Malformed CSV row at line ${i + 1}: expected ${headers.length} columns, got ${parts.length}`
+                );
             }
 
             const pullId = parts[uidIndex];
