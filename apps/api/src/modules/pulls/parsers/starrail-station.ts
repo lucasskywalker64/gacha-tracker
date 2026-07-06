@@ -57,6 +57,12 @@ export class StarRailStationParser implements ImportParser {
             throw new Error("Failed to decompress Star Rail Station backup data");
         }
 
+        // Cap decompressed output size to prevent memory/CPU exhaustion (decompression bomb)
+        const maxDecompressedLength = 20 * 1024 * 1024; // 20 million characters (~20MB)
+        if (decompressed.length > maxDecompressedLength) {
+            throw new Error("Decompressed backup size exceeds the 20MB safety limit");
+        }
+
         let root: unknown;
         try {
             root = JSON.parse(decompressed);
