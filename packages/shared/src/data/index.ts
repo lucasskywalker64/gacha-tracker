@@ -1,4 +1,5 @@
 import bannersData from "./banners.json";
+import srgfDictData from "./srgf_dict.json";
 
 export interface BannerPhase {
     phase: string;
@@ -22,3 +23,13 @@ export interface BannersData {
 }
 
 export const banners = bannersData as BannersData;
+
+export interface SrgfDictEntry {
+    name: string;
+    rarity: number;
+    type: string;
+}
+
+export type SrgfDict = Record<string, SrgfDictEntry>;
+
+export const srgfDict = srgfDictData as SrgfDict;

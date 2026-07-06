@@ -139,7 +139,7 @@
                 "featuredWeapons": ["23019", "23009"],
                 "mainWeaponId": "23019",
                 "startTime": 1703646000000,
-                "endTime": 1705463940000
+                "endTime": 1705463999000
             },
             {
                 "phase": "1.6.2",
@@ -590,6 +590,46 @@
                 "mainWeaponId": "23058",
                 "startTime": 1778644800000,
                 "endTime": 1780257599000
+            },
+            {
+                "phase": "4.3.1",
+                "name": "Mortenax Blade / Yao Guang",
+                "featuredCharacters": ["1507", "1502"],
+                "mainCharacterId": "1507",
+                "featuredWeapons": ["23059", "23054"],
+                "mainWeaponId": "23059",
+                "startTime": 1780282800000,
+                "endTime": 1782273540000
+            },
+            {
+                "phase": "4.3.2",
+                "name": "Cyrene / Phainon",
+                "featuredCharacters": ["1415", "1408"],
+                "mainCharacterId": "1415",
+                "featuredWeapons": ["23044"],
+                "mainWeaponId": "23044",
+                "startTime": 1782273600000,
+                "endTime": 1784012400000
+            },
+            {
+                "phase": "4.4.2",
+                "name": "Sparxie / Dan Heng • Permansor Terrae / Evernight",
+                "featuredCharacters": ["1501", "1414", "1413"],
+                "mainCharacterId": "1501",
+                "featuredWeapons": ["23053", "23051", "23049"],
+                "mainWeaponId": "23053",
+                "startTime": 1784084400000,
+                "endTime": 1785902340000
+            },
+            {
+                "phase": "4.4.3",
+                "name": "Cerydra / Anaxa / Aventurine",
+                "featuredCharacters": ["1412", "1405", "1304"],
+                "mainCharacterId": "1412",
+                "featuredWeapons": ["23048", "23041", "23023"],
+                "mainWeaponId": "23048",
+                "startTime": 1785902400000,
+                "endTime": 1787641200000
             }
         ],
         "genshin": [
