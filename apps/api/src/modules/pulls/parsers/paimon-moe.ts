@@ -8,6 +8,7 @@ const SHEET_BANNER_TYPES: Record<string, string> = {
     "Weapon Event": "302",
     Standard: "200",
     "Beginners' Wish": "100",
+    "Chronicled Wish": "500",
 };
 
 export class PaimonMoeParser implements ImportParser {
@@ -144,6 +145,23 @@ export class PaimonMoeParser implements ImportParser {
         // ---------------------------------------------------------------------------
         const allPulls: ParsedPull[] = [];
         const seenPullIds = new Set<string>();
+
+        // Warn about any unrecognized sheets in the workbook (ignoring known non-wish sheets)
+        const IGNORED_SHEETS = new Set(["banner list", "information"]);
+        for (const sheetName of sheetNameToPath.keys()) {
+            const cleanSheetName = sheetName.trim().toLowerCase();
+            if (IGNORED_SHEETS.has(cleanSheetName)) {
+                continue;
+            }
+            const isRecognized = Object.keys(SHEET_BANNER_TYPES).some(
+                (k) => k.toLowerCase() === cleanSheetName
+            );
+            if (!isRecognized) {
+                console.warn(
+                    `[PaimonMoeParser] Sheet "${sheetName}" is unrecognized and will be skipped.`
+                );
+            }
+        }
 
         for (const [sheetName, bannerType] of Object.entries(SHEET_BANNER_TYPES)) {
             // Find sheet name case-insensitively and with trimmed whitespace

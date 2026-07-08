@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, spyOn } from "bun:test";
 import { PaimonMoeParser } from "./paimon-moe";
 import { createMockPaimonXlsx } from "./paimon-moe-mock";
 
@@ -10,6 +10,10 @@ const MOCK_WISH_DATA = {
     "Weapon Event": [["Weapon", "Dull Blade", "2022-02-19 16:22:25", 3]],
     Standard: [["Character", "Diluc", "2022-02-19 16:22:30", 5]],
     "Beginners' Wish": [["Character", "Noelle", "2022-02-19 16:22:35", 4]],
+    "Chronicled Wish": [["Character", "Mona", "2024-03-15 12:00:00", 5]],
+    "Some Unrecognized Sheet": [["Character", "Amber", "2024-03-15 13:00:00", 4]],
+    "Banner List": [],
+    Information: [],
 };
 
 const MOCK_XLSX_BUFFER = createMockPaimonXlsx(MOCK_WISH_DATA);
@@ -38,9 +42,16 @@ describe("PaimonMoeParser", () => {
 
     describe("with fixture file", () => {
         let result: Awaited<ReturnType<typeof parser.parse>>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let warnSpy: any;
 
         beforeAll(async () => {
+            warnSpy = spyOn(console, "warn").mockImplementation(() => {});
             result = await parser.parse(MOCK_XLSX_BUFFER, { gameUid: TEST_UID });
+        });
+
+        afterAll(() => {
+            warnSpy.mockRestore();
         });
 
         it("returns exactly one game entry for genshin", () => {
@@ -49,16 +60,36 @@ describe("PaimonMoeParser", () => {
             expect(result.games[0].gameUid).toBe(TEST_UID);
         });
 
-        it("parses pulls from all four wish sheets", () => {
+        it("parses pulls from all five wish sheets", () => {
             const pulls = result.games[0].pulls;
             expect(pulls.length).toBeGreaterThan(0);
 
-            // All four banner types should be present
+            // All five banner types should be present
             const bannerTypes = new Set(pulls.map((p) => p.bannerType));
             expect(bannerTypes.has("301")).toBe(true); // Character Event
             expect(bannerTypes.has("302")).toBe(true); // Weapon Event
             expect(bannerTypes.has("200")).toBe(true); // Standard
             expect(bannerTypes.has("100")).toBe(true); // Beginners
+            expect(bannerTypes.has("500")).toBe(true); // Chronicled Wish
+        });
+
+        it("logs a warning for the unrecognized sheet", () => {
+            expect(warnSpy).toHaveBeenCalled();
+            const calledWith = warnSpy.mock.calls.some(
+                (args: unknown[]) =>
+                    typeof args[0] === "string" &&
+                    args[0].includes('Sheet "Some Unrecognized Sheet" is unrecognized')
+            );
+            expect(calledWith).toBe(true);
+
+            // Verify Banner List and Information sheets do not trigger warnings
+            const ignoredCalled = warnSpy.mock.calls.some(
+                (args: unknown[]) =>
+                    typeof args[0] === "string" &&
+                    (args[0].includes('Sheet "Banner List" is unrecognized') ||
+                        args[0].includes('Sheet "Information" is unrecognized'))
+            );
+            expect(ignoredCalled).toBe(false);
         });
 
         it("all pulls are sorted oldest-first", () => {
