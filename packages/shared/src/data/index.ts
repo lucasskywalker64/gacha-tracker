@@ -1,5 +1,6 @@
 import bannersData from "./banners.json";
 import srgfDictData from "./srgf_dict.json";
+import uigfDictData from "./uigf_dict.json";
 
 export interface BannerPhase {
     phase: string;
@@ -33,3 +34,14 @@ export interface SrgfDictEntry {
 export type SrgfDict = Record<string, SrgfDictEntry>;
 
 export const srgfDict = srgfDictData as SrgfDict;
+
+export interface UigfDictEntry {
+    id: string;
+    rarity: number;
+    type: string;
+}
+
+export type UigfDict = Record<string, UigfDictEntry>;
+
+/** Keyed by lowercase item name (e.g. "diona", "dull blade") */
+export const uigfDict = uigfDictData as UigfDict;

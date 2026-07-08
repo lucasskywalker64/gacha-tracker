@@ -1760,23 +1760,33 @@
             },
             {
                 "phase": "Luna VII.1",
-                "name": "Durin",
-                "featuredCharacters": ["10000123"],
-                "mainCharacterId": "10000123",
-                "featuredWeapons": [],
-                "mainWeaponId": "",
+                "name": "Nicole / Durin",
+                "featuredCharacters": ["10000131", "10000123"],
+                "mainCharacterId": "10000131",
+                "featuredWeapons": ["14523", "11518"],
+                "mainWeaponId": "14523",
                 "startTime": 1779246000000,
                 "endTime": 1780999199000
             },
             {
                 "phase": "Luna VII.2",
-                "name": "Mavuika",
-                "featuredCharacters": ["10000106"],
-                "mainCharacterId": "10000106",
-                "featuredWeapons": [],
-                "mainWeaponId": "",
+                "name": "Lohen / Mavuika",
+                "featuredCharacters": ["10000129", "10000106"],
+                "mainCharacterId": "10000129",
+                "featuredWeapons": ["13517", "12514"],
+                "mainWeaponId": "13517",
                 "startTime": 1780999200000,
                 "endTime": 1782802799000
+            },
+            {
+                "phase": "Luna VIII.1",
+                "name": "Sandrone / Citlali",
+                "featuredCharacters": ["10000133", "10000107"],
+                "mainCharacterId": "10000133",
+                "featuredWeapons": ["14517", "12516"],
+                "mainWeaponId": "14517",
+                "startTime": 1782874800000,
+                "endTime": 1784627999000
             }
         ],
         "zzz": [
