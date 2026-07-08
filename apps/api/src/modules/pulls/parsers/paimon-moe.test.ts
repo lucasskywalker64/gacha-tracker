@@ -1,4 +1,30 @@
-import { describe, it, expect, beforeAll, afterAll, spyOn } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, spyOn, mock } from "bun:test";
+import * as originalFflate from "fflate";
+
+let mockFflateOriginalSizeUndefined = false;
+
+mock.module("fflate", () => {
+    return {
+        ...originalFflate,
+        unzipSync: (
+            buf: Uint8Array,
+            opts?: {
+                filter?: (file: { name: string; originalSize: number; size: number }) => boolean;
+            }
+        ) => {
+            if (mockFflateOriginalSizeUndefined && opts?.filter) {
+                opts.filter({
+                    name: "xl/workbook.xml",
+                    originalSize: undefined as unknown as number,
+                    size: 0,
+                });
+                return {};
+            }
+            return originalFflate.unzipSync(buf, opts);
+        },
+    };
+});
+
 import { PaimonMoeParser, parseWishSheet } from "./paimon-moe";
 import { createMockPaimonXlsx } from "./paimon-moe-mock";
 
@@ -178,6 +204,18 @@ describe("PaimonMoeParser", () => {
             // Should parse successfully because no entry is > 10MB
             const res = await strictParser.parse(MOCK_XLSX_BUFFER, { gameUid: TEST_UID });
             expect(res.games[0].pulls.length).toBeGreaterThan(0);
+        });
+
+        it("throws if an entry is missing size metadata", async () => {
+            mockFflateOriginalSizeUndefined = true;
+            try {
+                const strictParser = new PaimonMoeParser();
+                await expect(
+                    strictParser.parse(MOCK_XLSX_BUFFER, { gameUid: TEST_UID })
+                ).rejects.toThrow("missing size metadata");
+            } finally {
+                mockFflateOriginalSizeUndefined = false;
+            }
         });
     });
 

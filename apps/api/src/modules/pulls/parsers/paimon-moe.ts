@@ -40,6 +40,13 @@ export class PaimonMoeParser implements ImportParser {
         try {
             files = unzipSync(new Uint8Array(buffer), {
                 filter(file) {
+                    // 0. Ensure size metadata is present to prevent size checks bypass
+                    if (file.originalSize === undefined || typeof file.originalSize !== "number") {
+                        throw new Error(
+                            `XLSX entry "${file.name}" is missing size metadata and is treated as unsafe`
+                        );
+                    }
+
                     // 1. Enforce max uncompressed size per file
                     if (file.originalSize > maxEntryUncompressed) {
                         throw new Error(
@@ -69,7 +76,8 @@ export class PaimonMoeParser implements ImportParser {
             if (
                 e instanceof Error &&
                 (e.message.includes("exceeds safety limits") ||
-                    e.message.includes("suspicious compression ratio"))
+                    e.message.includes("suspicious compression ratio") ||
+                    e.message.includes("missing size metadata"))
             ) {
                 throw e;
             }
