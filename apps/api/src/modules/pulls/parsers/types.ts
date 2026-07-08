@@ -19,9 +19,14 @@ export interface ParsedImportResult {
     games: ParsedGamePulls[];
 }
 
+/** Optional caller-supplied metadata forwarded to the parser (e.g. a UID the file doesn't contain). */
+export interface ParseContext {
+    gameUid?: string;
+}
+
 export interface ImportParser {
     formatId: string;
     displayName: string;
     acceptedExtensions: string;
-    parse(buffer: Buffer): Promise<ParsedImportResult>;
+    parse(buffer: Buffer, context?: ParseContext): Promise<ParsedImportResult>;
 }
