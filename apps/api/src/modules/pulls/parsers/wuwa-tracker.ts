@@ -22,7 +22,7 @@ const wuwaTrackerExportSchema = z.object({
 });
 
 export class WuWaTrackerJsonParser implements ImportParser {
-    formatId = "wuwa-tracker-json";
+    formatId = "wuwa-tracker";
     displayName = "WuWaTracker Export";
     acceptedExtensions = ".json";
 

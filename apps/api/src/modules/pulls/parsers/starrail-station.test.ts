@@ -148,5 +148,38 @@ describe("StarRailStationParser", () => {
             ]);
             expect(parser.parse(datBuffer)).rejects.toThrow();
         });
+
+        it("should abort early and throw when decompressed payload size exceeds the limit", async () => {
+            const mockBackup = {
+                data: {
+                    stores: {
+                        "1_warp-v2": {
+                            items_1: [
+                                {
+                                    uid: "1682698200001377844",
+                                    itemId: 20003,
+                                    rarity: 3,
+                                    timestamp: 1682698116000,
+                                    gachaType: 1,
+                                },
+                            ],
+                        },
+                    },
+                },
+            };
+
+            const compressed = LZString.compressToUTF16(JSON.stringify(mockBackup));
+            const datBuffer = Buffer.concat([
+                Buffer.from("srs", "utf-8"),
+                Buffer.from(compressed, "utf-8"),
+            ]);
+
+            const customParser = new StarRailStationParser();
+            customParser.maxDecompressedLength = 50;
+
+            await expect(customParser.parse(datBuffer)).rejects.toThrow(
+                "Decompressed size validation failed"
+            );
+        });
     });
 });

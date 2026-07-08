@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { WuWaTrackerJsonParser } from "./wuwa-tracker-json";
+import { WuWaTrackerJsonParser } from "./wuwa-tracker";
 
 describe("WuWaTrackerJsonParser", () => {
     const parser = new WuWaTrackerJsonParser();

@@ -1,8 +1,8 @@
 import { nativeExportSchema } from "@gacha-tracker/shared";
 import type { ImportParser, ParsedImportResult } from "./types";
 
-export class GachaTrackerJsonParser implements ImportParser {
-    formatId = "gacha-tracker-json";
+export class GachaTrackerParser implements ImportParser {
+    formatId = "gacha-tracker";
     displayName = "Gacha Tracker Backup";
     acceptedExtensions = ".json";
 
