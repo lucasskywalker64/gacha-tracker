@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, spyOn } from "bun:test";
-import { PaimonMoeParser } from "./paimon-moe";
+import { PaimonMoeParser, parseWishSheet } from "./paimon-moe";
 import { createMockPaimonXlsx } from "./paimon-moe-mock";
 
 const MOCK_WISH_DATA = {
@@ -178,6 +178,64 @@ describe("PaimonMoeParser", () => {
             // Should parse successfully because no entry is > 10MB
             const res = await strictParser.parse(MOCK_XLSX_BUFFER, { gameUid: TEST_UID });
             expect(res.games[0].pulls.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe("row-level validation error paths", () => {
+        it("throws on invalid rarity value", async () => {
+            const malformedData = {
+                "Character Event": [
+                    ["Character", "Diona", "2022-02-19 16:22:15", 6], // invalid rarity
+                ],
+            };
+            const buffer = createMockPaimonXlsx(malformedData);
+            await expect(parser.parse(buffer, { gameUid: TEST_UID })).rejects.toThrow(
+                /Invalid rarity value at row 2 of sheet "Character Event"/
+            );
+        });
+
+        it("throws on invalid timestamp format", async () => {
+            const malformedData = {
+                "Character Event": [["Character", "Diona", "invalid-timestamp-format", 4]],
+            };
+            const buffer = createMockPaimonXlsx(malformedData);
+            await expect(parser.parse(buffer, { gameUid: TEST_UID })).rejects.toThrow(
+                /Invalid timestamp at row 2 of sheet "Character Event"/
+            );
+        });
+
+        it("throws on duplicate pullId", () => {
+            const sheetXml = `
+                <worksheet>
+                    <sheetData>
+                        <row r="2">
+                            <c r="A2" t="s"><v>0</v></c>
+                            <c r="B2" t="s"><v>1</v></c>
+                            <c r="C2" t="s"><v>2</v></c>
+                            <c r="D2"><v>4</v></c>
+                        </row>
+                    </sheetData>
+                </worksheet>
+            `;
+            const resolveCellMock = (_t: string | undefined, v: string) => {
+                if (v === "0") return "Character";
+                if (v === "1") return "Diona";
+                if (v === "2") return "2022-02-19 16:22:15";
+                return v;
+            };
+
+            const seenPullIds = new Set<string>(["700000001_301_2022-02-19-16-22-15_0"]);
+
+            expect(() =>
+                parseWishSheet(
+                    sheetXml,
+                    resolveCellMock,
+                    "Character Event",
+                    "301",
+                    TEST_UID,
+                    seenPullIds
+                )
+            ).toThrow("Duplicate pullId detected: 700000001_301_2022-02-19-16-22-15_0");
         });
     });
 });

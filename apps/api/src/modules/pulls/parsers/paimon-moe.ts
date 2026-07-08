@@ -203,7 +203,7 @@ export class PaimonMoeParser implements ImportParser {
 // Sheet parsing
 // ---------------------------------------------------------------------------
 
-function parseWishSheet(
+export function parseWishSheet(
     sheetXml: string,
     resolveCell: (type: string | undefined, value: string) => string,
     sheetName: string,
