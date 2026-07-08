@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, spyOn, mock } from "bun:test";
-import * as originalFflate from "fflate";
+import * as fflateNamespace from "fflate";
 
+const originalFflate = { ...fflateNamespace };
 let mockFflateOriginalSizeUndefined = false;
 
 mock.module("fflate", () => {
