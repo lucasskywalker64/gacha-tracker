@@ -70,7 +70,7 @@ async function fetchGenshinDbData(): Promise<Map<string, { rarity: number; type:
 
     for (const { url, type } of endpoints) {
         try {
-            const res = await fetch(url);
+            const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data = (await res.json()) as { result: Array<{ name: string; rarity: number }> };
             const items = data.result ?? [];
