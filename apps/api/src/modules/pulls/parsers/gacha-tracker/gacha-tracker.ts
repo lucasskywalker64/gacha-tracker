@@ -1,5 +1,5 @@
 import { nativeExportSchema } from "@gacha-tracker/shared";
-import type { ImportParser, ParsedImportResult } from "./types";
+import type { ImportParser, ParsedImportResult } from "../types";
 
 export class GachaTrackerParser implements ImportParser {
     formatId = "gacha-tracker";

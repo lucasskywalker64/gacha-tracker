@@ -1,5 +1,5 @@
 import { srgfDict } from "@gacha-tracker/shared";
-import type { ImportParser, ParsedImportResult, ParsedPull } from "./types";
+import type { ImportParser, ParsedImportResult, ParsedPull } from "../types";
 import { decompressFromUTF16 } from "./lz-string-safe";
 import { z } from "zod";
 

@@ -1,8 +1,8 @@
 import type { ImportParser } from "./types";
-import { GachaTrackerParser } from "./gacha-tracker";
-import { WuWaTrackerJsonParser } from "./wuwa-tracker";
-import { StarRailStationParser } from "./starrail-station";
-import { PaimonMoeParser } from "./paimon-moe";
+import { GachaTrackerParser } from "./gacha-tracker/gacha-tracker";
+import { WuWaTrackerJsonParser } from "./wuwa-tracker/wuwa-tracker";
+import { StarRailStationParser } from "./starrail-station/starrail-station";
+import { PaimonMoeParser } from "./paimon-moe/paimon-moe";
 
 const parsers: Record<string, ImportParser> = {
     "gacha-tracker": new GachaTrackerParser(),

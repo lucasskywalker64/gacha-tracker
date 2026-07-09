@@ -1,6 +1,6 @@
 import { unzipSync } from "fflate";
 import { uigfDict } from "@gacha-tracker/shared";
-import type { ImportParser, ParsedImportResult, ParsedPull, ParseContext } from "./types";
+import type { ImportParser, ParsedImportResult, ParsedPull, ParseContext } from "../types";
 
 /** paimon.moe sheet name → Genshin banner type integer */
 const SHEET_BANNER_TYPES: Record<string, string> = {

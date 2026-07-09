@@ -6,7 +6,7 @@ import * as schema from "../../db/schema";
 import { createTestTables } from "./db-setup.helper";
 import LZString from "lz-string";
 import { _reset as resetQueue } from "../../lib/importQueue";
-import { createMockPaimonXlsx } from "./parsers/paimon-moe-mock";
+import { createMockPaimonXlsx } from "./parsers/paimon-moe/paimon-moe-mock";
 
 // --- Mocks ---
 const redisStore = new Map<string, string>();
