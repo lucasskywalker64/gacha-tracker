@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { bearer } from "@elysiajs/bearer";
+import { bearer } from "@elysia/bearer";
 import { redis } from "../lib/redis";
 
 /**
