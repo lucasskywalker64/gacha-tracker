@@ -119,6 +119,26 @@ describe("PaimonMoeParser", () => {
             expect(ignoredCalled).toBe(false);
         });
 
+        it("successfully matches sheet tags containing * or ^ characters", async () => {
+            const dataWithSpecialChars = {
+                ...MOCK_WISH_DATA,
+                "Some*Special^Sheet": [],
+            };
+            const buffer = createMockPaimonXlsx(dataWithSpecialChars);
+            const testWarnSpy = spyOn(console, "warn").mockImplementation(() => {});
+            try {
+                await parser.parse(buffer, { gameUid: TEST_UID });
+                const calledWith = testWarnSpy.mock.calls.some(
+                    (args: unknown[]) =>
+                        typeof args[0] === "string" &&
+                        args[0].includes('Sheet "Some*Special^Sheet" is unrecognized')
+                );
+                expect(calledWith).toBe(true);
+            } finally {
+                testWarnSpy.mockRestore();
+            }
+        });
+
         it("all pulls are sorted oldest-first", () => {
             const pulls = result.games[0].pulls;
             for (let i = 1; i < pulls.length; i++) {

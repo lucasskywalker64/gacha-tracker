@@ -115,7 +115,7 @@ export class PaimonMoeParser implements ImportParser {
         // Map sheet name → "xl/worksheets/sheetN.xml"
         // Use an attribute-order independent regex parsing of <sheet> tags
         const sheetNameToPath = new Map<string, string>();
-        for (const sheetMatch of workbookXml.matchAll(/<sheet\s([^*^>]*)\/?>/g)) {
+        for (const sheetMatch of workbookXml.matchAll(/<sheet\s([^>]*)\/?>/g)) {
             const attrs = sheetMatch[1];
             const nameMatch = attrs.match(/\bname="([^"]+)"/);
             const rIdMatch = attrs.match(/\br:id="([^"]+)"/);
