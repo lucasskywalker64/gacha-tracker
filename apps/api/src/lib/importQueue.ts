@@ -42,8 +42,12 @@ export interface QueueSnapshot {
 const store = new Map<string, QueueEntry>();
 let runningCount = 0;
 let worker: ((entry: QueueEntry) => Promise<ImportSummaryItem[]>) | null = null;
+let defaultWorker: ((entry: QueueEntry) => Promise<ImportSummaryItem[]>) | null = null;
 
 export function registerWorker(fn: (entry: QueueEntry) => Promise<ImportSummaryItem[]>) {
+    if (!defaultWorker) {
+        defaultWorker = fn;
+    }
     worker = fn;
 }
 
@@ -166,6 +170,7 @@ async function processQueue() {
 export function _reset() {
     store.clear();
     runningCount = 0;
+    worker = defaultWorker;
 }
 
 export function _getQueueState() {
