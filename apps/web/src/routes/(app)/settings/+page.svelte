@@ -16,7 +16,9 @@
 		ShieldCheck,
 		Link2,
 		Palette,
-		Settings
+		Settings,
+		Clock,
+		CircleX
 	} from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import { fade, scale } from 'svelte/transition';
@@ -698,7 +700,8 @@
 	let formats = $state<Array<{ id: string; displayName: string; acceptedExtensions: string }>>([]);
 	let loadingFormats = $state(true);
 
-	let selectedFormat = $state('gacha-tracker-json');
+	let selectedFormat = $state('gacha-tracker');
+	let gameUid = $state('');
 	let selectedFormatObj = $derived(formats.find((f) => f.id === selectedFormat));
 	let acceptedExtensions = $derived(selectedFormatObj?.acceptedExtensions || '.json');
 	let importFile = $state<File | null>(null);
@@ -709,6 +712,146 @@
 		| { gameId: string; gameUid: string; imported: number; message: string; success: boolean }[]
 		| null
 	>(null);
+
+	// Cooldown states
+	let _cooldownExpiresAt = $state<number | null>(null); // Unix ms
+	let cooldownRemaining = $state(0); // seconds remaining
+
+	// Queue states
+	let pendingRequestId = $state<string | null>(null);
+	let queueStatus = $state<'queued' | 'processing' | 'done' | 'failed' | 'cancelled' | null>(null);
+	let queuePosition = $state<number | null>(null);
+	let queueWaitedSeconds = $state(0);
+
+	let pollInterval: ReturnType<typeof setInterval> | null = null;
+	let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
+	function clearLocalStorage() {
+		localStorage.removeItem('gt_import_state');
+	}
+
+	function saveToLocalStorage(requestId: string, expiresAt: number) {
+		localStorage.setItem(
+			'gt_import_state',
+			JSON.stringify({
+				requestId,
+				cooldownExpiresAt: expiresAt
+			})
+		);
+	}
+
+	function stopPolling() {
+		if (pollInterval) {
+			clearInterval(pollInterval);
+			pollInterval = null;
+		}
+	}
+
+	function stopCountdown() {
+		if (countdownInterval) {
+			clearInterval(countdownInterval);
+			countdownInterval = null;
+		}
+	}
+
+	function startCooldownCountdown(expiresAt: number) {
+		stopCountdown();
+		_cooldownExpiresAt = expiresAt;
+		cooldownRemaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+
+		countdownInterval = setInterval(() => {
+			const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+			cooldownRemaining = remaining;
+			if (remaining === 0) {
+				stopCountdown();
+				_cooldownExpiresAt = null;
+			}
+		}, 500);
+	}
+
+	function startPolling(requestId: string) {
+		stopPolling();
+		pendingRequestId = requestId;
+		importing = true;
+
+		pollInterval = setInterval(async () => {
+			try {
+				const res = await fetch(`${PUBLIC_API_URL}/pulls/import/status/${requestId}`, {
+					credentials: 'include'
+				});
+				if (!res.ok) {
+					stopPolling();
+					importing = false;
+					if (res.status === 404) {
+						importError = 'Import request expired or not found.';
+					} else {
+						importError = `Failed to get import status (${res.status})`;
+					}
+					clearLocalStorage();
+					pendingRequestId = null;
+					queueStatus = null;
+					return;
+				}
+
+				const data = await res.json();
+				queueStatus = data.status;
+				queuePosition = data.position;
+				queueWaitedSeconds = data.waitedSeconds;
+
+				if (data.status === 'done') {
+					importSuccess = data.result.summary;
+					importFile = null;
+					if (fileInputRef) {
+						fileInputRef.value = '';
+					}
+					clearLocalStorage();
+					stopPolling();
+					importing = false;
+					pendingRequestId = null;
+					queueStatus = null;
+				} else if (data.status === 'failed') {
+					importError = data.error || 'Import failed.';
+					clearLocalStorage();
+					stopPolling();
+					importing = false;
+					pendingRequestId = null;
+					queueStatus = null;
+				} else if (data.status === 'cancelled') {
+					importError = 'Import request cancelled.';
+					clearLocalStorage();
+					stopPolling();
+					importing = false;
+					pendingRequestId = null;
+					queueStatus = null;
+				}
+			} catch (err) {
+				console.error('Polling error:', err);
+			}
+		}, 1000);
+	}
+
+	async function handleCancelQueue() {
+		if (!pendingRequestId) return;
+		try {
+			const res = await fetch(`${PUBLIC_API_URL}/pulls/import/queue/${pendingRequestId}`, {
+				method: 'DELETE',
+				credentials: 'include'
+			});
+			if (!res.ok) {
+				const errData = await res.json().catch(() => ({}));
+				importError = errData.error || 'Failed to cancel request.';
+				return;
+			}
+			stopPolling();
+			clearLocalStorage();
+			queueStatus = null;
+			pendingRequestId = null;
+			importing = false;
+			importError = 'Import cancelled.';
+		} catch (err) {
+			console.error('Cancel error:', err);
+		}
+	}
 
 	let importStatusSummary = $derived.by(() => {
 		if (!importSuccess || importSuccess.length === 0) return null;
@@ -737,6 +880,21 @@
 
 	onMount(async () => {
 		try {
+			const saved = localStorage.getItem('gt_import_state');
+			if (saved) {
+				const state = JSON.parse(saved);
+				if (state.cooldownExpiresAt && state.cooldownExpiresAt > Date.now()) {
+					startCooldownCountdown(state.cooldownExpiresAt);
+				}
+				if (state.requestId) {
+					startPolling(state.requestId);
+				}
+			}
+		} catch (e) {
+			console.error('Failed to restore import state:', e);
+		}
+
+		try {
 			const { data: res } = await api.pulls.import.formats.get();
 			if (res?.formats) {
 				formats = res.formats;
@@ -746,6 +904,11 @@
 		} finally {
 			loadingFormats = false;
 		}
+	});
+
+	onDestroy(() => {
+		stopPolling();
+		stopCountdown();
 	});
 
 	function formatExtensionsList(extensions: string): string {
@@ -771,11 +934,11 @@
 			};
 		}
 
-		// Validate file size (Max 2MB)
-		if (file.size > 2 * 1024 * 1024) {
+		// Validate file size (Max 5MB)
+		if (file.size > 5 * 1024 * 1024) {
 			return {
 				isValid: false,
-				error: 'File size exceeds the 2MB limit.'
+				error: 'File size exceeds the 5MB limit.'
 			};
 		}
 
@@ -807,6 +970,19 @@
 			importError = validation.error;
 			return;
 		}
+
+		if (selectedFormat === 'paimon-moe') {
+			const cleanUid = gameUid.trim();
+			if (!cleanUid) {
+				importError = 'Please enter your Genshin Impact UID.';
+				return;
+			}
+			if (!/^\d{9,10}$/.test(cleanUid)) {
+				importError = 'Invalid Genshin Impact UID. A standard UID is 9 or 10 digits.';
+				return;
+			}
+		}
+
 		importing = true;
 		importError = '';
 		importSuccess = null;
@@ -815,6 +991,9 @@
 			const formData = new FormData();
 			formData.append('format', selectedFormat);
 			formData.append('file', importFile);
+			if (selectedFormat === 'paimon-moe') {
+				formData.append('gameUid', gameUid.trim());
+			}
 
 			const res = await fetch(`${PUBLIC_API_URL}/pulls/import/file`, {
 				method: 'POST',
@@ -822,7 +1001,22 @@
 				body: formData
 			});
 
-			if (!res.ok) {
+			if (res.status === 202) {
+				const result = await res.json();
+				const expiresAt = Date.parse(result.cooldownExpiresAt);
+				saveToLocalStorage(result.requestId, expiresAt);
+				startCooldownCountdown(expiresAt);
+				startPolling(result.requestId);
+			} else if (res.status === 429) {
+				const errorData = await res.json();
+				const retryAfter = errorData.retryAfter || 60;
+				const expiresAt = Date.now() + retryAfter * 1000;
+				startCooldownCountdown(expiresAt);
+				throw new Error(errorData.error || 'Too many requests. Cooldown active.');
+			} else if (res.status === 503) {
+				const errorData = await res.json();
+				throw new Error(errorData.error || 'The import queue is full.');
+			} else if (!res.ok) {
 				let errorMsg = `Import failed (${res.status})`;
 				try {
 					const errorData = await res.json();
@@ -833,19 +1027,19 @@
 					// Fallback if not JSON or empty
 				}
 				throw new Error(errorMsg);
-			}
-
-			const result = await res.json();
-			importSuccess = result.summary;
-			importFile = null;
-			if (fileInputRef) {
-				fileInputRef.value = '';
+			} else {
+				const result = await res.json();
+				importSuccess = result.summary;
+				importFile = null;
+				if (fileInputRef) {
+					fileInputRef.value = '';
+				}
+				importing = false;
 			}
 		} catch (err) {
 			console.error(err);
 			const message = err instanceof Error ? err.message : String(err);
 			importError = message || 'An unexpected error occurred during import.';
-		} finally {
 			importing = false;
 		}
 	}
@@ -1648,6 +1842,30 @@
 						{/if}
 					</div>
 
+					{#if selectedFormat === 'paimon-moe'}
+						<!-- Genshin UID input for paimon-moe -->
+						<div class="grid gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+							<label
+								for="import-game-uid"
+								class="text-xs font-bold text-zinc-400 uppercase tracking-wider"
+								>Genshin Impact UID</label
+							>
+							<input
+								type="text"
+								id="import-game-uid"
+								bind:value={gameUid}
+								oninput={(e) => {
+									gameUid = e.currentTarget.value.replace(/\D/g, '');
+									e.currentTarget.value = gameUid;
+								}}
+								placeholder="Enter UID (9 or 10 digits)"
+								maxlength="10"
+								disabled={importing}
+								class="w-full rounded-xl bg-zinc-900 border border-zinc-800 p-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+							/>
+						</div>
+					{/if}
+
 					<!-- File Dropzone -->
 					<div class="grid gap-2">
 						<span
@@ -1666,7 +1884,7 @@
 								accept={acceptedExtensions}
 								onchange={handleFileChange}
 								class="absolute inset-0 opacity-0 cursor-pointer focus:outline-none"
-								disabled={importing}
+								disabled={importing || queueStatus === 'queued' || queueStatus === 'processing'}
 							/>
 							{#if importFile}
 								<div class="flex flex-col items-center gap-2">
@@ -1686,22 +1904,86 @@
 										>Drag and drop file or click to browse</span
 									>
 									<span class="text-xs text-zinc-500"
-										>Supports {formatExtensionsList(acceptedExtensions)} backups (Max 2MB)</span
+										>Supports {formatExtensionsList(acceptedExtensions)} backups (Max 5MB)</span
 									>
 								</div>
 							{/if}
 						</div>
 					</div>
 
+					<!-- Queue Status / Processing Panel -->
+					{#if queueStatus === 'queued' || queueStatus === 'processing'}
+						<div
+							class="p-4 rounded-xl border border-zinc-800 bg-zinc-950/40 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200"
+						>
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-3">
+									<LoaderCircle class="w-5 h-5 text-indigo-400 animate-spin" />
+									<div>
+										<span class="text-sm font-bold text-zinc-200">
+											{#if queueStatus === 'queued'}
+												Import Queued
+											{:else}
+												Processing Import
+											{/if}
+										</span>
+										<div class="text-xs text-zinc-500 mt-0.5">
+											{#if queueStatus === 'queued'}
+												Position in queue: <strong class="text-indigo-400"
+													>#{queuePosition ?? '?'}</strong
+												>
+												{#if queuePosition === 1}
+													<span class="text-zinc-600 ml-1">(you're up next)</span>
+												{/if}
+											{:else}
+												Draining pulls & building adapter...
+											{/if}
+										</div>
+									</div>
+								</div>
+
+								<div class="text-right">
+									<span class="text-xs font-mono text-zinc-400">
+										Waited: {Math.floor(queueWaitedSeconds / 60)}:{(queueWaitedSeconds % 60)
+											.toString()
+											.padStart(2, '0')}
+									</span>
+								</div>
+							</div>
+
+							{#if queueStatus === 'queued'}
+								<div class="flex justify-end border-t border-zinc-900 pt-3">
+									<Button
+										onclick={handleCancelQueue}
+										variant="ghost"
+										class="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs px-3.5 py-1.5 h-auto font-bold gap-1.5 cursor-pointer rounded-lg"
+									>
+										<CircleX class="w-3.5 h-3.5" />
+										Cancel Wait
+									</Button>
+								</div>
+							{/if}
+						</div>
+					{/if}
+
 					<!-- Import Action -->
 					<div class="flex justify-end pt-2">
 						<Button
 							onclick={handleImport}
-							disabled={importing || !importFile}
+							disabled={importing ||
+								!importFile ||
+								cooldownRemaining > 0 ||
+								queueStatus === 'queued' ||
+								queueStatus === 'processing' ||
+								(selectedFormat === 'paimon-moe' && gameUid.length < 9)}
 							class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/10 gap-2 cursor-pointer"
 						>
-							{#if importing}
+							{#if queueStatus === 'queued'}
+								<LoaderCircle class="h-4 w-4 animate-spin" /> Queued...
+							{:else if importing}
 								<LoaderCircle class="h-4 w-4 animate-spin" /> Importing...
+							{:else if cooldownRemaining > 0}
+								<Clock class="h-4 w-4" /> Cooldown ({cooldownRemaining}s)
 							{:else}
 								<Upload class="h-4 w-4" /> Start Import
 							{/if}

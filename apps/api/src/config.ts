@@ -59,3 +59,12 @@ export const config = {
 export const IMPORT_TOKEN_TTL_SECONDS = 900;
 /** Anonymous account pending code TTL: 15 minutes */
 export const ANON_PENDING_TTL_SECONDS = 900;
+
+/** Max concurrent file imports across all users. */
+export const IMPORT_CONCURRENCY_LIMIT = 3;
+/** Max number of imports waiting in queue (not yet processing). Caps queue RAM usage. */
+export const IMPORT_QUEUE_MAX_DEPTH = 10;
+/** Per-user cooldown between file imports, in seconds. */
+export const IMPORT_USER_COOLDOWN_SECONDS = 60;
+/** How long a completed/failed import result is kept in memory before being evicted, in ms. */
+export const IMPORT_RESULT_TTL_MS = 5 * 60 * 1000; // 5 minutes

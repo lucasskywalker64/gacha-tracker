@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ImportParser, ParsedImportResult } from "./types";
+import type { ImportParser, ParsedImportResult } from "../types";
 
 // Schema for individual WuWaTracker pull record
 const wuwaTrackerPullSchema = z.object({
@@ -22,7 +22,7 @@ const wuwaTrackerExportSchema = z.object({
 });
 
 export class WuWaTrackerJsonParser implements ImportParser {
-    formatId = "wuwa-tracker-json";
+    formatId = "wuwa-tracker";
     displayName = "WuWaTracker Export";
     acceptedExtensions = ".json";
 

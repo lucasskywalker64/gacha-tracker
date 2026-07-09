@@ -20,14 +20,15 @@
         "better-auth": "1.6.6",
         "drizzle-orm": "0.45.2",
         "elysia": "1.4.28",
+        "fflate": "0.8.3",
         "ioredis": "5.4.1",
-        "lz-string": "1.5.0",
         "resend": "6.12.0",
         "zod": "4.3.6"
     },
     "devDependencies": {
         "@types/lz-string": "^1.5.0",
         "drizzle-kit": "0.31.10",
+        "lz-string": "1.5.0",
         "typescript": "6.0.2"
     }
 }

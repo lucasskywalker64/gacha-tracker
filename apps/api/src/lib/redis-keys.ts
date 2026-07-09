@@ -15,4 +15,5 @@ export const RedisKeys = {
         `sensitive_action_verified:${userId}:${action}:${target.toLowerCase()}`,
     linkEmailOtp: (userId: string, email: string) =>
         `link_email_otp:${userId}:${email.toLowerCase()}`,
+    importCooldown: (userId: string) => `import_cooldown:${userId}`,
 } as const;

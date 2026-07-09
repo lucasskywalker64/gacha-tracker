@@ -1,6 +1,6 @@
 import { srgfDict } from "@gacha-tracker/shared";
-import type { ImportParser, ParsedImportResult, ParsedPull } from "./types";
-import LZString from "lz-string";
+import type { ImportParser, ParsedImportResult, ParsedPull } from "../types";
+import { decompressFromUTF16 } from "./lz-string-safe";
 import { z } from "zod";
 
 const datWarpItemSchema = z.object({
@@ -39,6 +39,9 @@ export class StarRailStationParser implements ImportParser {
     displayName = "Star Rail Station Backup";
     acceptedExtensions = ".csv,.dat";
 
+    // Safety limit in characters, exposed for configuration and testing
+    maxDecompressedLength = 20 * 1024 * 1024;
+
     async parse(buffer: Buffer): Promise<ParsedImportResult> {
         // Detect format: DAT files always start with 'srs'
         const isDat = buffer.subarray(0, 3).toString("utf-8") === "srs";
@@ -52,15 +55,9 @@ export class StarRailStationParser implements ImportParser {
 
     private parseDat(buffer: Buffer): ParsedImportResult {
         const payloadStr = buffer.subarray(3).toString("utf-8");
-        const decompressed = LZString.decompressFromUTF16(payloadStr);
+        const decompressed = decompressFromUTF16(payloadStr, this.maxDecompressedLength);
         if (!decompressed) {
             throw new Error("Failed to decompress Star Rail Station backup data");
-        }
-
-        // Cap decompressed output size to prevent memory/CPU exhaustion (decompression bomb)
-        const maxDecompressedLength = 20 * 1024 * 1024; // 20 million characters (~20MB)
-        if (decompressed.length > maxDecompressedLength) {
-            throw new Error("Decompressed backup size exceeds the 20MB safety limit");
         }
 
         let root: unknown;

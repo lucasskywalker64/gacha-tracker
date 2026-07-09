@@ -12,6 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const BANNERS_PATH = path.resolve(__dirname, "../../../shared/src/data/banners.json");
+const UIGF_DICT_PATH = path.resolve(__dirname, "../../../shared/src/data/uigf_dict.json");
 
 interface WikiPage {
     pageid: number;
@@ -38,11 +39,52 @@ async function fetchUigfDict() {
             map.set(name.toLowerCase(), strId);
             reverseMap.set(strId, name);
         }
-        return { map, reverseMap };
+        return { map, reverseMap, rawData: data };
     } catch (error) {
         console.error(`Failed to fetch UIGF mapping for Genshin:`, error);
-        return { map: new Map<string, string>(), reverseMap: new Map<string, string>() };
+        return {
+            map: new Map<string, string>(),
+            reverseMap: new Map<string, string>(),
+            rawData: null,
+        };
     }
+}
+
+/**
+ * Fetches character and weapon metadata (name, rarity, type) from the official genshin-db Vercel API.
+ * Returns a map of lowercase item name → { rarity, type }
+ */
+async function fetchGenshinDbData(): Promise<Map<string, { rarity: number; type: string }>> {
+    const result = new Map<string, { rarity: number; type: string }>();
+
+    const endpoints: Array<{ url: string; type: string }> = [
+        {
+            url: "https://genshin-db-api.vercel.app/api/v5/characters?query=names&matchCategories=true&dumpResult=true&verboseCategories=true",
+            type: "Character",
+        },
+        {
+            url: "https://genshin-db-api.vercel.app/api/v5/weapons?query=names&matchCategories=true&dumpResult=true&verboseCategories=true",
+            type: "Weapon",
+        },
+    ];
+
+    for (const { url, type } of endpoints) {
+        try {
+            const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            const data = (await res.json()) as { result: Array<{ name: string; rarity: number }> };
+            const items = data.result ?? [];
+            for (const item of items) {
+                if (item.name && item.rarity) {
+                    result.set(item.name.toLowerCase(), { rarity: item.rarity, type });
+                }
+            }
+        } catch (error) {
+            console.error(`Failed to fetch genshin-db-api data for ${type}:`, error);
+        }
+    }
+
+    return result;
 }
 
 async function fetchWikiPages(category: string) {
@@ -129,7 +171,11 @@ function parseDate(dateStr: string): number | null {
 
 export async function updateGenshinBanners() {
     console.log("Fetching UIGF mappings for Genshin...");
-    const { map: uigfMap, reverseMap: uigfReverseMap } = await fetchUigfDict();
+    const {
+        map: uigfMap,
+        reverseMap: uigfReverseMap,
+        rawData: uigfRawData,
+    } = await fetchUigfDict();
 
     console.log(`Loaded ${uigfMap.size} items from UIGF dictionary.`);
 
@@ -355,4 +401,45 @@ export async function updateGenshinBanners() {
 
     fs.writeFileSync(BANNERS_PATH, JSON.stringify(existingData, null, 4));
     console.log("Successfully updated banners.json for Genshin");
+
+    // Compile and write uigf_dict.json (mirrors HSR's srgf_dict.json pattern)
+    if (!uigfRawData) {
+        throw new Error(
+            "Validation failed: UIGF raw data is null. Aborting uigf_dict.json update to prevent data loss."
+        );
+    }
+
+    if (Object.keys(uigfRawData).length < 100) {
+        throw new Error(
+            `Validation failed: UIGF mapping has abnormally low count (${Object.keys(uigfRawData).length} items). Aborting uigf_dict.json update to prevent data loss.`
+        );
+    }
+
+    console.log("Fetching rarity and type metadata from genshin-db-api...");
+    const genshinDbData = await fetchGenshinDbData();
+    console.log(`Loaded metadata for ${genshinDbData.size} items from genshin-db-api.`);
+
+    // Build dict keyed by lowercase item name → { id, rarity, type }
+    const uigfDict: Record<string, { id: string; rarity: number; type: string }> = {};
+
+    for (const [name, numericId] of Object.entries(uigfRawData)) {
+        const strId = numericId.toString();
+        const meta = genshinDbData.get(name.toLowerCase());
+        if (!meta) continue; // Skip entries without rarity/type metadata
+        uigfDict[name.toLowerCase()] = {
+            id: strId,
+            rarity: meta.rarity,
+            type: meta.type,
+        };
+    }
+
+    const dictEntryCount = Object.keys(uigfDict).length;
+    if (dictEntryCount < 100) {
+        throw new Error(
+            `Validation failed: uigf_dict has abnormally low count (${dictEntryCount} entries with metadata). Aborting write to prevent data loss.`
+        );
+    }
+
+    fs.writeFileSync(UIGF_DICT_PATH, JSON.stringify(uigfDict, null, 4));
+    console.log(`Successfully wrote uigf_dict.json with ${dictEntryCount} entries for Genshin.`);
 }

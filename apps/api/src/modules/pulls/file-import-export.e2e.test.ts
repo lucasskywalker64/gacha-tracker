@@ -1,17 +1,29 @@
-import { describe, it, expect, beforeAll, afterAll, mock } from "bun:test";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, mock } from "bun:test";
 import { Elysia } from "elysia";
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
 import * as schema from "../../db/schema";
 import { createTestTables } from "./db-setup.helper";
 import LZString from "lz-string";
+import { _reset as resetQueue } from "../../lib/importQueue";
+import { createMockPaimonXlsx } from "./parsers/paimon-moe/paimon-moe-mock";
 
 // --- Mocks ---
 const redisStore = new Map<string, string>();
 const mockRedis = {
     get: (key: string) => Promise.resolve(redisStore.get(key) || null),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    set: (key: string, value: string, _mode?: string, _duration?: number) => {
+    set: (
+        key: string,
+        value: string,
+        _mode?: string,
+        _duration?: number | string,
+        flag?: string
+    ) => {
+        if (flag === "NX" || _duration === "NX" || _mode === "NX") {
+            if (redisStore.has(key)) {
+                return Promise.resolve(null);
+            }
+        }
         redisStore.set(key, value);
         return Promise.resolve("OK");
     },
@@ -21,6 +33,7 @@ const mockRedis = {
         redisStore.delete(key);
         return Promise.resolve(1);
     },
+    ttl: (key: string) => Promise.resolve(redisStore.has(key) ? 60 : -2),
     ping: () => Promise.resolve("PONG"),
 };
 
@@ -108,6 +121,48 @@ describe("Pull File Import/Export E2E", () => {
         console.log("[TEST] Setup complete.");
     });
 
+    beforeEach(() => {
+        redisStore.clear();
+        resetQueue();
+    });
+
+    async function pollStatusUntilFinished(requestId: string): Promise<{
+        status: string;
+        position: number | null;
+        waitedSeconds: number;
+        result?: {
+            success: boolean;
+            summary: Array<{
+                gameId: string;
+                gameUid: string;
+                imported: number;
+                message: string;
+                success: boolean;
+            }>;
+        };
+        error?: string;
+    }> {
+        let attempts = 0;
+        while (attempts < 50) {
+            const resp = await app.fetch(
+                new Request(`http://localhost/pulls/import/status/${requestId}`, {
+                    method: "GET",
+                    headers: {
+                        Authorization: "Bearer session_token",
+                    },
+                })
+            );
+            expect(resp.status).toBe(200);
+            const body = (await resp.json()) as Awaited<ReturnType<typeof pollStatusUntilFinished>>;
+            if (body.status === "done" || body.status === "failed") {
+                return body;
+            }
+            await new Promise((r) => setTimeout(r, 10));
+            attempts++;
+        }
+        throw new Error("Polling status timed out in test");
+    }
+
     it("should export user pulls in native JSON format", async () => {
         const resp = await app.fetch(
             new Request("http://localhost/pulls/export", {
@@ -146,9 +201,7 @@ describe("Pull File Import/Export E2E", () => {
         const body = await resp.json();
         expect(body.formats).toBeDefined();
         expect(body.formats.length).toBeGreaterThanOrEqual(1);
-        expect(
-            body.formats.find((f: { id: string }) => f.id === "gacha-tracker-json")
-        ).toBeDefined();
+        expect(body.formats.find((f: { id: string }) => f.id === "gacha-tracker")).toBeDefined();
     });
 
     it("should import pulls from a native JSON backup file", async () => {
@@ -189,7 +242,7 @@ describe("Pull File Import/Export E2E", () => {
         };
 
         const formData = new FormData();
-        formData.append("format", "gacha-tracker-json");
+        formData.append("format", "gacha-tracker");
         formData.append(
             "file",
             new Blob([JSON.stringify(backupJson)], { type: "application/json" }),
@@ -206,12 +259,17 @@ describe("Pull File Import/Export E2E", () => {
             })
         );
 
-        expect(resp.status).toBe(200);
-        const body = await resp.json();
-        expect(body.success).toBe(true);
-        expect(body.summary.length).toBe(1);
-        expect(body.summary[0].gameId).toBe("starrail");
-        expect(body.summary[0].imported).toBe(1); // 1 new, 1 duplicate skipped
+        expect(resp.status).toBe(202);
+        const postBody = await resp.json();
+        expect(postBody.requestId).toBeDefined();
+
+        // Poll status until done
+        const pollResult = await pollStatusUntilFinished(postBody.requestId);
+        expect(pollResult.status).toBe("done");
+        expect(pollResult.result!.success).toBe(true);
+        expect(pollResult.result!.summary.length).toBe(1);
+        expect(pollResult.result!.summary[0].gameId).toBe("starrail");
+        expect(pollResult.result!.summary[0].imported).toBe(1); // 1 new, 1 duplicate skipped
 
         // Verify pull is in database
         const pullsInDb = await testDb.query.pull.findMany();
@@ -230,7 +288,7 @@ describe("Pull File Import/Export E2E", () => {
 
     it("should return 401 Unauthorized for unauthenticated access on file import", async () => {
         const formData = new FormData();
-        formData.append("format", "gacha-tracker-json");
+        formData.append("format", "gacha-tracker");
         formData.append("file", new Blob(["{}"], { type: "application/json" }), "backup.json");
 
         const resp = await app.fetch(
@@ -269,7 +327,7 @@ describe("Pull File Import/Export E2E", () => {
 
     it("should return 422 for a malformed JSON file during import", async () => {
         const formData = new FormData();
-        formData.append("format", "gacha-tracker-json");
+        formData.append("format", "gacha-tracker");
         formData.append(
             "file",
             new Blob(["this is not json"], { type: "application/json" }),
@@ -286,17 +344,20 @@ describe("Pull File Import/Export E2E", () => {
             })
         );
 
-        expect(resp.status).toBe(422);
-        const body = await resp.json();
-        expect(body.success).toBe(false);
-        expect(body.error).toContain("Invalid JSON structure");
+        expect(resp.status).toBe(202);
+        const postBody = await resp.json();
+        expect(postBody.requestId).toBeDefined();
+
+        const pollResult = await pollStatusUntilFinished(postBody.requestId);
+        expect(pollResult.status).toBe("failed");
+        expect(pollResult.error).toContain("Invalid JSON structure");
     });
 
     it("should return 422 for a file exceeding the size limit", async () => {
-        // Create a blob larger than 2MB (e.g. 2.1MB of spaces)
-        const largeString = " ".repeat(2.1 * 1024 * 1024);
+        // Create a blob larger than 5MB (e.g. 5.1MB of spaces)
+        const largeString = " ".repeat(5.1 * 1024 * 1024);
         const formData = new FormData();
-        formData.append("format", "gacha-tracker-json");
+        formData.append("format", "gacha-tracker");
         formData.append(
             "file",
             new Blob([largeString], { type: "application/json" }),
@@ -329,7 +390,7 @@ describe("Pull File Import/Export E2E", () => {
         };
 
         const formData = new FormData();
-        formData.append("format", "gacha-tracker-json");
+        formData.append("format", "gacha-tracker");
         formData.append(
             "file",
             new Blob([JSON.stringify(invalidBackup)], { type: "application/json" }),
@@ -346,11 +407,14 @@ describe("Pull File Import/Export E2E", () => {
             })
         );
 
-        expect(resp.status).toBe(422);
-        const body = await resp.json();
-        expect(body.success).toBe(false);
-        expect(body.error).toContain("Invalid backup data structure");
-        expect(body.error).toContain("[games.0.gameId]");
+        expect(resp.status).toBe(202);
+        const postBody = await resp.json();
+        expect(postBody.requestId).toBeDefined();
+
+        const pollResult = await pollStatusUntilFinished(postBody.requestId);
+        expect(pollResult.status).toBe("failed");
+        expect(pollResult.error).toContain("Invalid backup data structure");
+        expect(pollResult.error).toContain("[games.0.gameId]");
     });
 
     it("should import pulls from a WuWaTracker JSON export file", async () => {
@@ -377,7 +441,7 @@ describe("Pull File Import/Export E2E", () => {
         };
 
         const formData = new FormData();
-        formData.append("format", "wuwa-tracker-json");
+        formData.append("format", "wuwa-tracker");
         formData.append(
             "file",
             new Blob([JSON.stringify(wuwaExport)], { type: "application/json" }),
@@ -394,12 +458,16 @@ describe("Pull File Import/Export E2E", () => {
             })
         );
 
-        expect(resp.status).toBe(200);
-        const body = await resp.json();
-        expect(body.success).toBe(true);
-        expect(body.summary.length).toBe(1);
-        expect(body.summary[0].gameId).toBe("wuwa");
-        expect(body.summary[0].imported).toBe(2);
+        expect(resp.status).toBe(202);
+        const postBody = await resp.json();
+        expect(postBody.requestId).toBeDefined();
+
+        const pollResult = await pollStatusUntilFinished(postBody.requestId);
+        expect(pollResult.status).toBe("done");
+        expect(pollResult.result!.success).toBe(true);
+        expect(pollResult.result!.summary.length).toBe(1);
+        expect(pollResult.result!.summary[0].gameId).toBe("wuwa");
+        expect(pollResult.result!.summary[0].imported).toBe(2);
 
         // Verify pulls are in the database and sorted/attributed correctly
         const pullsInDb = await testDb.query.pull.findMany({
@@ -446,12 +514,16 @@ describe("Pull File Import/Export E2E", () => {
             })
         );
 
-        expect(resp.status).toBe(200);
-        const body = await resp.json();
-        expect(body.success).toBe(true);
-        expect(body.summary.length).toBe(1);
-        expect(body.summary[0].gameId).toBe("starrail");
-        expect(body.summary[0].imported).toBe(1);
+        expect(resp.status).toBe(202);
+        const postBody = await resp.json();
+        expect(postBody.requestId).toBeDefined();
+
+        const pollResult = await pollStatusUntilFinished(postBody.requestId);
+        expect(pollResult.status).toBe("done");
+        expect(pollResult.result!.success).toBe(true);
+        expect(pollResult.result!.summary.length).toBe(1);
+        expect(pollResult.result!.summary[0].gameId).toBe("starrail");
+        expect(pollResult.result!.summary[0].imported).toBe(1);
 
         // Verify pulls are in the database
         const pullsInDb = await testDb.query.pull.findMany({
@@ -508,12 +580,16 @@ describe("Pull File Import/Export E2E", () => {
             })
         );
 
-        expect(resp.status).toBe(200);
-        const body = await resp.json();
-        expect(body.success).toBe(true);
-        expect(body.summary.length).toBe(1);
-        expect(body.summary[0].gameId).toBe("starrail");
-        expect(body.summary[0].imported).toBe(1);
+        expect(resp.status).toBe(202);
+        const postBody = await resp.json();
+        expect(postBody.requestId).toBeDefined();
+
+        const pollResult = await pollStatusUntilFinished(postBody.requestId);
+        expect(pollResult.status).toBe("done");
+        expect(pollResult.result!.success).toBe(true);
+        expect(pollResult.result!.summary.length).toBe(1);
+        expect(pollResult.result!.summary[0].gameId).toBe("starrail");
+        expect(pollResult.result!.summary[0].imported).toBe(1);
 
         // Verify pulls are in the database
         const pullsInDb = await testDb.query.pull.findMany({
@@ -524,5 +600,217 @@ describe("Pull File Import/Export E2E", () => {
         expect(lcPull!.itemName).toBe("Something Irreplaceable");
         expect(lcPull!.itemType).toBe("Light Cone");
         expect(lcPull!.bannerType).toBe("12"); // Mapped to 12
+    });
+
+    it("should import pulls from a paimon-moe XLSX export file when gameUid is provided", async () => {
+        const fileBuffer = createMockPaimonXlsx({
+            "Character Event": [
+                ["Character", "Diona", "2022-02-19 16:22:15", 4],
+                ["Character", "Sangonomiya Kokomi", "2022-02-19 16:22:20", 5],
+            ],
+            "Weapon Event": [["Weapon", "Dull Blade", "2022-02-19 16:22:25", 3]],
+            Standard: [["Character", "Diluc", "2022-02-19 16:22:30", 5]],
+            "Beginners' Wish": [["Character", "Noelle", "2022-02-19 16:22:35", 4]],
+        });
+
+        const formData = new FormData();
+        formData.append("format", "paimon-moe");
+        formData.append("gameUid", "700000001");
+        formData.append(
+            "file",
+            new Blob([new Uint8Array(fileBuffer)], {
+                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            }),
+            "paimonmoe_wish_history.xlsx"
+        );
+
+        const resp = await app.fetch(
+            new Request("http://localhost/pulls/import/file", {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer session_token",
+                },
+                body: formData,
+            })
+        );
+
+        expect(resp.status).toBe(202);
+        const postBody = await resp.json();
+        expect(postBody.requestId).toBeDefined();
+
+        const pollResult = await pollStatusUntilFinished(postBody.requestId);
+        expect(pollResult.status).toBe("done");
+        expect(pollResult.result!.success).toBe(true);
+        expect(pollResult.result!.summary.length).toBe(1);
+        expect(pollResult.result!.summary[0].gameId).toBe("genshin");
+        expect(pollResult.result!.summary[0].gameUid).toBe("700000001");
+        expect(pollResult.result!.summary[0].imported).toBe(5);
+
+        // Verify pulls are in the database under gameId "genshin"
+        const pullsInDb = await testDb.query.pull.findMany({
+            where: (p, { eq }) => eq(p.gameId, "genshin"),
+        });
+        expect(pullsInDb.length).toBe(5);
+        const firstPull = pullsInDb[0];
+        expect(firstPull.gameUid).toBe("700000001");
+        expect(firstPull.gameId).toBe("genshin");
+    });
+
+    describe("Import Queue and Concurrency Limits", () => {
+        it("returns 429 when trying to upload twice during cooldown period", async () => {
+            const formData = new FormData();
+            formData.append("format", "gacha-tracker");
+            formData.append("file", new Blob(["{}"], { type: "application/json" }), "backup.json");
+
+            // Make first request
+            const resp1 = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData,
+                })
+            );
+            expect(resp1.status).toBe(202);
+
+            // Make second request immediately
+            const resp2 = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData,
+                })
+            );
+            expect(resp2.status).toBe(429);
+            const body = await resp2.json();
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("You can only import once per minute");
+            expect(body.retryAfter).toBe(60);
+        });
+
+        it("returns 503 when the queue depth limit is exceeded", async () => {
+            const { registerWorker } = await import("../../lib/importQueue");
+            // Set a worker that never resolves so entries stay in processing/queued states
+            registerWorker(() => new Promise(() => {}));
+
+            const formData = new FormData();
+            formData.append("format", "gacha-tracker");
+            formData.append("file", new Blob(["{}"], { type: "application/json" }), "backup.json");
+
+            // Fill 3 processing slots + 10 queue slots = 13 successful POSTs
+            const { RedisKeys } = await import("../../lib/redis-keys");
+            const cooldownKey = RedisKeys.importCooldown("test-user-id");
+
+            for (let i = 0; i < 13; i++) {
+                redisStore.delete(cooldownKey);
+                const resp = await app.fetch(
+                    new Request("http://localhost/pulls/import/file", {
+                        method: "POST",
+                        headers: { Authorization: "Bearer session_token" },
+                        body: formData,
+                    })
+                );
+                expect(resp.status).toBe(202);
+            }
+
+            // The 14th request should get 503
+            redisStore.delete(cooldownKey);
+            const resp = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData,
+                })
+            );
+            expect(resp.status).toBe(503);
+            const body = await resp.json();
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("queue is currently full");
+        });
+
+        it("returns 403 when trying to access status of another user's request", async () => {
+            const { enqueue: directEnqueue } = await import("../../lib/importQueue");
+            const entry = directEnqueue({
+                requestId: "another-user-request-id",
+                userId: "different-user-id",
+                buffer: Buffer.alloc(0),
+                format: "gacha-tracker",
+            });
+
+            const resp = await app.fetch(
+                new Request(`http://localhost/pulls/import/status/${entry.requestId}`, {
+                    method: "GET",
+                    headers: { Authorization: "Bearer session_token" }, // authenticated as test-user-id
+                })
+            );
+            expect(resp.status).toBe(403);
+            const body = await resp.json();
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("Access denied");
+        });
+
+        it("cancels a queued request successfully and returns 200, then fails when trying to cancel an already processing request with 409", async () => {
+            const { registerWorker } = await import("../../lib/importQueue");
+            // Set a worker that never resolves
+            registerWorker(() => new Promise(() => {}));
+
+            const formData = new FormData();
+            formData.append("format", "gacha-tracker");
+            formData.append("file", new Blob(["{}"], { type: "application/json" }), "backup.json");
+
+            const { RedisKeys } = await import("../../lib/redis-keys");
+            const cooldownKey = RedisKeys.importCooldown("test-user-id");
+
+            // Enqueue 4 requests: 3 go to processing, 4th stays in queue
+            const requestIds: string[] = [];
+            for (let i = 0; i < 4; i++) {
+                redisStore.delete(cooldownKey);
+                const resp = await app.fetch(
+                    new Request("http://localhost/pulls/import/file", {
+                        method: "POST",
+                        headers: { Authorization: "Bearer session_token" },
+                        body: formData,
+                    })
+                );
+                expect(resp.status).toBe(202);
+                const body = await resp.json();
+                requestIds.push(body.requestId);
+            }
+
+            // requestIds[3] is queued (position 1)
+            // requestIds[0] is processing
+
+            // 1. Try to cancel queued request requestIds[3]
+            const cancelResp = await app.fetch(
+                new Request(`http://localhost/pulls/import/queue/${requestIds[3]}`, {
+                    method: "DELETE",
+                    headers: { Authorization: "Bearer session_token" },
+                })
+            );
+            expect(cancelResp.status).toBe(200);
+            const cancelBody = await cancelResp.json();
+            expect(cancelBody.success).toBe(true);
+
+            // Check status of cancelled request
+            const statusResp = await app.fetch(
+                new Request(`http://localhost/pulls/import/status/${requestIds[3]}`, {
+                    method: "GET",
+                    headers: { Authorization: "Bearer session_token" },
+                })
+            );
+            const statusBody = await statusResp.json();
+            expect(statusBody.status).toBe("cancelled");
+
+            // 2. Try to cancel processing request requestIds[0]
+            const cancelProcessingResp = await app.fetch(
+                new Request(`http://localhost/pulls/import/queue/${requestIds[0]}`, {
+                    method: "DELETE",
+                    headers: { Authorization: "Bearer session_token" },
+                })
+            );
+            expect(cancelProcessingResp.status).toBe(409);
+            const cancelProcessingBody = await cancelProcessingResp.json();
+            expect(cancelProcessingBody.success).toBe(false);
+            expect(cancelProcessingBody.error).toContain("cannot be cancelled");
+        });
     });
 });

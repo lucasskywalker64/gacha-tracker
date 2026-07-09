@@ -1,0 +1,1752 @@
+{
+    "dull blade": {
+        "id": "11101",
+        "rarity": 1,
+        "type": "Weapon"
+    },
+    "silver sword": {
+        "id": "11201",
+        "rarity": 2,
+        "type": "Weapon"
+    },
+    "cool steel": {
+        "id": "11301",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "harbinger of dawn": {
+        "id": "11302",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "traveler's handy sword": {
+        "id": "11303",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "dark iron sword": {
+        "id": "11304",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "fillet blade": {
+        "id": "11305",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "skyrider sword": {
+        "id": "11306",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "favonius sword": {
+        "id": "11401",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the flute": {
+        "id": "11402",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sacrificial sword": {
+        "id": "11403",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "royal longsword": {
+        "id": "11404",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "lion's roar": {
+        "id": "11405",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "prototype rancour": {
+        "id": "11406",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "iron sting": {
+        "id": "11407",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "blackcliff longsword": {
+        "id": "11408",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the black sword": {
+        "id": "11409",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the alley flash": {
+        "id": "11410",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sword of descension": {
+        "id": "11412",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "festering desire": {
+        "id": "11413",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "amenoma kageuchi": {
+        "id": "11414",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "cinnabar spindle": {
+        "id": "11415",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "kagotsurube isshin": {
+        "id": "11416",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sapwood blade": {
+        "id": "11417",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "xiphos' moonlight": {
+        "id": "11418",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "toukabou shigure": {
+        "id": "11422",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "wolf-fang": {
+        "id": "11424",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "finale of the deep": {
+        "id": "11425",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "fleuve cendre ferryman": {
+        "id": "11426",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the dockhand's assistant": {
+        "id": "11427",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sword of narzissenkreuz": {
+        "id": "11428",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sturdy bone": {
+        "id": "11430",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "flute of ezpitzal": {
+        "id": "11431",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "calamity of eshu": {
+        "id": "11432",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "serenity's call": {
+        "id": "11433",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "moonweaver's dawn": {
+        "id": "11434",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "aquila favonia": {
+        "id": "11501",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "skyward blade": {
+        "id": "11502",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "freedom-sworn": {
+        "id": "11503",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "summit shaper": {
+        "id": "11504",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "primordial jade cutter": {
+        "id": "11505",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "mistsplitter reforged": {
+        "id": "11509",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "haran geppaku futsu": {
+        "id": "11510",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "key of khaj-nisut": {
+        "id": "11511",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "light of foliar incision": {
+        "id": "11512",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "splendor of tranquil waters": {
+        "id": "11513",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "uraku misugiri": {
+        "id": "11514",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "absolution": {
+        "id": "11515",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "peak patrol song": {
+        "id": "11516",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "azurelight": {
+        "id": "11517",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "athame artis": {
+        "id": "11518",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "lightbearing moonshard": {
+        "id": "11519",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "waster greatsword": {
+        "id": "12101",
+        "rarity": 1,
+        "type": "Weapon"
+    },
+    "old merc's pal": {
+        "id": "12201",
+        "rarity": 2,
+        "type": "Weapon"
+    },
+    "ferrous shadow": {
+        "id": "12301",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "bloodtainted greatsword": {
+        "id": "12302",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "white iron greatsword": {
+        "id": "12303",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "debate club": {
+        "id": "12305",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "skyrider greatsword": {
+        "id": "12306",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "favonius greatsword": {
+        "id": "12401",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the bell": {
+        "id": "12402",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sacrificial greatsword": {
+        "id": "12403",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "royal greatsword": {
+        "id": "12404",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "rainslasher": {
+        "id": "12405",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "prototype archaic": {
+        "id": "12406",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "whiteblind": {
+        "id": "12407",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "blackcliff slasher": {
+        "id": "12408",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "serpent spine": {
+        "id": "12409",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "lithic blade": {
+        "id": "12410",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "snow-tombed starsilver": {
+        "id": "12411",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "luxurious sea-lord": {
+        "id": "12412",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "katsuragikiri nagamasa": {
+        "id": "12414",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "makhaira aquamarine": {
+        "id": "12415",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "akuoumaru": {
+        "id": "12416",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "forest regalia": {
+        "id": "12417",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "mailed flower": {
+        "id": "12418",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "talking stick": {
+        "id": "12424",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "tidal shadow": {
+        "id": "12425",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "\"ultimate overlord's mega magic sword\"": {
+        "id": "12426",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "portable power saw": {
+        "id": "12427",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "fruitful hook": {
+        "id": "12430",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "earth shaker": {
+        "id": "12431",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "flame-forged insight": {
+        "id": "12432",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "master key": {
+        "id": "12433",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "skyward pride": {
+        "id": "12501",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "wolf's gravestone": {
+        "id": "12502",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "song of broken pines": {
+        "id": "12503",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "the unforged": {
+        "id": "12504",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "redhorn stonethresher": {
+        "id": "12510",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "beacon of the reed sea": {
+        "id": "12511",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "verdict": {
+        "id": "12512",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "fang of the mountain king": {
+        "id": "12513",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "a thousand blazing suns": {
+        "id": "12514",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "gest of the mighty wolf": {
+        "id": "12515",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "a teaspoon of transcendence": {
+        "id": "12516",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "beginner's protector": {
+        "id": "13101",
+        "rarity": 1,
+        "type": "Weapon"
+    },
+    "iron point": {
+        "id": "13201",
+        "rarity": 2,
+        "type": "Weapon"
+    },
+    "white tassel": {
+        "id": "13301",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "halberd": {
+        "id": "13302",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "black tassel": {
+        "id": "13303",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "dragon's bane": {
+        "id": "13401",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "prototype starglitter": {
+        "id": "13402",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "crescent pike": {
+        "id": "13403",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "blackcliff pole": {
+        "id": "13404",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "deathmatch": {
+        "id": "13405",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "lithic spear": {
+        "id": "13406",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "favonius lance": {
+        "id": "13407",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "royal spear": {
+        "id": "13408",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "dragonspine spear": {
+        "id": "13409",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "kitain cross spear": {
+        "id": "13414",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "\"the catch\"": {
+        "id": "13415",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "wavebreaker's fin": {
+        "id": "13416",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "moonpiercer": {
+        "id": "13417",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "missive windspear": {
+        "id": "13419",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "ballad of the fjords": {
+        "id": "13424",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "rightful reward": {
+        "id": "13425",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "dialogues of the desert sages": {
+        "id": "13426",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "prospector's drill": {
+        "id": "13427",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "mountain-bracing bolt": {
+        "id": "13430",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "footprint of the rainbow": {
+        "id": "13431",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "tamayuratei no ohanashi": {
+        "id": "13432",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "prospector's shovel": {
+        "id": "13433",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sacrificer's staff": {
+        "id": "13434",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "staff of homa": {
+        "id": "13501",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "skyward spine": {
+        "id": "13502",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "vortex vanquisher": {
+        "id": "13504",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "primordial jade winged-spear": {
+        "id": "13505",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "calamity queller": {
+        "id": "13507",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "engulfing lightning": {
+        "id": "13509",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "staff of the scarlet sands": {
+        "id": "13511",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "crimson moon's semblance": {
+        "id": "13512",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "lumidouce elegy": {
+        "id": "13513",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "symphonist of scents": {
+        "id": "13514",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "fractured halo": {
+        "id": "13515",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "bloodsoaked ruins": {
+        "id": "13516",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "disaster and remorse": {
+        "id": "13517",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "apprentice's notes": {
+        "id": "14101",
+        "rarity": 1,
+        "type": "Weapon"
+    },
+    "pocket grimoire": {
+        "id": "14201",
+        "rarity": 2,
+        "type": "Weapon"
+    },
+    "magic guide": {
+        "id": "14301",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "thrilling tales of dragon slayers": {
+        "id": "14302",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "otherworldly story": {
+        "id": "14303",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "emerald orb": {
+        "id": "14304",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "twin nephrite": {
+        "id": "14305",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "favonius codex": {
+        "id": "14401",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the widsith": {
+        "id": "14402",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sacrificial fragments": {
+        "id": "14403",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "royal grimoire": {
+        "id": "14404",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "solar pearl": {
+        "id": "14405",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "prototype amber": {
+        "id": "14406",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "mappa mare": {
+        "id": "14407",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "blackcliff agate": {
+        "id": "14408",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "eye of perception": {
+        "id": "14409",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "wine and song": {
+        "id": "14410",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "frostbearer": {
+        "id": "14412",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "dodoco tales": {
+        "id": "14413",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "hakushin ring": {
+        "id": "14414",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "oathsworn eye": {
+        "id": "14415",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "wandering evenstar": {
+        "id": "14416",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "fruit of fulfillment": {
+        "id": "14417",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sacrificial jade": {
+        "id": "14424",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "flowing purity": {
+        "id": "14425",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "ballad of the boundless blue": {
+        "id": "14426",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "ash-graven drinking horn": {
+        "id": "14427",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "waveriding whirl": {
+        "id": "14430",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "ring of yaxche": {
+        "id": "14431",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "etherlight spindlelute": {
+        "id": "14432",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "blackmarrow lantern": {
+        "id": "14433",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "dawning frost": {
+        "id": "14434",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "skyward atlas": {
+        "id": "14501",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "lost prayer to the sacred winds": {
+        "id": "14502",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "memory of dust": {
+        "id": "14504",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "jadefall's splendor": {
+        "id": "14505",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "everlasting moonglow": {
+        "id": "14506",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "kagura's verity": {
+        "id": "14509",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "a thousand floating dreams": {
+        "id": "14511",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "tulaytullah's remembrance": {
+        "id": "14512",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "cashflow supervision": {
+        "id": "14513",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "tome of the eternal flow": {
+        "id": "14514",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "crane's echoing call": {
+        "id": "14515",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "surf's up": {
+        "id": "14516",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "starcaller's watch": {
+        "id": "14517",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "sunny morning sleep-in": {
+        "id": "14518",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "vivid notions": {
+        "id": "14519",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "nightweaver's looking glass": {
+        "id": "14520",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "reliquary of truth": {
+        "id": "14521",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "nocturne's curtain call": {
+        "id": "14522",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "angelos' heptades": {
+        "id": "14523",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "hunter's bow": {
+        "id": "15101",
+        "rarity": 1,
+        "type": "Weapon"
+    },
+    "seasoned hunter's bow": {
+        "id": "15201",
+        "rarity": 2,
+        "type": "Weapon"
+    },
+    "raven bow": {
+        "id": "15301",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "sharpshooter's oath": {
+        "id": "15302",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "recurve bow": {
+        "id": "15303",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "slingshot": {
+        "id": "15304",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "messenger": {
+        "id": "15305",
+        "rarity": 3,
+        "type": "Weapon"
+    },
+    "favonius warbow": {
+        "id": "15401",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the stringless": {
+        "id": "15402",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sacrificial bow": {
+        "id": "15403",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "royal bow": {
+        "id": "15404",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "rust": {
+        "id": "15405",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "prototype crescent": {
+        "id": "15406",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "compound bow": {
+        "id": "15407",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "blackcliff warbow": {
+        "id": "15408",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "the viridescent hunt": {
+        "id": "15409",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "alley hunter": {
+        "id": "15410",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "fading twilight": {
+        "id": "15411",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "mitternachts waltz": {
+        "id": "15412",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "windblume ode": {
+        "id": "15413",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "hamayumi": {
+        "id": "15414",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "predator": {
+        "id": "15415",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "mouun's moon": {
+        "id": "15416",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "king's squire": {
+        "id": "15417",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "end of the line": {
+        "id": "15418",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "ibis piercer": {
+        "id": "15419",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "scion of the blazing sun": {
+        "id": "15424",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "song of stillness": {
+        "id": "15425",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "cloudforged": {
+        "id": "15426",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "range gauge": {
+        "id": "15427",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "flower-wreathed feathers": {
+        "id": "15430",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "chain breaker": {
+        "id": "15431",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "sequence of solitude": {
+        "id": "15432",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "snare hook": {
+        "id": "15433",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "rainbow serpent's rain bow": {
+        "id": "15434",
+        "rarity": 4,
+        "type": "Weapon"
+    },
+    "skyward harp": {
+        "id": "15501",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "amos' bow": {
+        "id": "15502",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "elegy for the end": {
+        "id": "15503",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "polar star": {
+        "id": "15507",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "aqua simulacra": {
+        "id": "15508",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "thundering pulse": {
+        "id": "15509",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "hunter's path": {
+        "id": "15511",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "the first great magic": {
+        "id": "15512",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "silvershower heartstrings": {
+        "id": "15513",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "astral vulture's crimson plumage": {
+        "id": "15514",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "the daybreak chronicles": {
+        "id": "15515",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "golden frostbound oath": {
+        "id": "15516",
+        "rarity": 5,
+        "type": "Weapon"
+    },
+    "kamisato ayaka": {
+        "id": "10000002",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "jean": {
+        "id": "10000003",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "lisa": {
+        "id": "10000006",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "barbara": {
+        "id": "10000014",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "kaeya": {
+        "id": "10000015",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "diluc": {
+        "id": "10000016",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "razor": {
+        "id": "10000020",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "amber": {
+        "id": "10000021",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "venti": {
+        "id": "10000022",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "xiangling": {
+        "id": "10000023",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "beidou": {
+        "id": "10000024",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "xingqiu": {
+        "id": "10000025",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "xiao": {
+        "id": "10000026",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "ningguang": {
+        "id": "10000027",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "klee": {
+        "id": "10000029",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "zhongli": {
+        "id": "10000030",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "fischl": {
+        "id": "10000031",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "bennett": {
+        "id": "10000032",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "tartaglia": {
+        "id": "10000033",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "noelle": {
+        "id": "10000034",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "qiqi": {
+        "id": "10000035",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "chongyun": {
+        "id": "10000036",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "ganyu": {
+        "id": "10000037",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "albedo": {
+        "id": "10000038",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "diona": {
+        "id": "10000039",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "mona": {
+        "id": "10000041",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "keqing": {
+        "id": "10000042",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "sucrose": {
+        "id": "10000043",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "xinyan": {
+        "id": "10000044",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "rosaria": {
+        "id": "10000045",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "hu tao": {
+        "id": "10000046",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "kaedehara kazuha": {
+        "id": "10000047",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "yanfei": {
+        "id": "10000048",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "yoimiya": {
+        "id": "10000049",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "thoma": {
+        "id": "10000050",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "eula": {
+        "id": "10000051",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "raiden shogun": {
+        "id": "10000052",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "sayu": {
+        "id": "10000053",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "sangonomiya kokomi": {
+        "id": "10000054",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "gorou": {
+        "id": "10000055",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "kujou sara": {
+        "id": "10000056",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "arataki itto": {
+        "id": "10000057",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "yae miko": {
+        "id": "10000058",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "shikanoin heizou": {
+        "id": "10000059",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "yelan": {
+        "id": "10000060",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "kirara": {
+        "id": "10000061",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "aloy": {
+        "id": "10000062",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "shenhe": {
+        "id": "10000063",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "yun jin": {
+        "id": "10000064",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "kuki shinobu": {
+        "id": "10000065",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "kamisato ayato": {
+        "id": "10000066",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "collei": {
+        "id": "10000067",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "dori": {
+        "id": "10000068",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "tighnari": {
+        "id": "10000069",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "nilou": {
+        "id": "10000070",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "cyno": {
+        "id": "10000071",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "candace": {
+        "id": "10000072",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "nahida": {
+        "id": "10000073",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "layla": {
+        "id": "10000074",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "wanderer": {
+        "id": "10000075",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "faruzan": {
+        "id": "10000076",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "yaoyao": {
+        "id": "10000077",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "alhaitham": {
+        "id": "10000078",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "dehya": {
+        "id": "10000079",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "mika": {
+        "id": "10000080",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "kaveh": {
+        "id": "10000081",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "baizhu": {
+        "id": "10000082",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "lynette": {
+        "id": "10000083",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "lyney": {
+        "id": "10000084",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "freminet": {
+        "id": "10000085",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "wriothesley": {
+        "id": "10000086",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "neuvillette": {
+        "id": "10000087",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "charlotte": {
+        "id": "10000088",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "furina": {
+        "id": "10000089",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "chevreuse": {
+        "id": "10000090",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "navia": {
+        "id": "10000091",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "gaming": {
+        "id": "10000092",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "xianyun": {
+        "id": "10000093",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "chiori": {
+        "id": "10000094",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "sigewinne": {
+        "id": "10000095",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "arlecchino": {
+        "id": "10000096",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "sethos": {
+        "id": "10000097",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "clorinde": {
+        "id": "10000098",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "emilie": {
+        "id": "10000099",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "kachina": {
+        "id": "10000100",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "kinich": {
+        "id": "10000101",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "mualani": {
+        "id": "10000102",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "xilonen": {
+        "id": "10000103",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "chasca": {
+        "id": "10000104",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "ororon": {
+        "id": "10000105",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "mavuika": {
+        "id": "10000106",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "citlali": {
+        "id": "10000107",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "lan yan": {
+        "id": "10000108",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "yumemizuki mizuki": {
+        "id": "10000109",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "iansan": {
+        "id": "10000110",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "varesa": {
+        "id": "10000111",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "escoffier": {
+        "id": "10000112",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "ifa": {
+        "id": "10000113",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "skirk": {
+        "id": "10000114",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "dahlia": {
+        "id": "10000115",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "ineffa": {
+        "id": "10000116",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "lauma": {
+        "id": "10000119",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "flins": {
+        "id": "10000120",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "aino": {
+        "id": "10000121",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "nefer": {
+        "id": "10000122",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "durin": {
+        "id": "10000123",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "jahoda": {
+        "id": "10000124",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "columbina": {
+        "id": "10000125",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "zibai": {
+        "id": "10000126",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "illuga": {
+        "id": "10000127",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "varka": {
+        "id": "10000128",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "lohen": {
+        "id": "10000129",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "linnea": {
+        "id": "10000130",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "nicole": {
+        "id": "10000131",
+        "rarity": 5,
+        "type": "Character"
+    },
+    "prune": {
+        "id": "10000132",
+        "rarity": 4,
+        "type": "Character"
+    },
+    "sandrone": {
+        "id": "10000133",
+        "rarity": 5,
+        "type": "Character"
+    }
+}

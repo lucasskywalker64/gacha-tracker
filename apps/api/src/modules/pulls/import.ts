@@ -11,8 +11,109 @@ import {
     type NormalizedPull,
     type ExportPullData,
 } from "@gacha-tracker/shared";
-import { IMPORT_TOKEN_TTL_SECONDS } from "../../config";
+import { IMPORT_TOKEN_TTL_SECONDS, IMPORT_USER_COOLDOWN_SECONDS } from "../../config";
 import { getParser, getSupportedFormats } from "./parsers/registry";
+import type { ParseContext } from "./parsers/types";
+import { RedisKeys } from "../../lib/redis-keys";
+import {
+    enqueue,
+    getStatus,
+    cancel,
+    getRequestOwner,
+    registerWorker,
+    ImportStatus,
+    type ImportSummaryItem,
+} from "../../lib/importQueue";
+
+registerWorker(async (entry) => {
+    try {
+        const parser = getParser(entry.format);
+        const context: ParseContext = {
+            gameUid: entry.gameUid?.trim() || undefined,
+        };
+        const parsed = await parser.parse(entry.buffer, context);
+
+        const summary: ImportSummaryItem[] = [];
+
+        for (const gameData of parsed.games) {
+            try {
+                const normalizedPulls: NormalizedPull[] = gameData.pulls.map((p) => ({
+                    pullId: p.pullId,
+                    gameUid: gameData.gameUid,
+                    bannerType: p.bannerType,
+                    bannerId: p.bannerId || undefined,
+                    itemId: p.itemId,
+                    itemName: p.itemName,
+                    itemType: p.itemType,
+                    rarity: p.rarity,
+                    pulledAt: p.pulledAt,
+                    pityAtPull: 0,
+                    wasGuaranteed: 0,
+                }));
+
+                const { imported } = await executePullsImport(
+                    entry.userId,
+                    gameData.gameId,
+                    gameData.gameUid,
+                    normalizedPulls
+                );
+
+                summary.push({
+                    gameId: gameData.gameId,
+                    gameUid: gameData.gameUid,
+                    imported,
+                    message: `Imported ${imported} new pulls.`,
+                    success: true,
+                });
+            } catch (gameErr) {
+                console.error(
+                    `[file-import-worker] Failed to import game ${gameData.gameId}:`,
+                    gameErr
+                );
+
+                let errMsg = "An unexpected error occurred while saving data.";
+                if (gameErr instanceof Error) {
+                    const msg = gameErr.message;
+                    // Safe to expose game/adapter validation failures
+                    if (
+                        msg.includes("Game adapter not found") ||
+                        msg.includes("Unsupported game")
+                    ) {
+                        errMsg = msg;
+                    } else if (msg.includes("Invalid time value") || msg.includes("invalid date")) {
+                        errMsg = "Invalid pull date format detected in backup.";
+                    }
+                }
+
+                summary.push({
+                    gameId: gameData.gameId,
+                    gameUid: gameData.gameUid,
+                    imported: 0,
+                    message: errMsg,
+                    success: false,
+                });
+            }
+        }
+        return summary;
+    } catch (err) {
+        if (err instanceof ZodError) {
+            const issueMessages = err.issues.map((issue) => {
+                const path = issue.path.join(".");
+                return `${path ? `[${path}] ` : ""}${issue.message}`;
+            });
+            throw new Error(`Invalid backup data structure: ${issueMessages.join("; ")}`, {
+                cause: err,
+            });
+        }
+        if (err instanceof SyntaxError) {
+            throw new Error(
+                "Invalid JSON structure. Please ensure the file is a valid JSON backup.",
+                { cause: err }
+            );
+        }
+        throw err;
+    }
+});
 
 export const importRouter = new Elysia({ prefix: "/pulls" })
     .use(authPlugin)
@@ -229,87 +330,71 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             const { file, format } = body;
 
             try {
-                const parser = getParser(format);
-                const buffer = Buffer.from(await file.arrayBuffer());
-                const parsed = await parser.parse(buffer);
+                // Validate format synchronously first
+                getParser(format);
 
-                const summary: {
-                    gameId: string;
-                    gameUid: string;
-                    imported: number;
-                    message: string;
-                    success: boolean;
-                }[] = [];
+                const cooldownKey = RedisKeys.importCooldown(userId);
 
-                for (const gameData of parsed.games) {
-                    try {
-                        const normalizedPulls: NormalizedPull[] = gameData.pulls.map((p) => ({
-                            pullId: p.pullId,
-                            gameUid: gameData.gameUid,
-                            bannerType: p.bannerType,
-                            bannerId: p.bannerId || undefined,
-                            itemId: p.itemId,
-                            itemName: p.itemName,
-                            itemType: p.itemType,
-                            rarity: p.rarity,
-                            pulledAt: p.pulledAt,
-                            pityAtPull: 0,
-                            wasGuaranteed: 0,
-                        }));
-
-                        const { imported } = await executePullsImport(
-                            userId,
-                            gameData.gameId,
-                            gameData.gameUid,
-                            normalizedPulls
-                        );
-
-                        summary.push({
-                            gameId: gameData.gameId,
-                            gameUid: gameData.gameUid,
-                            imported,
-                            message: `Imported ${imported} new pulls.`,
-                            success: true,
-                        });
-                    } catch (gameErr) {
-                        console.error(
-                            `[file-import] Failed to import game ${gameData.gameId}:`,
-                            gameErr
-                        );
-
-                        let errMsg = "An unexpected error occurred while saving data.";
-                        if (gameErr instanceof Error) {
-                            const msg = gameErr.message;
-                            // Safe to expose game/adapter validation failures
-                            if (
-                                msg.includes("Game adapter not found") ||
-                                msg.includes("Unsupported game")
-                            ) {
-                                errMsg = msg;
-                            } else if (
-                                msg.includes("Invalid time value") ||
-                                msg.includes("invalid date")
-                            ) {
-                                errMsg = "Invalid pull date format detected in backup.";
-                            }
-                        }
-
-                        summary.push({
-                            gameId: gameData.gameId,
-                            gameUid: gameData.gameUid,
-                            imported: 0,
-                            message: errMsg,
-                            success: false,
-                        });
-                    }
+                // Atomically check and acquire the cooldown lock using NX flag
+                const isAcquired = await redis.set(
+                    cooldownKey,
+                    "1",
+                    "EX",
+                    IMPORT_USER_COOLDOWN_SECONDS,
+                    "NX"
+                );
+                if (!isAcquired) {
+                    const ttl = await redis.ttl(cooldownKey);
+                    const retryAfter = ttl > 0 ? ttl : IMPORT_USER_COOLDOWN_SECONDS;
+                    return status(429, {
+                        success: false,
+                        error: `You can only import once per minute. Please wait ${retryAfter} second(s).`,
+                        retryAfter,
+                    });
                 }
 
-                return status(200, {
-                    success: summary.length > 0 && summary.some((s) => s.success),
-                    summary,
+                let buffer: Buffer;
+                let requestId: string;
+                let queuedEntry;
+
+                try {
+                    buffer = Buffer.from(await file.arrayBuffer());
+                    requestId = crypto.randomUUID();
+                    queuedEntry = enqueue({
+                        requestId,
+                        userId,
+                        buffer,
+                        format,
+                        gameUid: body.gameUid?.trim() || undefined,
+                    });
+                } catch (err) {
+                    // Release the cooldown lock if the request failed to parse or enqueue
+                    await redis.del(cooldownKey);
+
+                    if (err instanceof Error && err.message === "QUEUE_FULL") {
+                        return status(503, {
+                            success: false,
+                            error: "The import queue is currently full. Please try again later.",
+                        });
+                    }
+                    throw err;
+                }
+
+                const cooldownExpiresAt = new Date(
+                    Date.now() + IMPORT_USER_COOLDOWN_SECONDS * 1000
+                ).toISOString();
+
+                const qStatus = getStatus(requestId);
+                const position = qStatus?.position ?? 1;
+
+                return status(202, {
+                    requestId,
+                    position,
+                    queuedAt: queuedEntry.queuedAt.toISOString(),
+                    cooldownExpiresAt,
                 });
             } catch (err) {
-                console.error("[file-import] Failed to import file:", err);
+                console.error("[file-import] Failed to initialize import:", err);
                 let message = "Failed to process import file.";
                 if (err instanceof ZodError) {
                     const issueMessages = err.issues.map((issue) => {
@@ -319,7 +404,6 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     message = `Invalid backup data structure: ${issueMessages.join("; ")}`;
                 } else if (err instanceof Error) {
                     const msg = err.message;
-                    // Safe to expose format and parsing structure errors
                     if (msg.includes("Unsupported import format") || msg.includes("validation")) {
                         message = msg;
                     } else if (err instanceof SyntaxError) {
@@ -337,24 +421,173 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             auth: true,
             body: t.Object({
                 file: t.File({
-                    maxSize: 2 * 1024 * 1024,
+                    maxSize: 5 * 1024 * 1024,
                 }),
                 format: t.String(),
+                gameUid: t.Optional(t.String()),
             }),
+
+            response: {
+                202: t.Object({
+                    requestId: t.String(),
+                    position: t.Number(),
+                    queuedAt: t.String(),
+                    cooldownExpiresAt: t.String(),
+                }),
+                422: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                }),
+                429: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                    retryAfter: t.Number(),
+                }),
+                503: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                }),
+            },
+        }
+    )
+
+    // 5a. Get import status
+    .get(
+        "/import/status/:requestId",
+        async ({ user, params, status }) => {
+            const userId = user!.id;
+            const { requestId } = params;
+
+            const ownerId = getRequestOwner(requestId);
+            if (!ownerId) {
+                return status(404, {
+                    success: false,
+                    error: "Import request not found or expired.",
+                });
+            }
+
+            if (ownerId !== userId) {
+                return status(403, {
+                    success: false,
+                    error: "Access denied.",
+                });
+            }
+
+            const qStatus = getStatus(requestId);
+            if (!qStatus) {
+                return status(404, {
+                    success: false,
+                    error: "Import request not found or expired.",
+                });
+            }
+
+            return {
+                status: qStatus.status,
+                position: qStatus.position,
+                waitedSeconds: qStatus.waitedSeconds,
+                result: qStatus.result
+                    ? { success: qStatus.result.some((s) => s.success), summary: qStatus.result }
+                    : undefined,
+                error: qStatus.error,
+            };
+        },
+        {
+            auth: true,
+            response: {
+                200: t.Object({
+                    status: t.String(),
+                    position: t.Union([t.Number(), t.Null()]),
+                    waitedSeconds: t.Number(),
+                    result: t.Optional(
+                        t.Object({
+                            success: t.Boolean(),
+                            summary: t.Array(
+                                t.Object({
+                                    gameId: t.String(),
+                                    gameUid: t.String(),
+                                    imported: t.Number(),
+                                    message: t.String(),
+                                    success: t.Boolean(),
+                                })
+                            ),
+                        })
+                    ),
+                    error: t.Optional(t.String()),
+                }),
+                403: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                }),
+                404: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                }),
+            },
+        }
+    )
+
+    // 5b. Cancel queued import
+    .delete(
+        "/import/queue/:requestId",
+        async ({ user, params, status }) => {
+            const userId = user!.id;
+            const { requestId } = params;
+
+            const ownerId = getRequestOwner(requestId);
+            if (!ownerId) {
+                return status(404, {
+                    success: false,
+                    error: "Import request not found or expired.",
+                });
+            }
+
+            if (ownerId !== userId) {
+                return status(403, {
+                    success: false,
+                    error: "Access denied.",
+                });
+            }
+
+            const qStatus = getStatus(requestId);
+            if (!qStatus) {
+                return status(404, {
+                    success: false,
+                    error: "Import request not found or expired.",
+                });
+            }
+
+            if (qStatus.status !== ImportStatus.QUEUED) {
+                return status(409, {
+                    success: false,
+                    error: "Import is already processing and cannot be cancelled.",
+                });
+            }
+
+            const success = cancel(requestId, userId);
+            if (!success) {
+                return status(409, {
+                    success: false,
+                    error: "Import is already processing and cannot be cancelled.",
+                });
+            }
+
+            return { success: true };
+        },
+        {
+            auth: true,
             response: {
                 200: t.Object({
                     success: t.Boolean(),
-                    summary: t.Array(
-                        t.Object({
-                            gameId: t.String(),
-                            gameUid: t.String(),
-                            imported: t.Number(),
-                            message: t.String(),
-                            success: t.Boolean(),
-                        })
-                    ),
                 }),
-                422: t.Object({
+                403: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                }),
+                404: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                }),
+                409: t.Object({
                     success: t.Boolean(),
                     error: t.String(),
                 }),
