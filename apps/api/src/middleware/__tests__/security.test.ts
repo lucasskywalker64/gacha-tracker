@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Elysia } from "elysia";
-import { cors } from "@elysiajs/cors";
+import { cors } from "@elysia/cors";
 import { securityHeaders } from "../securityHeaders";
 
 describe("Security Middleware", () => {

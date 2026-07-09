@@ -1,4 +1,4 @@
-import { treaty } from '@elysiajs/eden';
+import { treaty } from '@elysia/eden';
 import type { App } from 'api';
 import { PUBLIC_API_URL } from '$env/static/public';
 

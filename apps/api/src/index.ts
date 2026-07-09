@@ -8,7 +8,7 @@ import { eventsRouter } from "./modules/pulls/events";
 import { statsRouter } from "./modules/stats";
 import { db } from "./db/client";
 import { redis } from "./lib/redis";
-import { cors } from "@elysiajs/cors";
+import { cors } from "@elysia/cors";
 import { runMigrations } from "./db/migrate";
 import { config } from "./config";
 import { securityHeaders } from "./middleware/securityHeaders";
