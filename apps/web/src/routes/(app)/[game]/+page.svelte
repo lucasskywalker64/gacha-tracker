@@ -52,7 +52,7 @@
 			return typeNum === 11 || typeNum === 12;
 		}
 		if (game === 'wuwa') {
-			return typeNum === 1;
+			return typeNum === 1 || typeNum === 10 || typeNum === 12;
 		}
 		return false;
 	}
