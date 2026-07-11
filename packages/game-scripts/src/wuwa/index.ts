@@ -9,8 +9,9 @@ const __dirname = path.dirname(__filename);
 const BANNERS_PATH = path.resolve(__dirname, "../../../shared/src/data/banners.json");
 
 interface WikiPage {
-    pageid: number;
+    pageid?: number;
     title: string;
+    missing?: string;
     revisions?: {
         slots: {
             main: {
@@ -26,38 +27,48 @@ interface ProcessingPhase extends BannerPhase {
     metadata?: { mainIsRerun?: boolean };
 }
 
+interface WeaponItem {
+    Id: number;
+    Name: string;
+    QualityId: number;
+}
+
 async function fetchWuwaMapping() {
     const map = new Map<string, string>();
     const reverseMap = new Map<string, string>();
+    const fiveStarWeapons: WeaponItem[] = [];
 
-    try {
-        console.log("Fetching characters from Encore.moe...");
-        const charRes = await fetch("https://api-v2.encore.moe/api/en/character");
-        if (charRes.ok) {
-            const data = await charRes.json();
-            const list = data.roleList || [];
-            for (const item of list) {
-                if (item.Name.toLowerCase().includes("rover")) continue;
-                map.set(item.Name.toLowerCase(), item.Id.toString());
-                reverseMap.set(item.Id.toString(), item.Name);
-            }
-        }
-
-        console.log("Fetching weapons from Encore.moe...");
-        const weapRes = await fetch("https://api-v2.encore.moe/api/en/weapon");
-        if (weapRes.ok) {
-            const data = await weapRes.json();
-            const list = data.weapons || [];
-            for (const item of list) {
-                map.set(item.Name.toLowerCase(), item.Id.toString());
-                reverseMap.set(item.Id.toString(), item.Name);
-            }
-        }
-    } catch (error) {
-        console.error("Failed to fetch WuWa mapping from Encore.moe:", error);
+    console.log("Fetching characters from Encore.moe...");
+    const charRes = await fetch("https://api-v2.encore.moe/api/en/character");
+    if (!charRes.ok) {
+        throw new Error(`Failed to fetch characters from Encore.moe: status ${charRes.status}`);
     }
 
-    return { map, reverseMap };
+    const charData = await charRes.json();
+    const charList = charData.roleList || [];
+    for (const item of charList) {
+        if (item.Name.toLowerCase().includes("rover")) continue;
+        map.set(item.Name.toLowerCase(), item.Id.toString());
+        reverseMap.set(item.Id.toString(), item.Name);
+    }
+
+    console.log("Fetching weapons from Encore.moe...");
+    const weapRes = await fetch("https://api-v2.encore.moe/api/en/weapon");
+    if (!weapRes.ok) {
+        throw new Error(`Failed to fetch weapons from Encore.moe: status ${weapRes.status}`);
+    }
+
+    const weapData = (await weapRes.json()) as { weapons: WeaponItem[] };
+    const weapList = weapData.weapons || [];
+    for (const item of weapList) {
+        map.set(item.Name.toLowerCase(), item.Id.toString());
+        reverseMap.set(item.Id.toString(), item.Name);
+        if (item.QualityId === 5) {
+            fiveStarWeapons.push(item);
+        }
+    }
+
+    return { map, reverseMap, fiveStarWeapons };
 }
 
 async function fetchWikiPages(category: string) {
@@ -138,9 +149,55 @@ function parseDate(dateStr: string): number | null {
     return isNaN(timestamp) ? null : timestamp;
 }
 
+async function fetchSignatureWeapons(idMap: Map<string, string>, fiveStarWeapons: WeaponItem[]) {
+    const signatureMap = new Map<string, string>();
+    const weaponTitles = fiveStarWeapons.map((w: WeaponItem) => w.Name);
+
+    const batchSize = 50;
+    for (let i = 0; i < weaponTitles.length; i += batchSize) {
+        const batch = weaponTitles.slice(i, i + batchSize);
+        const url = `https://wutheringwaves.fandom.com/api.php?action=query&titles=${encodeURIComponent(batch.join("|"))}&prop=revisions&rvprop=content&rvslots=main&format=json`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            throw new Error(`Failed to fetch weapon pages from Wiki: status ${res.status}`);
+        }
+
+        const resData = await res.json();
+        const pages = (resData.query ? Object.values(resData.query.pages) : []) as WikiPage[];
+
+        for (const page of pages) {
+            if (page.missing !== undefined) continue;
+
+            const content = page.revisions?.[0]?.slots?.main?.["*"] || "";
+            const resonatorMatch = content.match(/\|\s*resonator\s*=\s*([^|\n]+)/i);
+
+            if (resonatorMatch) {
+                const resonatorName = resonatorMatch[1].trim().toLowerCase();
+                const charId = idMap.get(resonatorName);
+                const weaponId = idMap.get(page.title.toLowerCase());
+
+                if (charId && weaponId) {
+                    signatureMap.set(charId, weaponId);
+                }
+            }
+        }
+    }
+
+    if (signatureMap.size === 0) {
+        throw new Error(
+            "Dynamic signature weapon mapping is empty. Wiki structures or naming conventions might have changed."
+        );
+    }
+
+    return signatureMap;
+}
+
 export async function updateWuwaBanners() {
-    const { map: idMap, reverseMap: reverseIdMap } = await fetchWuwaMapping();
+    const { map: idMap, reverseMap: reverseIdMap, fiveStarWeapons } = await fetchWuwaMapping();
     console.log(`Loaded ${idMap.size} items from Encore.moe.`);
+
+    const signatureWeapons = await fetchSignatureWeapons(idMap, fiveStarWeapons);
+    console.log(`Loaded ${signatureWeapons.size} signature weapon mappings dynamically.`);
 
     const featuredCharPages = await fetchWikiPages("Category:Featured_Resonator_Convenes");
     const collabCharPages = await fetchWikiPages("Category:Collab_Resonator_Convenes");
@@ -268,6 +325,29 @@ export async function updateWuwaBanners() {
         phases.forEach((phase, index) => {
             phase.phase =
                 version === "Unknown" ? `Phase_${phase.startTime}` : `${version}.${index + 1}`;
+
+            // Align and sort featuredWeapons with featuredCharacters based on signatureWeapons map
+            if (phase.featuredCharacters.length > 0 && phase.featuredWeapons.length > 0) {
+                phase.featuredWeapons.sort((a, b) => {
+                    const charAIndex = phase.featuredCharacters.findIndex(
+                        (charId) => signatureWeapons.get(charId) === a
+                    );
+                    const charBIndex = phase.featuredCharacters.findIndex(
+                        (charId) => signatureWeapons.get(charId) === b
+                    );
+                    const valA = charAIndex === -1 ? 999 : charAIndex;
+                    const valB = charBIndex === -1 ? 999 : charBIndex;
+                    return valA - valB;
+                });
+
+                // Update mainWeaponId to align with mainCharacterId
+                const mainCharWeapon = signatureWeapons.get(phase.mainCharacterId);
+                if (mainCharWeapon && phase.featuredWeapons.includes(mainCharWeapon)) {
+                    phase.mainWeaponId = mainCharWeapon;
+                } else if (phase.featuredWeapons.length > 0) {
+                    phase.mainWeaponId = phase.featuredWeapons[0];
+                }
+            }
 
             const charNames = phase.featuredCharacters.map((id) => reverseIdMap.get(id) || id);
             const weaponNames = phase.featuredWeapons.map((id) => reverseIdMap.get(id) || id);

@@ -2197,8 +2197,8 @@
                 "name": "Xiangli Yao / Yinlin",
                 "featuredCharacters": ["1305", "1302"],
                 "mainCharacterId": "1305",
-                "featuredWeapons": ["21050016", "21040016"],
-                "mainWeaponId": "21050016",
+                "featuredWeapons": ["21040016", "21050016"],
+                "mainWeaponId": "21040016",
                 "startTime": 1733968800000,
                 "endTime": 1735703940000
             },
@@ -2208,7 +2208,7 @@
                 "featuredCharacters": ["1105", "1107"],
                 "mainCharacterId": "1107",
                 "featuredWeapons": ["21050026", "21030016"],
-                "mainWeaponId": "21050026",
+                "mainWeaponId": "21030016",
                 "startTime": 1735783200000,
                 "endTime": 1737597540000
             },
@@ -2237,8 +2237,8 @@
                 "name": "Brant / Changli",
                 "featuredCharacters": ["1206", "1205"],
                 "mainCharacterId": "1206",
-                "featuredWeapons": ["21020016", "21020036"],
-                "mainWeaponId": "21020016",
+                "featuredWeapons": ["21020036", "21020016"],
+                "mainWeaponId": "21020036",
                 "startTime": 1741226400000,
                 "endTime": 1742954340000
             },
@@ -2247,8 +2247,8 @@
                 "name": "Cantarella / Camellya",
                 "featuredCharacters": ["1607", "1603"],
                 "mainCharacterId": "1607",
-                "featuredWeapons": ["21020026", "21050056"],
-                "mainWeaponId": "21020026",
+                "featuredWeapons": ["21050056", "21020026"],
+                "mainWeaponId": "21050056",
                 "startTime": 1743040800000,
                 "endTime": 1744855140000
             },
@@ -2327,7 +2327,7 @@
                 "name": "Augusta / Shorekeeper / Carlotta",
                 "featuredCharacters": ["1306", "1505", "1107"],
                 "mainCharacterId": "1306",
-                "featuredWeapons": ["21010046", "21030016", "21050036"],
+                "featuredWeapons": ["21010046", "21050036", "21030016"],
                 "mainWeaponId": "21010046",
                 "startTime": 1756346400000,
                 "endTime": 1758074340000
@@ -2347,7 +2347,7 @@
                 "name": "Lupa / Galbrena",
                 "featuredCharacters": ["1207", "1208"],
                 "mainCharacterId": "1208",
-                "featuredWeapons": ["21030036", "21010036"],
+                "featuredWeapons": ["21010036", "21030036"],
                 "mainWeaponId": "21030036",
                 "startTime": 1759975200000,
                 "endTime": 1761789540000
@@ -2358,7 +2358,7 @@
                 "featuredCharacters": ["1507", "1411"],
                 "mainCharacterId": "1411",
                 "featuredWeapons": ["21040036", "21020066"],
-                "mainWeaponId": "21040036",
+                "mainWeaponId": "21020066",
                 "startTime": 1761789600000,
                 "endTime": 1763524740000
             },
@@ -2377,8 +2377,8 @@
                 "name": "Cantarella / Phrolova",
                 "featuredCharacters": ["1607", "1608"],
                 "mainCharacterId": "1607",
-                "featuredWeapons": ["21050066", "21050056"],
-                "mainWeaponId": "21050066",
+                "featuredWeapons": ["21050056", "21050066"],
+                "mainWeaponId": "21050056",
                 "startTime": 1765418400000,
                 "endTime": 1766548740000
             },
@@ -2387,7 +2387,7 @@
                 "name": "Cartethyia / Ciaccona / Lynae",
                 "featuredCharacters": ["1409", "1407", "1509"],
                 "mainCharacterId": "1509",
-                "featuredWeapons": ["21030046", "21020056", "21030026"],
+                "featuredWeapons": ["21020056", "21030026", "21030046"],
                 "mainWeaponId": "21030046",
                 "startTime": 1766630700000,
                 "endTime": 1768442340000
@@ -2408,7 +2408,7 @@
                 "featuredCharacters": ["1508", "1210", "1207"],
                 "mainCharacterId": "1210",
                 "featuredWeapons": ["21010056", "21020076", "21010036"],
-                "mainWeaponId": "21010056",
+                "mainWeaponId": "21020076",
                 "startTime": 1770252900000,
                 "endTime": 1772071140000
             },
@@ -2417,7 +2417,7 @@
                 "name": "Galbrena / Luuk Herssen",
                 "featuredCharacters": ["1208", "1510"],
                 "mainCharacterId": "1510",
-                "featuredWeapons": ["21040056", "21030036"],
+                "featuredWeapons": ["21030036", "21040056"],
                 "mainWeaponId": "21040056",
                 "startTime": 1772071200000,
                 "endTime": 1773806340000
@@ -2437,8 +2437,8 @@
                 "name": "Zani / Lynae / Phoebe",
                 "featuredCharacters": ["1507", "1509", "1506"],
                 "mainCharacterId": "1507",
-                "featuredWeapons": ["21030046", "21040036", "21050046"],
-                "mainWeaponId": "21030046",
+                "featuredWeapons": ["21040036", "21030046", "21050046"],
+                "mainWeaponId": "21040036",
                 "startTime": 1775700000000,
                 "endTime": 1777435140000
             },
@@ -2491,6 +2491,16 @@
                 "mainWeaponId": "21020056",
                 "startTime": 1781748000000,
                 "endTime": 1783569540000
+            },
+            {
+                "phase": "3.5.1",
+                "name": "Yangyang: Xuanling / Lynae / Luuk Herssen",
+                "featuredCharacters": ["1610", "1509", "1510"],
+                "mainCharacterId": "1610",
+                "featuredWeapons": ["21020096", "21030046", "21040056"],
+                "mainWeaponId": "21020096",
+                "startTime": 1783645800000,
+                "endTime": 1785376740000
             }
         ]
     }
