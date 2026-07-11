@@ -18,6 +18,9 @@ const allowedOrigins = ["https://gacha-tracker.app", "https://dev.gacha-tracker.
 try {
     allowedOrigins.push(new URL(config.FRONTEND_URL).origin);
 } catch {
+    console.warn(
+        `[CORS] Failed to parse FRONTEND_URL "${config.FRONTEND_URL}". Falling back to local origin "http://localhost:5173".`
+    );
     allowedOrigins.push("http://localhost:5173");
 }
 
