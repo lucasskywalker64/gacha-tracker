@@ -4,7 +4,12 @@ import type {
     NormalizedPull,
     ImportPayloadInput,
 } from "@gacha-tracker/shared";
-import { WUWA_BANNERS, GAME_CONFIGS, banners } from "@gacha-tracker/shared";
+import {
+    WUWA_BANNERS,
+    WUWA_STANDARD_CHARACTERS,
+    GAME_CONFIGS,
+    banners,
+} from "@gacha-tracker/shared";
 import { computeGenericPity, findActivePhase } from "../pity";
 
 const { pityConfig: wuwaPityConfig } = GAME_CONFIGS["wuwa"];
@@ -131,7 +136,7 @@ export const wuwaAdapter: GameAdapter = {
                 // FALLBACK: If active phase is not found (e.g. newly launched Reverb banners not yet scraped),
                 // detect a lost 50/50 by checking if the pulled 5-star character is one of the standard characters.
                 if (isCharacterBanner) {
-                    return ["1503", "1203", "1301", "1104", "1405"].includes(pull.itemId);
+                    return WUWA_STANDARD_CHARACTERS.includes(pull.itemId);
                 }
                 return false;
             }

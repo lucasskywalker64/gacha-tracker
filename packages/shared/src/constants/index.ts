@@ -98,6 +98,8 @@ export const WUWA_BANNER_NAMES: Record<number, string> = {
 
 export const WUWA_RARITY_TIERS = [3, 4, 5] as const;
 
+export const WUWA_STANDARD_CHARACTERS = ["1503", "1203", "1301", "1104", "1405"];
+
 // ---------------------------------------------------------------------------
 // Lookup maps
 // ---------------------------------------------------------------------------
