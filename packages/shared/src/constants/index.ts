@@ -79,6 +79,8 @@ export const WUWA_BANNERS = {
     BEGINNER_CHOICE: 6,
     COLLAB_CHARACTER: 10,
     COLLAB_WEAPON: 11,
+    REVERB_CHARACTER: 12,
+    REVERB_WEAPON: 13,
 } as const;
 
 export const WUWA_BANNER_NAMES: Record<number, string> = {
@@ -90,6 +92,8 @@ export const WUWA_BANNER_NAMES: Record<number, string> = {
     [WUWA_BANNERS.BEGINNER_CHOICE]: "Beginner's Choice Convene",
     [WUWA_BANNERS.COLLAB_CHARACTER]: "Collab Resonator Convene",
     [WUWA_BANNERS.COLLAB_WEAPON]: "Collab Weapon Convene",
+    [WUWA_BANNERS.REVERB_CHARACTER]: "Reverb Resonator Convene",
+    [WUWA_BANNERS.REVERB_WEAPON]: "Reverb Weapon Convene",
 };
 
 export const WUWA_RARITY_TIERS = [3, 4, 5] as const;
@@ -325,6 +329,8 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 [WUWA_BANNERS.BEGINNER_CHOICE]: 64,
                 [WUWA_BANNERS.COLLAB_CHARACTER]: 64,
                 [WUWA_BANNERS.COLLAB_WEAPON]: 64,
+                [WUWA_BANNERS.REVERB_CHARACTER]: 64,
+                [WUWA_BANNERS.REVERB_WEAPON]: 64,
             },
             hardPity: {
                 [WUWA_BANNERS.CHARACTER]: 80,
@@ -335,6 +341,8 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 [WUWA_BANNERS.BEGINNER_CHOICE]: 80,
                 [WUWA_BANNERS.COLLAB_CHARACTER]: 80,
                 [WUWA_BANNERS.COLLAB_WEAPON]: 80,
+                [WUWA_BANNERS.REVERB_CHARACTER]: 80,
+                [WUWA_BANNERS.REVERB_WEAPON]: 80,
             },
             guaranteeAfterFailed: true,
             bannerOrder: [
@@ -342,6 +350,8 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(WUWA_BANNERS.WEAPON),
                 String(WUWA_BANNERS.COLLAB_CHARACTER),
                 String(WUWA_BANNERS.COLLAB_WEAPON),
+                String(WUWA_BANNERS.REVERB_CHARACTER),
+                String(WUWA_BANNERS.REVERB_WEAPON),
                 String(WUWA_BANNERS.STANDARD_CHARACTER),
                 String(WUWA_BANNERS.STANDARD_WEAPON),
                 String(WUWA_BANNERS.BEGINNER),
