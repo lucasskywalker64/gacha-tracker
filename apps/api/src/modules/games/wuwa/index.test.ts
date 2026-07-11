@@ -366,5 +366,67 @@ describe("Wuthering Waves Game Adapter", () => {
             expect(processedCollabWeap[0].wasGuaranteed).toBe(0);
             expect(processedCollabWeap[0].bannerId).toBe("21030056");
         });
+
+        it("should correctly calculate pity for Reverb Resonator and Reverb Weapon banners", () => {
+            banners.games.wuwa = []; // empty the banners config to test standard fallback logic
+
+            const reverbCharPulls: NormalizedPull[] = [
+                {
+                    pullId: "reverb-c1",
+                    gameUid: "123",
+                    bannerType: "12",
+                    itemId: "1503", // Verina (standard character)
+                    itemName: "Verina",
+                    itemType: "Resonator",
+                    rarity: 5,
+                    pulledAt: new Date(1),
+                    pityAtPull: 0,
+                    wasGuaranteed: 0,
+                },
+                {
+                    pullId: "reverb-c2",
+                    gameUid: "123",
+                    bannerType: "12",
+                    itemId: "1304", // Jinhsi (limited character)
+                    itemName: "Jinhsi",
+                    itemType: "Resonator",
+                    rarity: 5,
+                    pulledAt: new Date(2),
+                    pityAtPull: 0,
+                    wasGuaranteed: 0,
+                },
+            ];
+
+            const processedReverbChar = wuwaAdapter.computePity(reverbCharPulls, "12");
+            // Lost 50/50 on first pull (standard character Verina)
+            expect(processedReverbChar[0].pityAtPull).toBe(1);
+            expect(processedReverbChar[0].wasGuaranteed).toBe(0);
+            expect(processedReverbChar[0].bannerId).toBe("12");
+
+            // Won featured on second pull due to guarantee
+            expect(processedReverbChar[1].pityAtPull).toBe(1);
+            expect(processedReverbChar[1].wasGuaranteed).toBe(1);
+            expect(processedReverbChar[1].bannerId).toBe("12");
+
+            const reverbWeapPulls: NormalizedPull[] = [
+                {
+                    pullId: "reverb-w1",
+                    gameUid: "123",
+                    bannerType: "13",
+                    itemId: "21040021", // Ages of Harvest
+                    itemName: "Ages of Harvest",
+                    itemType: "Weapon",
+                    rarity: 5,
+                    pulledAt: new Date(1),
+                    pityAtPull: 0,
+                    wasGuaranteed: 0,
+                },
+            ];
+
+            const processedReverbWeap = wuwaAdapter.computePity(reverbWeapPulls, "13");
+            expect(processedReverbWeap[0].pityAtPull).toBe(1);
+            expect(processedReverbWeap[0].wasGuaranteed).toBe(0);
+            expect(processedReverbWeap[0].bannerId).toBe("13");
+        });
     });
 });

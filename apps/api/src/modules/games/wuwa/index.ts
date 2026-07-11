@@ -43,15 +43,16 @@ export const wuwaAdapter: GameAdapter = {
     computePity(pulls: NormalizedPull[], poolKey: string): NormalizedPull[] {
         const has5050 =
             poolKey === String(WUWA_BANNERS.CHARACTER) ||
-            poolKey === String(WUWA_BANNERS.WEAPON) ||
             poolKey === String(WUWA_BANNERS.COLLAB_CHARACTER) ||
-            poolKey === String(WUWA_BANNERS.COLLAB_WEAPON);
+            poolKey === String(WUWA_BANNERS.REVERB_CHARACTER);
         const isCharacterBanner =
             poolKey === String(WUWA_BANNERS.CHARACTER) ||
-            poolKey === String(WUWA_BANNERS.COLLAB_CHARACTER);
+            poolKey === String(WUWA_BANNERS.COLLAB_CHARACTER) ||
+            poolKey === String(WUWA_BANNERS.REVERB_CHARACTER);
         const isWeaponBanner =
             poolKey === String(WUWA_BANNERS.WEAPON) ||
-            poolKey === String(WUWA_BANNERS.COLLAB_WEAPON);
+            poolKey === String(WUWA_BANNERS.COLLAB_WEAPON) ||
+            poolKey === String(WUWA_BANNERS.REVERB_WEAPON);
 
         const wuwaBanners = banners.games.wuwa || [];
 
@@ -127,6 +128,11 @@ export const wuwaAdapter: GameAdapter = {
             const activePhase = findActivePhase(pullTime, wuwaBanners, pull.itemId);
 
             if (!activePhase) {
+                // FALLBACK: If active phase is not found (e.g. newly launched Reverb banners not yet scraped),
+                // detect a lost 50/50 by checking if the pulled 5-star character is one of the standard characters.
+                if (isCharacterBanner) {
+                    return ["1503", "1203", "1301", "1104", "1405"].includes(pull.itemId);
+                }
                 return false;
             }
 
