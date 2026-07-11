@@ -380,7 +380,7 @@ export const auth = betterAuth({
         cookies: {
             session_token: {
                 attributes: {
-                    sameSite: "strict",
+                    sameSite: "lax",
                 },
             },
         },
