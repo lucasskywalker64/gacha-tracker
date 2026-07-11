@@ -275,7 +275,7 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
      */
     .post(
         "/anonymous/login",
-        async ({ body, status, set, request }) => {
+        async ({ body, status, set, cookie, request }) => {
             // Apply IP rate limiting: 10 requests per minute
             const ip =
                 request.headers.get("x-forwarded-for") ??
@@ -333,14 +333,19 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                     userAgent: request.headers.get("user-agent") ?? undefined,
                 });
 
-                set.headers["Set-Cookie"] = [
-                    `better-auth.session_token=${signedToken}`,
-                    "HttpOnly",
-                    "Path=/",
-                    "Secure=true",
-                    "SameSite=Strict",
-                    `Max-Age=${7 * 24 * 60 * 60}`,
-                ].join("; ");
+                const authCtx = await auth.$context;
+                const cookieConfig = authCtx.authCookies.sessionToken;
+                const sameSiteRaw = cookieConfig.attributes.sameSite;
+                const sameSite =
+                    typeof sameSiteRaw === "string"
+                        ? (sameSiteRaw.toLowerCase() as "lax" | "strict" | "none")
+                        : undefined;
+
+                cookie[cookieConfig.name].set({
+                    value: signedToken,
+                    ...cookieConfig.attributes,
+                    sameSite,
+                });
 
                 return status(200, { success: true });
             }

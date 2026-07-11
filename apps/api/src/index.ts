@@ -15,12 +15,13 @@ import { securityHeaders } from "./middleware/securityHeaders";
 import { isAPIError } from "better-auth/api";
 
 const allowedOrigins = ["https://gacha-tracker.app", "https://dev.gacha-tracker.app"];
-if (!config.isProduction) {
-    try {
-        allowedOrigins.push(new URL(config.FRONTEND_URL).origin);
-    } catch {
-        allowedOrigins.push("http://localhost:5173");
-    }
+try {
+    allowedOrigins.push(new URL(config.FRONTEND_URL).origin);
+} catch {
+    console.warn(
+        `[CORS] Failed to parse FRONTEND_URL "${config.FRONTEND_URL}". Falling back to local origin "http://localhost:5173".`
+    );
+    allowedOrigins.push("http://localhost:5173");
 }
 
 const app = new Elysia()
@@ -149,6 +150,8 @@ await runMigrations();
 
 app.listen(config.PORT);
 
-console.log(`Gacha Tracker API is running at ${app.server?.hostname}:${app.server?.port}`);
+console.log(
+    `Gacha Tracker API is running at ${app.server?.hostname}:${app.server?.port} [Mode: ${config.isProduction ? "Production" : "Development"}]`
+);
 
 export type App = typeof app;

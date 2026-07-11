@@ -373,8 +373,16 @@ export const auth = betterAuth({
     secret: config.BETTER_AUTH_SECRET,
     trustedOrigins: [config.FRONTEND_URL],
     advanced: {
+        useSecureCookies: config.isProduction,
         crossSubDomainCookies: {
             enabled: true,
+        },
+        cookies: {
+            session_token: {
+                attributes: {
+                    sameSite: "lax",
+                },
+            },
         },
     },
 
