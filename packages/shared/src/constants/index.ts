@@ -55,6 +55,8 @@ export const ZZZ_BANNERS = {
     CHARACTER: 2,
     WEAPON: 3,
     BANGBOO: 5,
+    RESCREENING_CHARACTER: 5001,
+    RESCREENING_WEAPON: 13001,
 } as const;
 
 export const ZZZ_BANNER_NAMES: Record<number, string> = {
@@ -62,6 +64,8 @@ export const ZZZ_BANNER_NAMES: Record<number, string> = {
     [ZZZ_BANNERS.CHARACTER]: "Exclusive Channel",
     [ZZZ_BANNERS.WEAPON]: "W-Engine Channel",
     [ZZZ_BANNERS.BANGBOO]: "Bangboo Channel",
+    [ZZZ_BANNERS.RESCREENING_CHARACTER]: "Exclusive Rescreening",
+    [ZZZ_BANNERS.RESCREENING_WEAPON]: "W-Engine Rescreening",
 };
 
 export const ZZZ_RARITY_TIERS = [3, 4, 5] as const;
@@ -266,12 +270,16 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 [ZZZ_BANNERS.CHARACTER]: 74,
                 [ZZZ_BANNERS.WEAPON]: 64,
                 [ZZZ_BANNERS.BANGBOO]: 65,
+                [ZZZ_BANNERS.RESCREENING_CHARACTER]: 74,
+                [ZZZ_BANNERS.RESCREENING_WEAPON]: 64,
             },
             hardPity: {
                 [ZZZ_BANNERS.STANDARD]: 90,
                 [ZZZ_BANNERS.CHARACTER]: 90,
                 [ZZZ_BANNERS.WEAPON]: 80,
                 [ZZZ_BANNERS.BANGBOO]: 80,
+                [ZZZ_BANNERS.RESCREENING_CHARACTER]: 90,
+                [ZZZ_BANNERS.RESCREENING_WEAPON]: 80,
             },
             guaranteeAfterFailed: true,
             bannerOrder: [
@@ -279,6 +287,8 @@ export const GAME_CONFIGS: Record<string, GameConfig> = {
                 String(ZZZ_BANNERS.CHARACTER),
                 String(ZZZ_BANNERS.WEAPON),
                 String(ZZZ_BANNERS.BANGBOO),
+                String(ZZZ_BANNERS.RESCREENING_CHARACTER),
+                String(ZZZ_BANNERS.RESCREENING_WEAPON),
             ],
         },
         wizard: {

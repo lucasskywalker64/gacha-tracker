@@ -60,7 +60,9 @@
 	let retrying = $state(false);
 
 	$effect(() => {
-		settingsLoaderError = data.settingsLoaderError;
+		if (settingsLoaderError !== data.settingsLoaderError) {
+			settingsLoaderError = data.settingsLoaderError;
+		}
 	});
 
 	async function retryFetch() {
