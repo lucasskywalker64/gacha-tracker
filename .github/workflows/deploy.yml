@@ -22,7 +22,7 @@ jobs:
 
             - uses: oven-sh/setup-bun@v2
               with:
-                  bun-version: latest
+                  bun-version: 1.1.0
 
             - run: bun install
             - run: bun run lint
@@ -54,18 +54,18 @@ jobs:
             - name: Setup SSH Key
               uses: webfactory/ssh-agent@v0.10.0
               with:
-                  ssh-private-key: ${{ secrets.PI_SSH_KEY }}
+                  ssh-private-key: ${{ secrets.SSH_KEY }}
 
             - name: Configure SSH Proxy
               run: |
                   mkdir -p ~/.ssh
-                  echo "Host ${{ secrets.PI_HOST }}" >> ~/.ssh/config
+                  echo "Host ${{ vars.HOST }}" >> ~/.ssh/config
                   echo "  ProxyCommand cloudflared access ssh --hostname %h" >> ~/.ssh/config
                   echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
             - name: Deploy to Raspberry Pi
               run: |
-                  ssh ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} << 'EOF'
+                  ssh ${{ vars.USER }}@${{ vars.HOST }} << 'EOF'
                     set -e
 
                     export PATH="$HOME/.bun/bin:$PATH"
@@ -78,28 +78,60 @@ jobs:
                     git reset --hard origin/main
 
                     echo "PORT=3000" > apps/api/.env.tmp
-                    echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> apps/api/.env.tmp
+                    echo "DATABASE_URL=${{ vars.DATABASE_URL }}" >> apps/api/.env.tmp
                     echo "DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}" >> apps/api/.env.tmp
-                    echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
+                    echo "BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
                     echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
-                    echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> apps/api/.env.tmp
-                    echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "FRONTEND_URL=${{ vars.FRONTEND_URL }}" >> apps/api/.env.tmp
+                    echo "DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
                     echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
-                    echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
                     echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> apps/api/.env.tmp
                     echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> apps/api/.env.tmp
 
                     mv apps/api/.env.tmp apps/api/.env
 
+                    # Generate systemd service file from template
+                    CURRENT_USER=$(whoami)
+                    REPO_DIR=$(pwd)
+                    BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
+                    sed -e "s|{{USER}}|$CURRENT_USER|g" \
+                        -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
+                        -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
+                        -e "s|{{DESCRIPTION}}|Gacha Tracker API|g" \
+                        -e "s|{{NODE_ENV}}|production|g" \
+                        apps/api/gacha-api.service.template > apps/api/gacha-api.service
+
+                    # Sync systemd service file
+                    sudo cp apps/api/gacha-api.service /etc/systemd/system/gacha-api.service
+                    sudo systemctl daemon-reload
+                    sudo systemctl enable gacha-api.service
+
+                    # Ensure Redis is running
+                    sudo systemctl enable --now redis-server.service
+
                     bun install
+                    bun --cwd apps/api run build
                     sudo systemctl restart gacha-api
 
                     sleep 5
 
-                    if ! systemctl is-active --quiet gacha-api; then
+                    if ! curl -sf http://localhost:3000/health > /dev/null; then
                       git reset --hard $OLD_COMMIT
                       mv apps/api/.env.backup apps/api/.env
+                      CURRENT_USER=$(whoami)
+                      REPO_DIR=$(pwd)
+                      BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
+                      sed -e "s|{{USER}}|$CURRENT_USER|g" \
+                          -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
+                          -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
+                          -e "s|{{DESCRIPTION}}|Gacha Tracker API|g" \
+                          -e "s|{{NODE_ENV}}|production|g" \
+                          apps/api/gacha-api.service.template > apps/api/gacha-api.service
+                      sudo cp apps/api/gacha-api.service /etc/systemd/system/gacha-api.service
+                      sudo systemctl daemon-reload
                       bun install
+                      bun --cwd apps/api run build
                       sudo systemctl restart gacha-api
                       exit 1
                     fi
@@ -121,18 +153,18 @@ jobs:
             - name: Setup SSH Key
               uses: webfactory/ssh-agent@v0.10.0
               with:
-                  ssh-private-key: ${{ secrets.PI_SSH_KEY }}
+                  ssh-private-key: ${{ secrets.SSH_KEY }}
 
             - name: Configure SSH Proxy
               run: |
                   mkdir -p ~/.ssh
-                  echo "Host ${{ secrets.PI_HOST }}" >> ~/.ssh/config
+                  echo "Host ${{ vars.HOST }}" >> ~/.ssh/config
                   echo "  ProxyCommand cloudflared access ssh --hostname %h" >> ~/.ssh/config
                   echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
             - name: Deploy to Raspberry Pi (Dev)
               run: |
-                  ssh ${{ secrets.PI_USER }}@${{ secrets.PI_HOST }} << 'EOF'
+                  ssh ${{ vars.USER }}@${{ vars.HOST }} << 'EOF'
                     set -e
 
                     export PATH="$HOME/.bun/bin:$PATH"
@@ -148,26 +180,58 @@ jobs:
                     echo "DATABASE_URL=file:./dev.db" >> apps/api/.env.tmp
                     echo "DATABASE_AUTH_TOKEN=dev-secret" >> apps/api/.env.tmp
                     echo "REDIS_URL=redis://localhost:6379/1" >> apps/api/.env.tmp
-                    echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
+                    echo "BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
                     echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
-                    echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> apps/api/.env.tmp
-                    echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "FRONTEND_URL=${{ vars.FRONTEND_URL }}" >> apps/api/.env.tmp
+                    echo "DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
                     echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
-                    echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
+                    echo "GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
                     echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> apps/api/.env.tmp
                     echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> apps/api/.env.tmp
 
                     mv apps/api/.env.tmp apps/api/.env
 
+                    # Generate systemd service file from template
+                    CURRENT_USER=$(whoami)
+                    REPO_DIR=$(pwd)
+                    BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
+                    sed -e "s|{{USER}}|$CURRENT_USER|g" \
+                        -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
+                        -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
+                        -e "s|{{DESCRIPTION}}|Gacha Tracker API Dev|g" \
+                        -e "s|{{NODE_ENV}}|development|g" \
+                        apps/api/gacha-api.service.template > apps/api/gacha-api-dev.service
+
+                    # Sync systemd service file
+                    sudo cp apps/api/gacha-api-dev.service /etc/systemd/system/gacha-api-dev.service
+                    sudo systemctl daemon-reload
+                    sudo systemctl enable gacha-api-dev.service
+
+                    # Ensure Redis is running
+                    sudo systemctl enable --now redis-server.service
+
                     bun install
+                    bun --cwd apps/api run build
                     sudo systemctl restart gacha-api-dev
 
                     sleep 5
 
-                    if ! systemctl is-active --quiet gacha-api-dev; then
+                    if ! curl -sf http://localhost:3001/health > /dev/null; then
                       git reset --hard $OLD_COMMIT
                       mv apps/api/.env.backup apps/api/.env
+                      CURRENT_USER=$(whoami)
+                      REPO_DIR=$(pwd)
+                      BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
+                      sed -e "s|{{USER}}|$CURRENT_USER|g" \
+                          -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
+                          -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
+                          -e "s|{{DESCRIPTION}}|Gacha Tracker API Dev|g" \
+                          -e "s|{{NODE_ENV}}|development|g" \
+                          apps/api/gacha-api.service.template > apps/api/gacha-api-dev.service
+                      sudo cp apps/api/gacha-api-dev.service /etc/systemd/system/gacha-api-dev.service
+                      sudo systemctl daemon-reload
                       bun install
+                      bun --cwd apps/api run build
                       sudo systemctl restart gacha-api-dev
                       exit 1
                     fi

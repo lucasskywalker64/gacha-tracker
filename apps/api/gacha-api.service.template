@@ -1,0 +1,17 @@
+[Unit]
+Description={{DESCRIPTION}}
+After=network.target redis-server.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User={{USER}}
+WorkingDirectory={{WORKING_DIRECTORY}}/apps/api
+Environment=NODE_ENV={{NODE_ENV}}
+ExecStart={{BUN_PATH}} ./dist/index.js
+Restart=on-failure
+RestartSec=3s
+EnvironmentFile={{WORKING_DIRECTORY}}/apps/api/.env
+
+[Install]
+WantedBy=multi-user.target
