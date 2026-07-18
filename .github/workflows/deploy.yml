@@ -77,17 +77,20 @@ jobs:
                     git fetch origin main
                     git reset --hard origin/main
 
-                    echo "PORT=3000" > apps/api/.env.tmp
-                    echo "DATABASE_URL=${{ vars.DATABASE_URL }}" >> apps/api/.env.tmp
-                    echo "DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}" >> apps/api/.env.tmp
-                    echo "BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
-                    echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
-                    echo "FRONTEND_URL=${{ vars.FRONTEND_URL }}" >> apps/api/.env.tmp
-                    echo "DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
-                    echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
-                    echo "GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
-                    echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> apps/api/.env.tmp
-                    echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> apps/api/.env.tmp
+                    cat << 'ENV_EOF' > apps/api/.env.tmp
+                      PORT=3000
+                      DATABASE_URL=${{ vars.DATABASE_URL }}
+                      DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}
+                      BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+                      BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+                      FRONTEND_URL=${{ vars.FRONTEND_URL }}
+                      DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}
+                      DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
+                      GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+                      GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+                      RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+                    ENV_EOF
+                    sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
 
                     mv apps/api/.env.tmp apps/api/.env
 
@@ -176,18 +179,21 @@ jobs:
                     git fetch origin develop
                     git reset --hard origin/develop
 
-                    echo "PORT=3001" > apps/api/.env.tmp
-                    echo "DATABASE_URL=file:./dev.db" >> apps/api/.env.tmp
-                    echo "DATABASE_AUTH_TOKEN=dev-secret" >> apps/api/.env.tmp
-                    echo "REDIS_URL=redis://localhost:6379/1" >> apps/api/.env.tmp
-                    echo "BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}" >> apps/api/.env.tmp
-                    echo "BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}" >> apps/api/.env.tmp
-                    echo "FRONTEND_URL=${{ vars.FRONTEND_URL }}" >> apps/api/.env.tmp
-                    echo "DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}" >> apps/api/.env.tmp
-                    echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> apps/api/.env.tmp
-                    echo "GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}" >> apps/api/.env.tmp
-                    echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> apps/api/.env.tmp
-                    echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> apps/api/.env.tmp
+                    cat << 'ENV_EOF' > apps/api/.env.tmp
+                      PORT=3001
+                      DATABASE_URL=file:./dev.db
+                      DATABASE_AUTH_TOKEN=dev-secret
+                      REDIS_URL=redis://localhost:6379/1
+                      BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+                      BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+                      FRONTEND_URL=${{ vars.FRONTEND_URL }}
+                      DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}
+                      DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
+                      GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+                      GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+                      RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+                    ENV_EOF
+                    sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
 
                     mv apps/api/.env.tmp apps/api/.env
 
