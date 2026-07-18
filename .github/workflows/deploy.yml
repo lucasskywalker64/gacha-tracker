@@ -66,75 +66,80 @@ jobs:
             - name: Deploy to Raspberry Pi
               run: |
                   ssh ${{ vars.USER }}@${{ vars.HOST }} << 'EOF'
-                    set -e
+                  set -e
 
-                    export PATH="$HOME/.bun/bin:$PATH"
-                    cd ~/gacha-tracker
+                  export PATH="$HOME/.bun/bin:$PATH"
+                  cd ~/gacha-tracker
 
-                    OLD_COMMIT=$(git rev-parse HEAD)
-                    cp apps/api/.env apps/api/.env.backup || true
-                    cp /etc/systemd/system/gacha-api.service apps/api/gacha-api.service.backup || true
+                  OLD_COMMIT=$(git rev-parse HEAD)
+                  cp apps/api/.env apps/api/.env.backup || true
+                  cp /etc/systemd/system/gacha-api.service apps/api/gacha-api.service.backup || true
 
-                    git fetch origin main
-                    git reset --hard origin/main
-
-                    cat << 'ENV_EOF' > apps/api/.env.tmp
-                      PORT=3000
-                      DATABASE_URL=${{ vars.DATABASE_URL }}
-                      DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}
-                      BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
-                      BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
-                      FRONTEND_URL=${{ vars.FRONTEND_URL }}
-                      DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}
-                      DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
-                      GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
-                      GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-                      RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
-                    ENV_EOF
-                    sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
-
-                    mv apps/api/.env.tmp apps/api/.env
-
-                    # Generate systemd service file from template
-                    CURRENT_USER=$(whoami)
-                    REPO_DIR=$(pwd)
-                    BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
-                    sed -e "s|{{USER}}|$CURRENT_USER|g" \
-                        -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
-                        -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
-                        -e "s|{{DESCRIPTION}}|Gacha Tracker API|g" \
-                        -e "s|{{NODE_ENV}}|production|g" \
-                        apps/api/gacha-api.service.template > apps/api/gacha-api.service
-
-                    # Sync systemd service file
-                    sudo cp apps/api/gacha-api.service /etc/systemd/system/gacha-api.service
-                    sudo systemctl daemon-reload
-                    sudo systemctl enable gacha-api.service
-
-                    # Ensure Redis is running
-                    sudo systemctl enable --now redis-server.service
-
-                    bun install
-                    bun --cwd apps/api run build
-                    sudo systemctl restart gacha-api
-
-                    if ! curl -sf --retry 5 --retry-connrefused --retry-delay 2 http://localhost:3000/health > /dev/null; then
-                      echo "Deployment health check failed! Rolling back..."
-                      git reset --hard $OLD_COMMIT
-                      mv apps/api/.env.backup apps/api/.env || true
-                      if [ -f apps/api/gacha-api.service.backup ]; then
-                        mv apps/api/gacha-api.service.backup apps/api/gacha-api.service
-                        sudo cp apps/api/gacha-api.service /etc/systemd/system/gacha-api.service
-                        sudo systemctl daemon-reload
-                      fi
-                      bun install
-                      bun --cwd apps/api run build --if-present || bun --cwd apps/api run build || true
-                      sudo systemctl restart gacha-api
-                      exit 1
+                  rollback() {
+                    echo "Deployment failed! Rolling back to $OLD_COMMIT..."
+                    git reset --hard $OLD_COMMIT
+                    mv apps/api/.env.backup apps/api/.env || true
+                    if [ -f apps/api/gacha-api.service.backup ]; then
+                      mv apps/api/gacha-api.service.backup apps/api/gacha-api.service
+                      sudo cp apps/api/gacha-api.service /etc/systemd/system/gacha-api.service
+                      sudo systemctl daemon-reload
                     fi
+                    bun install
+                    bun --cwd apps/api run build --if-present || bun --cwd apps/api run build || true
+                    sudo systemctl restart gacha-api
+                  }
+                  trap rollback ERR
 
-                    rm -f apps/api/.env.backup
-                    rm -f apps/api/gacha-api.service.backup
+                  git fetch origin main
+                  git reset --hard origin/main
+
+                  cat << 'ENV_EOF' > apps/api/.env.tmp
+                  PORT=3000
+                  DATABASE_URL=${{ vars.DATABASE_URL }}
+                  DATABASE_AUTH_TOKEN=${{ secrets.DATABASE_AUTH_TOKEN }}
+                  BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+                  BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+                  FRONTEND_URL=${{ vars.FRONTEND_URL }}
+                  DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}
+                  DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
+                  GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+                  GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+                  RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+                  ENV_EOF
+                  sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
+
+                  mv apps/api/.env.tmp apps/api/.env
+
+                  # Generate systemd service file from template
+                  CURRENT_USER=$(whoami)
+                  REPO_DIR=$(pwd)
+                  BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
+                  sed -e "s|{{USER}}|$CURRENT_USER|g" \
+                      -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
+                      -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
+                      -e "s|{{DESCRIPTION}}|Gacha Tracker API|g" \
+                      -e "s|{{NODE_ENV}}|production|g" \
+                      apps/api/gacha-api.service.template > apps/api/gacha-api.service
+
+                  # Sync systemd service file
+                  sudo cp apps/api/gacha-api.service /etc/systemd/system/gacha-api.service
+                  sudo systemctl daemon-reload
+                  sudo systemctl enable gacha-api.service
+
+                  # Ensure Redis is running
+                  sudo systemctl enable --now redis-server.service
+
+                  bun install
+                  bun --cwd apps/api run build
+                  sudo systemctl restart gacha-api
+
+                  # Health check
+                  curl -sf --connect-timeout 5 --max-time 10 --retry 5 --retry-connrefused --retry-delay 2 http://localhost:3000/health > /dev/null
+
+                  # Clean up on success
+                  trap - ERR
+                  rm -f apps/api/.env.backup
+                  rm -f apps/api/gacha-api.service.backup
                   EOF
 
     deploy-backend-dev:
@@ -163,74 +168,79 @@ jobs:
             - name: Deploy to Raspberry Pi (Dev)
               run: |
                   ssh ${{ vars.USER }}@${{ vars.HOST }} << 'EOF'
-                    set -e
+                  set -e
 
-                    export PATH="$HOME/.bun/bin:$PATH"
-                    cd ~/gacha-tracker-dev
+                  export PATH="$HOME/.bun/bin:$PATH"
+                  cd ~/gacha-tracker-dev
 
-                    OLD_COMMIT=$(git rev-parse HEAD)
-                    cp apps/api/.env apps/api/.env.backup || true
-                    cp /etc/systemd/system/gacha-api-dev.service apps/api/gacha-api-dev.service.backup || true
+                  OLD_COMMIT=$(git rev-parse HEAD)
+                  cp apps/api/.env apps/api/.env.backup || true
+                  cp /etc/systemd/system/gacha-api-dev.service apps/api/gacha-api-dev.service.backup || true
 
-                    git fetch origin develop
-                    git reset --hard origin/develop
-
-                    cat << 'ENV_EOF' > apps/api/.env.tmp
-                      PORT=3001
-                      DATABASE_URL=file:./dev.db
-                      DATABASE_AUTH_TOKEN=dev-secret
-                      REDIS_URL=redis://localhost:6379/1
-                      BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
-                      BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
-                      FRONTEND_URL=${{ vars.FRONTEND_URL }}
-                      DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}
-                      DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
-                      GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
-                      GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-                      RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
-                    ENV_EOF
-                    sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
-
-                    mv apps/api/.env.tmp apps/api/.env
-
-                    # Generate systemd service file from template
-                    CURRENT_USER=$(whoami)
-                    REPO_DIR=$(pwd)
-                    BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
-                    sed -e "s|{{USER}}|$CURRENT_USER|g" \
-                        -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
-                        -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
-                        -e "s|{{DESCRIPTION}}|Gacha Tracker API Dev|g" \
-                        -e "s|{{NODE_ENV}}|development|g" \
-                        apps/api/gacha-api.service.template > apps/api/gacha-api-dev.service
-
-                    # Sync systemd service file
-                    sudo cp apps/api/gacha-api-dev.service /etc/systemd/system/gacha-api-dev.service
-                    sudo systemctl daemon-reload
-                    sudo systemctl enable gacha-api-dev.service
-
-                    # Ensure Redis is running
-                    sudo systemctl enable --now redis-server.service
-
-                    bun install
-                    bun --cwd apps/api run build
-                    sudo systemctl restart gacha-api-dev
-
-                    if ! curl -sf --retry 5 --retry-connrefused --retry-delay 2 http://localhost:3001/health > /dev/null; then
-                      echo "Deployment health check failed! Rolling back..."
-                      git reset --hard $OLD_COMMIT
-                      mv apps/api/.env.backup apps/api/.env || true
-                      if [ -f apps/api/gacha-api-dev.service.backup ]; then
-                        mv apps/api/gacha-api-dev.service.backup apps/api/gacha-api-dev.service
-                        sudo cp apps/api/gacha-api-dev.service /etc/systemd/system/gacha-api-dev.service
-                        sudo systemctl daemon-reload
-                      fi
-                      bun install
-                      bun --cwd apps/api run build --if-present || bun --cwd apps/api run build || true
-                      sudo systemctl restart gacha-api-dev
-                      exit 1
+                  rollback() {
+                    echo "Deployment failed! Rolling back to $OLD_COMMIT..."
+                    git reset --hard $OLD_COMMIT
+                    mv apps/api/.env.backup apps/api/.env || true
+                    if [ -f apps/api/gacha-api-dev.service.backup ]; then
+                      mv apps/api/gacha-api-dev.service.backup apps/api/gacha-api-dev.service
+                      sudo cp apps/api/gacha-api-dev.service /etc/systemd/system/gacha-api-dev.service
+                      sudo systemctl daemon-reload
                     fi
+                    bun install
+                    bun --cwd apps/api run build --if-present || bun --cwd apps/api run build || true
+                    sudo systemctl restart gacha-api-dev
+                  }
+                  trap rollback ERR
 
-                    rm -f apps/api/.env.backup
-                    rm -f apps/api/gacha-api-dev.service.backup
+                  git fetch origin develop
+                  git reset --hard origin/develop
+
+                  cat << 'ENV_EOF' > apps/api/.env.tmp
+                  PORT=3001
+                  DATABASE_URL=file:./dev.db
+                  DATABASE_AUTH_TOKEN=dev-secret
+                  REDIS_URL=redis://localhost:6379/1
+                  BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+                  BETTER_AUTH_SECRET=${{ secrets.BETTER_AUTH_SECRET }}
+                  FRONTEND_URL=${{ vars.FRONTEND_URL }}
+                  DISCORD_CLIENT_ID=${{ vars.DISCORD_CLIENT_ID }}
+                  DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}
+                  GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+                  GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+                  RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+                  ENV_EOF
+                  sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
+
+                  mv apps/api/.env.tmp apps/api/.env
+
+                  # Generate systemd service file from template
+                  CURRENT_USER=$(whoami)
+                  REPO_DIR=$(pwd)
+                  BUN_PATH=$(which bun || echo "$HOME/.bun/bin/bun")
+                  sed -e "s|{{USER}}|$CURRENT_USER|g" \
+                      -e "s|{{WORKING_DIRECTORY}}|$REPO_DIR|g" \
+                      -e "s|{{BUN_PATH}}|$BUN_PATH|g" \
+                      -e "s|{{DESCRIPTION}}|Gacha Tracker API Dev|g" \
+                      -e "s|{{NODE_ENV}}|development|g" \
+                      apps/api/gacha-api.service.template > apps/api/gacha-api-dev.service
+
+                  # Sync systemd service file
+                  sudo cp apps/api/gacha-api-dev.service /etc/systemd/system/gacha-api-dev.service
+                  sudo systemctl daemon-reload
+                  sudo systemctl enable gacha-api-dev.service
+
+                  # Ensure Redis is running
+                  sudo systemctl enable --now redis-server.service
+
+                  bun install
+                  bun --cwd apps/api run build
+                  sudo systemctl restart gacha-api-dev
+
+                  # Health check
+                  curl -sf --connect-timeout 5 --max-time 10 --retry 5 --retry-connrefused --retry-delay 2 http://localhost:3001/health > /dev/null
+
+                  # Clean up on success
+                  trap - ERR
+                  rm -f apps/api/.env.backup
+                  rm -f apps/api/gacha-api-dev.service.backup
                   EOF
