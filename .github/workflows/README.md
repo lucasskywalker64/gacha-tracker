@@ -28,8 +28,9 @@ Configure these under **Environment variables** in the respective environment se
 ### B. Environment Secrets (`secrets.NAME`) — Encrypted / Sensitive
 Configure these under **Environment secrets** in the respective environment settings:
 
-* **BOTH `production` and `development` (5 Secrets):**
+* **BOTH `production` and `development` (6 Secrets):**
   * `SSH_KEY`: The private SSH key used to authenticate with the target server. (The corresponding public key must be added to the server user's `~/.ssh/authorized_keys` file).
+  * `SSH_KNOWN_HOSTS`: The remote host public key entry / fingerprint to populate `known_hosts` (e.g., retrieved using `ssh-keyscan` or similar). Enforces server authenticity validation.
   * `BETTER_AUTH_SECRET`: A secure random 32-character key for session signing.
   * `RESEND_API_KEY`: API key for the Resend service (used to send login OTP emails).
   * `DISCORD_CLIENT_SECRET`: OAuth client secret for Discord login.
