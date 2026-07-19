@@ -57,16 +57,22 @@ jobs:
                   ssh-private-key: ${{ secrets.SSH_KEY }}
 
             - name: Configure SSH Proxy
+              env:
+                  SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+                  SSH_HOST: ${{ vars.HOST }}
               run: |
                   mkdir -p ~/.ssh
-                  echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
-                  echo "Host ${{ vars.HOST }}" >> ~/.ssh/config
+                  echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+                  echo "Host $SSH_HOST" >> ~/.ssh/config
                   echo "  ProxyCommand cloudflared access ssh --hostname %h" >> ~/.ssh/config
                   echo "  StrictHostKeyChecking yes" >> ~/.ssh/config
 
             - name: Deploy to Raspberry Pi
+              env:
+                  SSH_USER: ${{ vars.USER }}
+                  SSH_HOST: ${{ vars.HOST }}
               run: |
-                  ssh ${{ vars.USER }}@${{ vars.HOST }} << 'EOF'
+                  ssh "$SSH_USER"@"$SSH_HOST" << 'EOF'
                   set -e
 
                   export PATH="$HOME/.bun/bin:$PATH"
@@ -91,7 +97,7 @@ jobs:
                       sudo systemctl daemon-reload
                     fi
                     bun install
-                    bun --cwd apps/api --if-present run build
+                    bun --cwd apps/api run --if-present build
                     sudo systemctl restart gacha-api
                   }
                   trap rollback ERR
@@ -112,7 +118,6 @@ jobs:
                   GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
                   RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
                   ENV_EOF
-                  sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
 
                   mv apps/api/.env.tmp apps/api/.env
 
@@ -165,16 +170,22 @@ jobs:
                   ssh-private-key: ${{ secrets.SSH_KEY }}
 
             - name: Configure SSH Proxy
+              env:
+                  SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+                  SSH_HOST: ${{ vars.HOST }}
               run: |
                   mkdir -p ~/.ssh
-                  echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
-                  echo "Host ${{ vars.HOST }}" >> ~/.ssh/config
+                  echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+                  echo "Host $SSH_HOST" >> ~/.ssh/config
                   echo "  ProxyCommand cloudflared access ssh --hostname %h" >> ~/.ssh/config
                   echo "  StrictHostKeyChecking yes" >> ~/.ssh/config
 
             - name: Deploy to Raspberry Pi (Dev)
+              env:
+                  SSH_USER: ${{ vars.USER }}
+                  SSH_HOST: ${{ vars.HOST }}
               run: |
-                  ssh ${{ vars.USER }}@${{ vars.HOST }} << 'EOF'
+                  ssh "$SSH_USER"@"$SSH_HOST" << 'EOF'
                   set -e
 
                   export PATH="$HOME/.bun/bin:$PATH"
@@ -199,7 +210,7 @@ jobs:
                       sudo systemctl daemon-reload
                     fi
                     bun install
-                    bun --cwd apps/api --if-present run build
+                    bun --cwd apps/api run --if-present build
                     sudo systemctl restart gacha-api-dev
                   }
                   trap rollback ERR
@@ -221,7 +232,6 @@ jobs:
                   GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
                   RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
                   ENV_EOF
-                  sed -i 's/^[[:space:]]*//' apps/api/.env.tmp
 
                   mv apps/api/.env.tmp apps/api/.env
 
