@@ -59,8 +59,14 @@
 	let settingsLoaderError = $state(false);
 	let retrying = $state(false);
 
+	let lastSeenLoaderError: boolean | undefined = undefined;
 	$effect(() => {
-		settingsLoaderError = data.settingsLoaderError;
+		if (lastSeenLoaderError === undefined) {
+			lastSeenLoaderError = data.settingsLoaderError;
+		} else if (lastSeenLoaderError !== data.settingsLoaderError) {
+			lastSeenLoaderError = data.settingsLoaderError;
+			settingsLoaderError = data.settingsLoaderError;
+		}
 	});
 
 	async function retryFetch() {
