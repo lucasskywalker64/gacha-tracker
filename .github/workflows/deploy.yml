@@ -97,7 +97,7 @@ jobs:
                       sudo systemctl daemon-reload
                     fi
                     bun install
-                    bun --cwd apps/api run --if-present build
+                    bun run --cwd apps/api --if-present build
                     sudo systemctl restart gacha-api
                   }
                   trap rollback ERR
@@ -141,7 +141,7 @@ jobs:
                   sudo systemctl enable --now redis-server.service
 
                   bun install
-                  bun --cwd apps/api run build
+                  bun run --cwd apps/api build
                   sudo systemctl restart gacha-api
 
                   # Health check
@@ -210,7 +210,7 @@ jobs:
                       sudo systemctl daemon-reload
                     fi
                     bun install
-                    bun --cwd apps/api run --if-present build
+                    bun run --cwd apps/api --if-present build
                     sudo systemctl restart gacha-api-dev
                   }
                   trap rollback ERR
@@ -255,7 +255,7 @@ jobs:
                   sudo systemctl enable --now redis-server.service
 
                   bun install
-                  bun --cwd apps/api run build
+                  bun run --cwd apps/api build
                   sudo systemctl restart gacha-api-dev
 
                   # Health check
