@@ -123,6 +123,17 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         async ({ user, body, status }) => {
             const { gameId } = body;
             const userId = user!.id;
+
+            const cooldownKey = RedisKeys.importCooldown(userId);
+            const ttl = await redis.ttl(cooldownKey);
+            if (ttl > 0) {
+                return status(429, {
+                    success: false,
+                    error: `You can only import once per minute. Please wait ${ttl} second(s).`,
+                    retryAfter: ttl,
+                });
+            }
+
             const token = crypto.randomUUID();
             await redis.set(`import_token:${token}`, userId, "EX", IMPORT_TOKEN_TTL_SECONDS);
 
@@ -154,6 +165,11 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     latestPullIds: t.Optional(
                         t.Union([t.Record(t.String(), t.String()), t.Null()])
                     ),
+                }),
+                429: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                    retryAfter: t.Number(),
                 }),
             },
         }
@@ -208,8 +224,21 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 return status(401, { success: false, error: "Invalid or expired import token" });
             }
 
+            const cooldownKey = RedisKeys.importCooldown(userId);
+            const ttl = await redis.ttl(cooldownKey);
+            if (ttl > 0) {
+                return status(429, {
+                    success: false,
+                    error: `You can only import once per minute. Please wait ${ttl} second(s).`,
+                    retryAfter: ttl,
+                });
+            }
+
             // Immediately delete the token to prevent reuse
             await redis.del(`import_token:${token}`);
+
+            // Acquire cooldown lock
+            await redis.set(cooldownKey, "1", "EX", IMPORT_USER_COOLDOWN_SECONDS);
 
             const payload = importPayloadSchema.parse(body);
             const adapter = getAdapter(payload.gameId);
@@ -261,6 +290,11 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 401: t.Object({
                     success: t.Boolean(),
                     error: t.String(),
+                }),
+                429: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
+                    retryAfter: t.Number(),
                 }),
             },
         }
@@ -384,7 +418,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     Date.now() + IMPORT_USER_COOLDOWN_SECONDS * 1000
                 ).toISOString();
 
-                const qStatus = getStatus(requestId);
+                const qStatus = await getStatus(requestId);
                 const position = qStatus?.position ?? 1;
 
                 return status(202, {
@@ -458,7 +492,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             const userId = user!.id;
             const { requestId } = params;
 
-            const ownerId = getRequestOwner(requestId);
+            const ownerId = await getRequestOwner(requestId);
             if (!ownerId) {
                 return status(404, {
                     success: false,
@@ -473,7 +507,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 });
             }
 
-            const qStatus = getStatus(requestId);
+            const qStatus = await getStatus(requestId);
             if (!qStatus) {
                 return status(404, {
                     success: false,
@@ -533,7 +567,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             const userId = user!.id;
             const { requestId } = params;
 
-            const ownerId = getRequestOwner(requestId);
+            const ownerId = await getRequestOwner(requestId);
             if (!ownerId) {
                 return status(404, {
                     success: false,
@@ -548,7 +582,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 });
             }
 
-            const qStatus = getStatus(requestId);
+            const qStatus = await getStatus(requestId);
             if (!qStatus) {
                 return status(404, {
                     success: false,

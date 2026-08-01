@@ -10,7 +10,7 @@ const redisStore = new Map<string, string>();
 const mockRedis = {
     get: (key: string) => Promise.resolve(redisStore.get(key) || null),
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    set: (key: string, value: string, _mode?: string, _duration?: number) => {
+    set: (key: string, value: string, _mode?: string, _duration?: number, _flag?: string) => {
         redisStore.set(key, value);
         return Promise.resolve("OK");
     },
@@ -20,6 +20,14 @@ const mockRedis = {
         redisStore.delete(key);
         return Promise.resolve(1);
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    ttl: (key: string) => Promise.resolve(0),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    hset: (key: string, data: Record<string, string>) => Promise.resolve(1),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    hgetall: (key: string) => Promise.resolve({}),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    expire: (key: string, seconds: number) => Promise.resolve(1),
     ping: () => Promise.resolve("PONG"),
 };
 

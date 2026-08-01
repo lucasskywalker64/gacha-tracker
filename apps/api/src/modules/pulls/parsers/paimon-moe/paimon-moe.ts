@@ -1,4 +1,5 @@
 import { unzipSync } from "fflate";
+import { XMLParser } from "fast-xml-parser";
 import { uigfDict } from "@gacha-tracker/shared";
 import type { ImportParser, ParsedImportResult, ParsedPull, ParseContext } from "../types";
 
@@ -10,6 +11,13 @@ const SHEET_BANNER_TYPES: Record<string, string> = {
     "Beginners' Wish": "100",
     "Chronicled Wish": "500",
 };
+
+const xmlParser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@_",
+    parseAttributeValue: false,
+    trimValues: true,
+});
 
 export class PaimonMoeParser implements ImportParser {
     formatId = "paimon-moe";
@@ -40,21 +48,18 @@ export class PaimonMoeParser implements ImportParser {
         try {
             files = unzipSync(new Uint8Array(buffer), {
                 filter(file) {
-                    // 0. Ensure size metadata is present to prevent size checks bypass
                     if (file.originalSize === undefined || typeof file.originalSize !== "number") {
                         throw new Error(
                             `XLSX entry "${file.name}" is missing size metadata and is treated as unsafe`
                         );
                     }
 
-                    // 1. Enforce max uncompressed size per file
                     if (file.originalSize > maxEntryUncompressed) {
                         throw new Error(
                             `XLSX entry "${file.name}" exceeds safety limits (${file.originalSize} bytes)`
                         );
                     }
 
-                    // 2. Enforce compression ratio limits to detect zip bombs (only for files > min size)
                     const ratio = file.originalSize / (file.size || 1);
                     if (file.originalSize > minSizeForRatio && ratio > maxRatio) {
                         throw new Error(
@@ -62,7 +67,6 @@ export class PaimonMoeParser implements ImportParser {
                         );
                     }
 
-                    // 3. Selective decompression: only inflate what we need
                     return (
                         file.name === "xl/workbook.xml" ||
                         file.name === "xl/_rels/workbook.xml.rels" ||
@@ -72,7 +76,6 @@ export class PaimonMoeParser implements ImportParser {
                 },
             });
         } catch (e) {
-            // Propagate safety validation errors directly so clients receive specific feedback
             if (
                 e instanceof Error &&
                 (e.message.includes("exceeds safety limits") ||
@@ -101,31 +104,57 @@ export class PaimonMoeParser implements ImportParser {
         if (!relsXml) throw new Error("Invalid .xlsx file: missing xl/_rels/workbook.xml.rels");
 
         // Map rId → relative target path (e.g. "rId4" → "worksheets/sheet1.xml")
-        // Use an attribute-order independent regex parsing of <Relationship> tags
         const rIdToPath = new Map<string, string>();
-        for (const relMatch of relsXml.matchAll(/<Relationship\s([^>]*)\/?>/g)) {
-            const attrs = relMatch[1];
-            const idMatch = attrs.match(/\bId="([^"]+)"/);
-            const targetMatch = attrs.match(/\bTarget="([^"]+)"/);
-            if (idMatch && targetMatch) {
-                rIdToPath.set(idMatch[1], targetMatch[1]);
+        try {
+            const parsedRels = xmlParser.parse(relsXml);
+            const relList = Array.isArray(parsedRels?.Relationships?.Relationship)
+                ? parsedRels.Relationships.Relationship
+                : parsedRels?.Relationships?.Relationship
+                  ? [parsedRels.Relationships.Relationship]
+                  : [];
+
+            for (const rel of relList) {
+                const id = rel?.["@_Id"];
+                const target = rel?.["@_Target"];
+                if (id && target) {
+                    rIdToPath.set(String(id), String(target));
+                }
             }
+        } catch {
+            throw new Error("Invalid .xlsx file: corrupt xl/_rels/workbook.xml.rels");
         }
 
         // Map sheet name → "xl/worksheets/sheetN.xml"
-        // Use an attribute-order independent regex parsing of <sheet> tags
         const sheetNameToPath = new Map<string, string>();
-        for (const sheetMatch of workbookXml.matchAll(/<sheet\s([^>]*)\/?>/g)) {
-            const attrs = sheetMatch[1];
-            const nameMatch = attrs.match(/\bname="([^"]+)"/);
-            const rIdMatch = attrs.match(/\br:id="([^"]+)"/);
-            if (nameMatch && rIdMatch) {
-                const sheetName = decodeXmlEntities(nameMatch[1]);
-                const relPath = rIdToPath.get(rIdMatch[1]);
-                if (relPath) {
-                    sheetNameToPath.set(sheetName, `xl/${relPath}`);
+        try {
+            const parsedWorkbook = xmlParser.parse(workbookXml);
+            const sheetList = Array.isArray(parsedWorkbook?.workbook?.sheets?.sheet)
+                ? parsedWorkbook.workbook.sheets.sheet
+                : parsedWorkbook?.workbook?.sheets?.sheet
+                  ? [parsedWorkbook.workbook.sheets.sheet]
+                  : [];
+
+            for (const sheet of sheetList) {
+                const name = sheet?.["@_name"];
+                let rId = sheet?.["@_r:id"] ?? sheet?.["@_rId"] ?? sheet?.["@_id"];
+                if (!rId) {
+                    for (const k of Object.keys(sheet || {})) {
+                        if (k.toLowerCase().endsWith(":id") || k.toLowerCase() === "@_id") {
+                            rId = sheet[k];
+                            break;
+                        }
+                    }
+                }
+                if (name && rId) {
+                    const sheetName = decodeXmlEntities(String(name));
+                    const relPath = rIdToPath.get(String(rId));
+                    if (relPath) {
+                        sheetNameToPath.set(sheetName, `xl/${relPath}`);
+                    }
                 }
             }
+        } catch {
+            throw new Error("Invalid .xlsx file: corrupt xl/workbook.xml");
         }
 
         // ---------------------------------------------------------------------------
@@ -135,13 +164,35 @@ export class PaimonMoeParser implements ImportParser {
         const sharedStrings: string[] = [];
 
         if (sharedStringsXml) {
-            // Each <si> may contain <t> (simple) or <r><t> (rich text) nodes
-            for (const siMatch of sharedStringsXml.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
-                let combined = "";
-                for (const tMatch of siMatch[1].matchAll(/<t(?:\s[^>]*)?>([^<]*)<\/t>/g)) {
-                    combined += tMatch[1];
+            try {
+                const parsedStrings = xmlParser.parse(sharedStringsXml);
+                const siList = Array.isArray(parsedStrings?.sst?.si)
+                    ? parsedStrings.sst.si
+                    : parsedStrings?.sst?.si
+                      ? [parsedStrings.sst.si]
+                      : [];
+
+                for (const si of siList) {
+                    let combined = "";
+                    if (typeof si === "string" || typeof si === "number") {
+                        combined = String(si);
+                    } else if (si && typeof si === "object") {
+                        if (si.t !== undefined) {
+                            combined += extractTextContent(si.t);
+                        }
+                        if (si.r) {
+                            const runs = Array.isArray(si.r) ? si.r : [si.r];
+                            for (const r of runs) {
+                                if (r?.t !== undefined) {
+                                    combined += extractTextContent(r.t);
+                                }
+                            }
+                        }
+                    }
+                    sharedStrings.push(decodeXmlEntities(combined));
                 }
-                sharedStrings.push(decodeXmlEntities(combined));
+            } catch {
+                // If sharedStrings.xml fails to parse, leave sharedStrings empty
             }
         }
 
@@ -154,7 +205,6 @@ export class PaimonMoeParser implements ImportParser {
         const allPulls: ParsedPull[] = [];
         const seenPullIds = new Set<string>();
 
-        // Warn about any unrecognized sheets in the workbook (ignoring known non-wish sheets)
         const IGNORED_SHEETS = new Set(["banner list", "information"]);
         for (const sheetName of sheetNameToPath.keys()) {
             const cleanSheetName = sheetName.trim().toLowerCase();
@@ -172,11 +222,10 @@ export class PaimonMoeParser implements ImportParser {
         }
 
         for (const [sheetName, bannerType] of Object.entries(SHEET_BANNER_TYPES)) {
-            // Find sheet name case-insensitively and with trimmed whitespace
             const matchingKey = Array.from(sheetNameToPath.keys()).find(
                 (k) => k.trim().toLowerCase() === sheetName.toLowerCase()
             );
-            if (!matchingKey) continue; // Sheet absent in this export
+            if (!matchingKey) continue;
 
             const sheetPath = sheetNameToPath.get(matchingKey);
             if (!sheetPath) continue;
@@ -195,7 +244,6 @@ export class PaimonMoeParser implements ImportParser {
             allPulls.push(...sheetPulls);
         }
 
-        // Sort oldest-first across all sheets
         allPulls.sort((a, b) => {
             const diff = a.pulledAt.getTime() - b.pulledAt.getTime();
             return diff !== 0 ? diff : a.pullId.localeCompare(b.pullId);
@@ -220,22 +268,28 @@ export function parseWishSheet(
     seenPullIds: Set<string>
 ): ParsedPull[] {
     const pulls: ParsedPull[] = [];
-    // Track how many pulls share the same second to assign a stable sequence index
     const secondCounter = new Map<string, number>();
 
-    for (const rowMatch of sheetXml.matchAll(/<row\s[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
-        const rowNum = parseInt(rowMatch[1], 10);
+    const parsedSheet = xmlParser.parse(sheetXml);
+    const rowList = Array.isArray(parsedSheet?.worksheet?.sheetData?.row)
+        ? parsedSheet.worksheet.sheetData.row
+        : parsedSheet?.worksheet?.sheetData?.row
+          ? [parsedSheet.worksheet.sheetData.row]
+          : [];
+
+    for (const row of rowList) {
+        const rowNumStr = row?.["@_r"];
+        const rowNum = rowNumStr ? parseInt(String(rowNumStr), 10) : 0;
         if (rowNum === 1) continue; // Skip header row
 
-        const cells = extractRowCells(rowMatch[2]);
+        const cells = extractRowCellsFromObj(row?.c);
 
         const typeVal = resolveCell(cells.A?.type, cells.A?.value ?? "");
         const nameVal = resolveCell(cells.B?.type, cells.B?.value ?? "");
         const timeVal = resolveCell(cells.C?.type, cells.C?.value ?? "");
-        // Column D: rarity — always a plain numeric cell (no shared string)
         const rarityRaw = cells.D?.value ?? "";
 
-        if (!typeVal || !nameVal || !timeVal) continue; // Empty or footer row
+        if (!typeVal || !nameVal || !timeVal) continue;
 
         const rarity = parseInt(rarityRaw, 10);
         if (isNaN(rarity) || rarity < 1 || rarity > 5) {
@@ -244,7 +298,6 @@ export function parseWishSheet(
             );
         }
 
-        // "2022-02-19 16:22:15" — paimon.moe uses Asia/Shanghai (UTC+8)
         const pulledAt = parsePaimonTimestamp(timeVal);
         if (!pulledAt) {
             throw new Error(
@@ -252,7 +305,6 @@ export function parseWishSheet(
             );
         }
 
-        // Deterministic pullId: gameUid_bannerType_YYYY-MM-DD-HH-mm-ss_seqWithinSecond
         const cleanTime = timeVal.replace(/[:\s]/g, "-");
         const secondKey = `${bannerType}_${cleanTime}`;
         const seq = secondCounter.get(secondKey) ?? 0;
@@ -265,7 +317,6 @@ export function parseWishSheet(
         }
         seenPullIds.add(pullId);
 
-        // Resolve itemId via UIGF dict (keyed by lowercase name)
         const dictEntry = uigfDict[nameVal.toLowerCase()];
         const itemId = dictEntry?.id ?? `name_${nameVal}`;
         const itemType = dictEntry?.type ?? typeVal;
@@ -285,23 +336,41 @@ interface CellData {
     type?: string;
 }
 
-/** Extract cells from a <row> XML fragment into a map of column letter → { value, type }. */
-function extractRowCells(rowXml: string): Partial<Record<string, CellData>> {
+function extractRowCellsFromObj(cNode: unknown): Partial<Record<string, CellData>> {
     const cells: Partial<Record<string, CellData>> = {};
-    for (const m of rowXml.matchAll(/<c\s([^>]*)>([\s\S]*?)<\/c>/g)) {
-        const rAttr = m[1].match(/\br="([A-Z]+)\d+"/);
+    const cellList = Array.isArray(cNode) ? cNode : cNode ? [cNode] : [];
+
+    for (const c of cellList) {
+        const rAttr = c?.["@_r"];
         if (!rAttr) continue;
-        const col = rAttr[1];
-        const tAttr = m[1].match(/\bt="([^"]+)"/);
-        const vMatch = m[2].match(/<v>([^<]*)<\/v>/);
-        cells[col] = { value: vMatch?.[1] ?? "", type: tAttr?.[1] };
+        const colMatch = String(rAttr).match(/^([A-Z]+)\d+$/);
+        if (!colMatch) continue;
+        const col = colMatch[1];
+        const type = c?.["@_t"];
+        let val = "";
+        if (c?.v !== undefined && c?.v !== null) {
+            if (typeof c.v === "object" && "#text" in c.v) {
+                val = String(c.v["#text"] ?? "");
+            } else {
+                val = String(c.v);
+            }
+        }
+        cells[col] = { value: val, type: type ? String(type) : undefined };
     }
+
     return cells;
 }
 
-/**
- * Parse paimon.moe timestamp "YYYY-MM-DD HH:mm:ss" as UTC+8.
- */
+function extractTextContent(tNode: unknown): string {
+    if (typeof tNode === "string" || typeof tNode === "number") {
+        return String(tNode);
+    }
+    if (typeof tNode === "object" && tNode !== null) {
+        if ("#text" in tNode) return String((tNode as { "#text": unknown })["#text"]);
+    }
+    return "";
+}
+
 function parsePaimonTimestamp(str: string): Date | null {
     const m = str.match(/^(\d{4})-(\d{2})-(\d{2})\s(\d{2}):(\d{2}):(\d{2})$/);
     if (!m) return null;
@@ -309,7 +378,6 @@ function parsePaimonTimestamp(str: string): Date | null {
     return isNaN(d.getTime()) ? null : d;
 }
 
-/** Decode common XML character entities. */
 function decodeXmlEntities(str: string): string {
     return str
         .replace(/&amp;/g, "&")
