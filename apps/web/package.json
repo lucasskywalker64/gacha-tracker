@@ -15,11 +15,11 @@
 		"format": "prettier --write ."
 	},
 	"dependencies": {
-		"@better-auth/passkey": "1.6.6",
+		"@better-auth/passkey": "1.6.25",
 		"@elysia/eden": "1.4.10",
 		"@gacha-tracker/shared": "workspace:*",
 		"api": "workspace:*",
-		"better-auth": "1.6.6",
+		"better-auth": "1.6.25",
 		"date-fns": "4.1.0"
 	},
 	"devDependencies": {
