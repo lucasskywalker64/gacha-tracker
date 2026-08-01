@@ -663,34 +663,24 @@ export async function executePullsImport(
         return { imported: 0 };
     }
 
-    const adapter = getAdapter(gameId);
-    let newCount = 0;
+    const lockKey = `import_lock:${userId}:${gameId}`;
+    let lockAcquired = true;
+    try {
+        const acquired = await redis.set(lockKey, "1", "EX", 60, "NX");
+        lockAcquired = acquired === "OK";
+    } catch {
+        // Fallback silently if Redis is offline
+    }
 
-    await db.transaction(async (tx) => {
-        let currentUserGame = await tx.query.userGame.findFirst({
-            where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
-        });
+    if (!lockAcquired) {
+        throw new Error("CONCURRENT_IMPORT_IN_PROGRESS");
+    }
 
-        if (!currentUserGame) {
-            const userGameId = crypto.randomUUID();
-            await tx.insert(userGame).values({
-                id: userGameId,
-                userId,
-                gameId,
-                latestPullIds: "{}",
-            });
+    try {
+        const adapter = getAdapter(gameId);
 
-            currentUserGame = {
-                id: userGameId,
-                userId,
-                gameId,
-                lastImport: null,
-                latestPullIds: "{}",
-                createdAt: new Date(),
-            };
-        }
-
-        const existingDbPulls = await tx.query.pull.findMany({
+        // 1. Read existing pulls outside transaction lock to reduce SQLite write lock contention
+        const existingDbPulls = await db.query.pull.findMany({
             where: and(eq(pull.userId, userId), eq(pull.gameId, gameId)),
             orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
         });
@@ -710,6 +700,7 @@ export async function executePullsImport(
         }));
 
         const combinedPullsMap = new Map(existingNormalizedPulls.map((p) => [p.pullId, p]));
+        let newCount = 0;
 
         for (const p of allPulls) {
             if (!combinedPullsMap.has(p.pullId)) {
@@ -719,9 +710,10 @@ export async function executePullsImport(
         }
 
         if (newCount === 0) {
-            return;
+            return { imported: 0 };
         }
 
+        // 2. CPU Pity Calculation performed completely out of transaction lock
         const pullsByPool = new Map<string, NormalizedPull[]>();
         for (const p of Array.from(combinedPullsMap.values())) {
             const poolKey = adapter.pityPools?.[p.bannerType] || p.bannerType;
@@ -730,7 +722,23 @@ export async function executePullsImport(
             pullsByPool.set(poolKey, arr);
         }
 
-        const pullsToUpsert = [];
+        const pullsToUpsert: {
+            id: string;
+            userId: string;
+            gameId: string;
+            gameUid: string;
+            pullId: string;
+            bannerType: string;
+            bannerId: string | null;
+            itemId: string;
+            itemName: string;
+            itemType: string;
+            rarity: number;
+            pulledAt: Date;
+            pityAtPull: number;
+            wasGuaranteed: number;
+            pityVersion: number;
+        }[] = [];
         const latestIds: Record<string, string> = {};
 
         for (const [poolKey, pullsInPool] of Array.from(pullsByPool.entries())) {
@@ -766,33 +774,74 @@ export async function executePullsImport(
             }
         }
 
-        const CHUNK_SIZE = 100;
-        for (let i = 0; i < pullsToUpsert.length; i += CHUNK_SIZE) {
-            const chunk = pullsToUpsert.slice(i, i + CHUNK_SIZE);
-            await tx
-                .insert(pull)
-                .values(chunk)
-                .onConflictDoUpdate({
-                    target: [pull.userId, pull.gameId, pull.pullId],
-                    set: {
-                        pityAtPull: sql`excluded.pity_at_pull`,
-                        wasGuaranteed: sql`excluded.was_guaranteed`,
-                        pityVersion: sql`excluded.pity_version`,
-                        bannerId: sql`excluded.banner_id`,
-                    },
+        // 3. Strictly write-only database transaction
+        await db.transaction(async (tx) => {
+            let currentUserGame = await tx.query.userGame.findFirst({
+                where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
+            });
+
+            if (!currentUserGame) {
+                const userGameId = crypto.randomUUID();
+                await tx.insert(userGame).values({
+                    id: userGameId,
+                    userId,
+                    gameId,
+                    latestPullIds: "{}",
                 });
+
+                currentUserGame = {
+                    id: userGameId,
+                    userId,
+                    gameId,
+                    lastImport: null,
+                    latestPullIds: "{}",
+                    createdAt: new Date(),
+                };
+            }
+
+            // Dynamically calculate insertion batch chunk size based on SQLite max variable limit
+            const COLUMNS_PER_ROW = 15;
+            const SQLITE_MAX_VARIABLE_NUMBER = 32766;
+            const CHUNK_SIZE = Math.min(
+                500,
+                Math.floor(SQLITE_MAX_VARIABLE_NUMBER / COLUMNS_PER_ROW)
+            );
+
+            for (let i = 0; i < pullsToUpsert.length; i += CHUNK_SIZE) {
+                const chunk = pullsToUpsert.slice(i, i + CHUNK_SIZE);
+                await tx
+                    .insert(pull)
+                    .values(chunk)
+                    .onConflictDoUpdate({
+                        target: [pull.userId, pull.gameId, pull.pullId],
+                        set: {
+                            pityAtPull: sql`excluded.pity_at_pull`,
+                            wasGuaranteed: sql`excluded.was_guaranteed`,
+                            pityVersion: sql`excluded.pity_version`,
+                            bannerId: sql`excluded.banner_id`,
+                        },
+                    });
+            }
+
+            await tx
+                .update(userGame)
+                .set({
+                    lastImport: new Date(),
+                    latestPullIds: JSON.stringify(latestIds),
+                })
+                .where(eq(userGame.id, currentUserGame.id));
+        });
+
+        await redis.del(`stats:${userId}:${gameId}`);
+
+        return { imported: newCount };
+    } finally {
+        if (lockAcquired) {
+            try {
+                await redis.del(lockKey);
+            } catch {
+                // Fallback silently if Redis is offline
+            }
         }
-
-        await tx
-            .update(userGame)
-            .set({
-                lastImport: new Date(),
-                latestPullIds: JSON.stringify(latestIds),
-            })
-            .where(eq(userGame.id, currentUserGame.id));
-    });
-
-    await redis.del(`stats:${userId}:${gameId}`);
-
-    return { imported: newCount };
+    }
 }
