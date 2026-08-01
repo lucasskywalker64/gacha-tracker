@@ -729,7 +729,6 @@
 	let queuePosition = $state<number | null>(null);
 	let queueWaitedSeconds = $state(0);
 
-	let pollInterval: ReturnType<typeof setInterval> | null = null;
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
 	function clearLocalStorage() {
@@ -746,10 +745,42 @@
 		);
 	}
 
+	let pollTimeout: ReturnType<typeof setTimeout> | null = null;
+	let currentPollDelay = 1000;
+
+	function saveSummaryToLocalStorage(
+		summary: Array<{
+			gameId: string;
+			gameUid: string;
+			imported: number;
+			message: string;
+			success: boolean;
+		}>
+	) {
+		try {
+			localStorage.setItem('gt_last_import_summary', JSON.stringify(summary));
+		} catch (e) {
+			console.error('Failed to save import summary to localStorage:', e);
+		}
+	}
+
+	function clearSummaryFromLocalStorage() {
+		try {
+			localStorage.removeItem('gt_last_import_summary');
+		} catch (e) {
+			console.error('Failed to clear import summary from localStorage:', e);
+		}
+	}
+
+	function dismissImportSummary() {
+		importSuccess = null;
+		clearSummaryFromLocalStorage();
+	}
+
 	function stopPolling() {
-		if (pollInterval) {
-			clearInterval(pollInterval);
-			pollInterval = null;
+		if (pollTimeout) {
+			clearTimeout(pollTimeout);
+			pollTimeout = null;
 		}
 	}
 
@@ -779,8 +810,11 @@
 		stopPolling();
 		pendingRequestId = requestId;
 		importing = true;
+		currentPollDelay = 1000;
 
-		pollInterval = setInterval(async () => {
+		async function pollStep() {
+			if (!pendingRequestId || pendingRequestId !== requestId) return;
+
 			try {
 				const res = await fetch(`${PUBLIC_API_URL}/pulls/import/status/${requestId}`, {
 					credentials: 'include'
@@ -806,6 +840,7 @@
 
 				if (data.status === 'done') {
 					importSuccess = data.result.summary;
+					saveSummaryToLocalStorage(data.result.summary);
 					importFile = null;
 					if (fileInputRef) {
 						fileInputRef.value = '';
@@ -829,11 +864,26 @@
 					importing = false;
 					pendingRequestId = null;
 					queueStatus = null;
+				} else if (data.status === 'expired') {
+					importError = data.error || 'Import task result expired.';
+					clearLocalStorage();
+					stopPolling();
+					importing = false;
+					pendingRequestId = null;
+					queueStatus = null;
+				} else {
+					const nextDelay = data.position && data.position > 1 ? 5000 : 1000;
+					currentPollDelay = nextDelay;
+					pollTimeout = setTimeout(pollStep, nextDelay);
 				}
 			} catch (err) {
 				console.error('Polling error:', err);
+				currentPollDelay = Math.min(10000, currentPollDelay * 2);
+				pollTimeout = setTimeout(pollStep, currentPollDelay);
 			}
-		}, 1000);
+		}
+
+		pollTimeout = setTimeout(pollStep, 1000);
 	}
 
 	async function handleCancelQueue() {
@@ -885,6 +935,15 @@
 	});
 
 	onMount(async () => {
+		try {
+			const savedSummary = localStorage.getItem('gt_last_import_summary');
+			if (savedSummary) {
+				importSuccess = JSON.parse(savedSummary);
+			}
+		} catch (e) {
+			console.error('Failed to restore import summary:', e);
+		}
+
 		try {
 			const saved = localStorage.getItem('gt_import_state');
 			if (saved) {
@@ -992,6 +1051,7 @@
 		importing = true;
 		importError = '';
 		importSuccess = null;
+		clearSummaryFromLocalStorage();
 
 		try {
 			const formData = new FormData();
@@ -1880,7 +1940,7 @@
 							>Select Backup File</span
 						>
 						<div
-							class="border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900/10 hover:bg-zinc-900/30 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative min-h-[160px] focus-within:ring-2 focus-within:ring-indigo-500/40 focus-within:border-indigo-500/50"
+							class="border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900/10 hover:bg-zinc-900/30 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative min-h-40 focus-within:ring-2 focus-within:ring-indigo-500/40 focus-within:border-indigo-500/50"
 						>
 							<input
 								type="file"
@@ -2010,9 +2070,19 @@
 						<div
 							class="p-5 rounded-xl border space-y-3 animate-in fade-in slide-in-from-top-1 duration-200 {importStatusSummary.bgClass}"
 						>
-							<span class="text-sm font-bold block {importStatusSummary.titleClass}"
-								>{importStatusSummary.title}</span
-							>
+							<div class="flex items-center justify-between">
+								<span class="text-sm font-bold block {importStatusSummary.titleClass}"
+									>{importStatusSummary.title}</span
+								>
+								<Button
+									onclick={dismissImportSummary}
+									variant="ghost"
+									size="sm"
+									class="text-xs text-zinc-400 hover:text-zinc-200 h-auto py-1 px-2 cursor-pointer"
+								>
+									Dismiss
+								</Button>
+							</div>
 							<div
 								class="divide-y divide-zinc-900 border border-zinc-900 rounded-xl overflow-hidden bg-zinc-950/40"
 							>

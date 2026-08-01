@@ -68,17 +68,30 @@ async function persistTaskToRedis(entry: QueueEntry) {
         if (entry.result) data.result = JSON.stringify(entry.result);
         if (entry.error) data.error = entry.error;
 
-        await redis.hset(key, data);
-
-        if (
+        const isTerminal =
             entry.status === ImportStatus.DONE ||
             entry.status === ImportStatus.FAILED ||
-            entry.status === ImportStatus.CANCELLED
-        ) {
-            await redis.expire(key, Math.ceil(IMPORT_RESULT_TTL_MS / 1000));
+            entry.status === ImportStatus.CANCELLED;
+
+        const pipe = redis.pipeline();
+        pipe.hset(key, data);
+
+        if (isTerminal) {
+            pipe.expire(key, Math.ceil(IMPORT_RESULT_TTL_MS / 1000));
+            pipe.del(`import_task_buffer:${entry.requestId}`);
+            pipe.srem("import_tasks_active", entry.requestId);
         } else {
-            await redis.expire(key, 86400); // 24h fallback TTL for active tasks
+            pipe.expire(key, 86400); // 24h fallback TTL for active tasks
+            pipe.sadd("import_tasks_active", entry.requestId);
+
+            // Persist raw file buffer in Redis while job is QUEUED or PROCESSING so restarts can recover it
+            if (entry.buffer && entry.buffer.length > 0) {
+                const bufKey = `import_task_buffer:${entry.requestId}`;
+                pipe.set(bufKey, entry.buffer.toString("base64"), "EX", 86400);
+            }
         }
+
+        await pipe.exec();
     } catch {
         // Fallback silently if Redis is offline
     }
@@ -90,20 +103,61 @@ async function loadTaskFromRedis(requestId: string): Promise<QueueEntry | null> 
         const data = await redis.hgetall(key);
         if (!data || !data.requestId) return null;
 
+        const bufKey = `import_task_buffer:${requestId}`;
+        const b64 = await redis.get(bufKey);
+        const buffer = b64 ? Buffer.from(b64, "base64") : Buffer.alloc(0);
+
+        let status = data.status as ImportStatus;
+        let error = data.error || undefined;
+
+        // If a task in Redis is marked "processing" but local memory doesn't have it active,
+        // it means the previous server process crashed/restarted mid-execution. Mark it failed.
+        if (status === ImportStatus.PROCESSING && !store.has(requestId)) {
+            status = ImportStatus.FAILED;
+            error = "Process restarted while task was processing.";
+        }
+
         return {
             requestId: data.requestId,
             userId: data.userId,
             queuedAt: new Date(data.queuedAt),
             completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
-            status: data.status as ImportStatus,
+            status,
             format: data.format,
             gameUid: data.gameUid || undefined,
-            buffer: Buffer.alloc(0),
+            buffer,
             result: data.result ? JSON.parse(data.result) : undefined,
-            error: data.error || undefined,
+            error,
         };
     } catch {
         return null;
+    }
+}
+
+async function recoverQueuedTasksFromRedis() {
+    try {
+        const activeIds = await redis.smembers("import_tasks_active");
+        for (const id of activeIds) {
+            if (!store.has(id)) {
+                const entry = await loadTaskFromRedis(id);
+                if (
+                    entry &&
+                    (entry.status === ImportStatus.QUEUED ||
+                        entry.status === ImportStatus.PROCESSING)
+                ) {
+                    // If buffer is missing (expired or lost), mark failed
+                    if (entry.buffer.length === 0 && entry.status === ImportStatus.QUEUED) {
+                        entry.status = ImportStatus.FAILED;
+                        entry.error = "Payload expired after server restart.";
+                        await persistTaskToRedis(entry);
+                    } else {
+                        store.set(entry.requestId, entry);
+                    }
+                }
+            }
+        }
+    } catch {
+        // Fallback silently if Redis is offline
     }
 }
 
@@ -166,8 +220,11 @@ export async function getStatus(requestId: string): Promise<QueueSnapshot | null
     };
 }
 
-export function cancel(requestId: string, userId: string): boolean {
-    const entry = store.get(requestId);
+export async function cancel(requestId: string, userId: string): Promise<boolean> {
+    let entry = store.get(requestId);
+    if (!entry) {
+        entry = (await loadTaskFromRedis(requestId)) ?? undefined;
+    }
     if (!entry || entry.userId !== userId) return false;
 
     if (entry.status !== ImportStatus.QUEUED) {
@@ -178,7 +235,8 @@ export function cancel(requestId: string, userId: string): boolean {
     entry.completedAt = new Date();
     entry.buffer = Buffer.alloc(0);
 
-    persistTaskToRedis(entry);
+    store.set(requestId, entry);
+    await persistTaskToRedis(entry);
 
     setTimeout(() => {
         store.delete(requestId);
@@ -191,6 +249,12 @@ export function cancel(requestId: string, userId: string): boolean {
 async function processQueue() {
     if (runningCount >= IMPORT_CONCURRENCY_LIMIT || !worker) {
         return;
+    }
+
+    // Attempt task recovery if local store is empty of queued entries
+    const hasLocalQueued = Array.from(store.values()).some((e) => e.status === ImportStatus.QUEUED);
+    if (!hasLocalQueued) {
+        await recoverQueuedTasksFromRedis();
     }
 
     const nextEntry = Array.from(store.values())
