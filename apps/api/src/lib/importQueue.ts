@@ -1,4 +1,5 @@
 import { IMPORT_CONCURRENCY_LIMIT, IMPORT_QUEUE_MAX_DEPTH, IMPORT_RESULT_TTL_MS } from "../config";
+import { redis } from "./redis";
 
 export const ImportStatus = {
     QUEUED: "queued",
@@ -6,6 +7,7 @@ export const ImportStatus = {
     DONE: "done",
     FAILED: "failed",
     CANCELLED: "cancelled",
+    EXPIRED: "expired",
 } as const;
 
 export type ImportStatus = (typeof ImportStatus)[keyof typeof ImportStatus];
@@ -51,6 +53,60 @@ export function registerWorker(fn: (entry: QueueEntry) => Promise<ImportSummaryI
     worker = fn;
 }
 
+async function persistTaskToRedis(entry: QueueEntry) {
+    try {
+        const key = `import_task:${entry.requestId}`;
+        const data: Record<string, string> = {
+            requestId: entry.requestId,
+            userId: entry.userId,
+            queuedAt: entry.queuedAt.toISOString(),
+            status: entry.status,
+            format: entry.format,
+        };
+        if (entry.completedAt) data.completedAt = entry.completedAt.toISOString();
+        if (entry.gameUid) data.gameUid = entry.gameUid;
+        if (entry.result) data.result = JSON.stringify(entry.result);
+        if (entry.error) data.error = entry.error;
+
+        await redis.hset(key, data);
+
+        if (
+            entry.status === ImportStatus.DONE ||
+            entry.status === ImportStatus.FAILED ||
+            entry.status === ImportStatus.CANCELLED
+        ) {
+            await redis.expire(key, Math.ceil(IMPORT_RESULT_TTL_MS / 1000));
+        } else {
+            await redis.expire(key, 86400); // 24h fallback TTL for active tasks
+        }
+    } catch {
+        // Fallback silently if Redis is offline
+    }
+}
+
+async function loadTaskFromRedis(requestId: string): Promise<QueueEntry | null> {
+    try {
+        const key = `import_task:${requestId}`;
+        const data = await redis.hgetall(key);
+        if (!data || !data.requestId) return null;
+
+        return {
+            requestId: data.requestId,
+            userId: data.userId,
+            queuedAt: new Date(data.queuedAt),
+            completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+            status: data.status as ImportStatus,
+            format: data.format,
+            gameUid: data.gameUid || undefined,
+            buffer: Buffer.alloc(0),
+            result: data.result ? JSON.parse(data.result) : undefined,
+            error: data.error || undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function enqueue(entry: Omit<QueueEntry, "queuedAt" | "status">): QueueEntry {
     const currentlyQueued = Array.from(store.values()).filter(
         (e) => e.status === ImportStatus.QUEUED
@@ -66,17 +122,24 @@ export function enqueue(entry: Omit<QueueEntry, "queuedAt" | "status">): QueueEn
     };
 
     store.set(newEntry.requestId, newEntry);
+    persistTaskToRedis(newEntry);
     processQueue();
     return newEntry;
 }
 
-export function getRequestOwner(requestId: string): string | null {
+export async function getRequestOwner(requestId: string): Promise<string | null> {
     const entry = store.get(requestId);
-    return entry ? entry.userId : null;
+    if (entry) return entry.userId;
+
+    const redisTask = await loadTaskFromRedis(requestId);
+    return redisTask ? redisTask.userId : null;
 }
 
-export function getStatus(requestId: string): QueueSnapshot | null {
-    const entry = store.get(requestId);
+export async function getStatus(requestId: string): Promise<QueueSnapshot | null> {
+    let entry = store.get(requestId);
+    if (!entry) {
+        entry = (await loadTaskFromRedis(requestId)) ?? undefined;
+    }
     if (!entry) return null;
 
     const endedAt = entry.completedAt || new Date();
@@ -113,10 +176,10 @@ export function cancel(requestId: string, userId: string): boolean {
 
     entry.status = ImportStatus.CANCELLED;
     entry.completedAt = new Date();
-    // Clean up the buffer to release memory immediately
     entry.buffer = Buffer.alloc(0);
 
-    // Evict after TTL
+    persistTaskToRedis(entry);
+
     setTimeout(() => {
         store.delete(requestId);
     }, IMPORT_RESULT_TTL_MS);
@@ -130,7 +193,6 @@ async function processQueue() {
         return;
     }
 
-    // Find the next queued entry (FIFO)
     const nextEntry = Array.from(store.values())
         .filter((e) => e.status === ImportStatus.QUEUED)
         .sort((a, b) => a.queuedAt.getTime() - b.queuedAt.getTime())
@@ -142,6 +204,7 @@ async function processQueue() {
 
     nextEntry.status = ImportStatus.PROCESSING;
     runningCount++;
+    persistTaskToRedis(nextEntry);
 
     const currentWorker = worker;
     try {
@@ -153,11 +216,10 @@ async function processQueue() {
         nextEntry.error = err instanceof Error ? err.message : String(err);
     } finally {
         nextEntry.completedAt = new Date();
-        // Free up memory immediately
         nextEntry.buffer = Buffer.alloc(0);
         runningCount = Math.max(0, runningCount - 1);
+        persistTaskToRedis(nextEntry);
 
-        // Schedule eviction
         const idToEvict = nextEntry.requestId;
         setTimeout(() => {
             store.delete(idToEvict);
