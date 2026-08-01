@@ -664,8 +664,103 @@ export async function executePullsImport(
     }
 
     const adapter = getAdapter(gameId);
+
+    // 1. Read existing pulls outside transaction lock to reduce SQLite write lock contention
+    const existingDbPulls = await db.query.pull.findMany({
+        where: and(eq(pull.userId, userId), eq(pull.gameId, gameId)),
+        orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
+    });
+
+    const existingNormalizedPulls: NormalizedPull[] = existingDbPulls.map((p) => ({
+        pullId: p.pullId,
+        gameUid: p.gameUid,
+        bannerType: p.bannerType,
+        ...(p.bannerId ? { bannerId: p.bannerId } : {}),
+        itemId: p.itemId,
+        itemName: p.itemName,
+        itemType: p.itemType,
+        rarity: p.rarity,
+        pulledAt: new Date(p.pulledAt),
+        pityAtPull: p.pityAtPull,
+        wasGuaranteed: p.wasGuaranteed,
+    }));
+
+    const combinedPullsMap = new Map(existingNormalizedPulls.map((p) => [p.pullId, p]));
     let newCount = 0;
 
+    for (const p of allPulls) {
+        if (!combinedPullsMap.has(p.pullId)) {
+            combinedPullsMap.set(p.pullId, p);
+            newCount++;
+        }
+    }
+
+    if (newCount === 0) {
+        return { imported: 0 };
+    }
+
+    // 2. CPU Pity Calculation performed completely out of transaction lock
+    const pullsByPool = new Map<string, NormalizedPull[]>();
+    for (const p of Array.from(combinedPullsMap.values())) {
+        const poolKey = adapter.pityPools?.[p.bannerType] || p.bannerType;
+        const arr = pullsByPool.get(poolKey) || [];
+        arr.push(p as NormalizedPull);
+        pullsByPool.set(poolKey, arr);
+    }
+
+    const pullsToUpsert: {
+        id: string;
+        userId: string;
+        gameId: string;
+        gameUid: string;
+        pullId: string;
+        bannerType: string;
+        bannerId: string | null;
+        itemId: string;
+        itemName: string;
+        itemType: string;
+        rarity: number;
+        pulledAt: Date;
+        pityAtPull: number;
+        wasGuaranteed: number;
+        pityVersion: number;
+    }[] = [];
+    const latestIds: Record<string, string> = {};
+
+    for (const [poolKey, pullsInPool] of Array.from(pullsByPool.entries())) {
+        pullsInPool.sort((a: NormalizedPull, b: NormalizedPull) => {
+            if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
+                return a.pullId.localeCompare(b.pullId);
+            }
+            return a.pulledAt.getTime() - b.pulledAt.getTime();
+        });
+
+        const processedPulls = adapter.computePity(pullsInPool, poolKey);
+
+        for (const p of processedPulls) {
+            pullsToUpsert.push({
+                id: crypto.randomUUID(),
+                userId,
+                gameId,
+                gameUid,
+                pullId: p.pullId,
+                bannerType: p.bannerType,
+                bannerId: p.bannerId || null,
+                itemId: p.itemId,
+                itemName: p.itemName,
+                itemType: p.itemType,
+                rarity: p.rarity,
+                pulledAt: p.pulledAt,
+                pityAtPull: p.pityAtPull,
+                wasGuaranteed: p.wasGuaranteed,
+                pityVersion: 1,
+            });
+
+            latestIds[p.bannerType] = p.pullId;
+        }
+    }
+
+    // 3. Strictly write-only database transaction
     await db.transaction(async (tx) => {
         let currentUserGame = await tx.query.userGame.findFirst({
             where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
@@ -690,83 +785,11 @@ export async function executePullsImport(
             };
         }
 
-        const existingDbPulls = await tx.query.pull.findMany({
-            where: and(eq(pull.userId, userId), eq(pull.gameId, gameId)),
-            orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
-        });
+        // Dynamically calculate insertion batch chunk size based on SQLite max variable limit
+        const COLUMNS_PER_ROW = 15;
+        const SQLITE_MAX_VARIABLE_NUMBER = 32766;
+        const CHUNK_SIZE = Math.min(500, Math.floor(SQLITE_MAX_VARIABLE_NUMBER / COLUMNS_PER_ROW));
 
-        const existingNormalizedPulls: NormalizedPull[] = existingDbPulls.map((p) => ({
-            pullId: p.pullId,
-            gameUid: p.gameUid,
-            bannerType: p.bannerType,
-            ...(p.bannerId ? { bannerId: p.bannerId } : {}),
-            itemId: p.itemId,
-            itemName: p.itemName,
-            itemType: p.itemType,
-            rarity: p.rarity,
-            pulledAt: new Date(p.pulledAt),
-            pityAtPull: p.pityAtPull,
-            wasGuaranteed: p.wasGuaranteed,
-        }));
-
-        const combinedPullsMap = new Map(existingNormalizedPulls.map((p) => [p.pullId, p]));
-
-        for (const p of allPulls) {
-            if (!combinedPullsMap.has(p.pullId)) {
-                combinedPullsMap.set(p.pullId, p);
-                newCount++;
-            }
-        }
-
-        if (newCount === 0) {
-            return;
-        }
-
-        const pullsByPool = new Map<string, NormalizedPull[]>();
-        for (const p of Array.from(combinedPullsMap.values())) {
-            const poolKey = adapter.pityPools?.[p.bannerType] || p.bannerType;
-            const arr = pullsByPool.get(poolKey) || [];
-            arr.push(p as NormalizedPull);
-            pullsByPool.set(poolKey, arr);
-        }
-
-        const pullsToUpsert = [];
-        const latestIds: Record<string, string> = {};
-
-        for (const [poolKey, pullsInPool] of Array.from(pullsByPool.entries())) {
-            pullsInPool.sort((a: NormalizedPull, b: NormalizedPull) => {
-                if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
-                    return a.pullId.localeCompare(b.pullId);
-                }
-                return a.pulledAt.getTime() - b.pulledAt.getTime();
-            });
-
-            const processedPulls = adapter.computePity(pullsInPool, poolKey);
-
-            for (const p of processedPulls) {
-                pullsToUpsert.push({
-                    id: crypto.randomUUID(),
-                    userId,
-                    gameId,
-                    gameUid,
-                    pullId: p.pullId,
-                    bannerType: p.bannerType,
-                    bannerId: p.bannerId || null,
-                    itemId: p.itemId,
-                    itemName: p.itemName,
-                    itemType: p.itemType,
-                    rarity: p.rarity,
-                    pulledAt: p.pulledAt,
-                    pityAtPull: p.pityAtPull,
-                    wasGuaranteed: p.wasGuaranteed,
-                    pityVersion: 1,
-                });
-
-                latestIds[p.bannerType] = p.pullId;
-            }
-        }
-
-        const CHUNK_SIZE = 100;
         for (let i = 0; i < pullsToUpsert.length; i += CHUNK_SIZE) {
             const chunk = pullsToUpsert.slice(i, i + CHUNK_SIZE);
             await tx
