@@ -9,25 +9,19 @@ import { createTestTables } from "./db-setup.helper";
 const redisStore = new Map<string, string>();
 const mockRedis = {
     get: (key: string) => Promise.resolve(redisStore.get(key) || null),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    set: (key: string, value: string, _mode?: string, _duration?: number, _flag?: string) => {
+    set: (key: string, value: string) => {
         redisStore.set(key, value);
         return Promise.resolve("OK");
     },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    publish: (channel: string, message: string) => Promise.resolve(1),
+    publish: () => Promise.resolve(1),
     del: (key: string) => {
         redisStore.delete(key);
         return Promise.resolve(1);
     },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    ttl: (key: string) => Promise.resolve(0),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    hset: (key: string, data: Record<string, string>) => Promise.resolve(1),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    hgetall: (key: string) => Promise.resolve({}),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    expire: (key: string, seconds: number) => Promise.resolve(1),
+    ttl: () => Promise.resolve(0),
+    hset: () => Promise.resolve(1),
+    hgetall: () => Promise.resolve({}),
+    expire: () => Promise.resolve(1),
     ping: () => Promise.resolve("PONG"),
 };
 

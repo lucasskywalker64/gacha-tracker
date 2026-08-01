@@ -494,9 +494,11 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
 
             const ownerId = await getRequestOwner(requestId);
             if (!ownerId) {
-                return status(404, {
-                    success: false,
-                    error: "Import request not found or expired.",
+                return status(200, {
+                    status: "expired",
+                    position: null,
+                    waitedSeconds: 0,
+                    error: "Import request result has expired.",
                 });
             }
 
@@ -509,9 +511,11 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
 
             const qStatus = await getStatus(requestId);
             if (!qStatus) {
-                return status(404, {
-                    success: false,
-                    error: "Import request not found or expired.",
+                return status(200, {
+                    status: "expired",
+                    position: null,
+                    waitedSeconds: 0,
+                    error: "Import request result has expired.",
                 });
             }
 
@@ -597,7 +601,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 });
             }
 
-            const success = cancel(requestId, userId);
+            const success = await cancel(requestId, userId);
             if (!success) {
                 return status(409, {
                     success: false,
