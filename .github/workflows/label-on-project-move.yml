@@ -1,0 +1,106 @@
+name: Label and Move Linked Issue on Dev Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - dev
+
+jobs:
+  update_issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label Issue and Move in Project
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const query = `
+              query($owner: String!, $repo: String!, $prNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $prNumber) {
+                    closingIssuesReferences(first: 10) {
+                      nodes {
+                        id
+                        number
+                        projectItems(first: 5) {
+                          nodes {
+                            id
+                            project {
+                              id
+                              field(name: "Status") {
+                                ... on ProjectV2SingleSelectField {
+                                  id
+                                  options {
+                                    id
+                                    name
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const variables = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              prNumber: context.payload.pull_request.number
+            };
+
+            const result = await github.graphql(query, variables);
+            const linkedIssues = result.repository.pullRequest.closingIssuesReferences.nodes;
+
+            if (!linkedIssues || linkedIssues.length === 0) {
+              console.log('No linked issues found.');
+              return;
+            }
+
+            for (const issue of linkedIssues) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['status: fixed-in-dev']
+              });
+              console.log(`Labeled Issue #${issue.number}`);
+
+              for (const item of issue.projectItems.nodes) {
+                const statusField = item.project.field;
+                if (!statusField || !statusField.options) continue;
+                
+                const devOption = statusField.options.find(opt => opt.name === 'Merged to Dev');
+
+                if (devOption) {
+                  const updateMutation = `
+                    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                      updateProjectV2ItemFieldValue(
+                        input: {
+                          projectId: $projectId
+                          itemId: $itemId
+                          fieldId: $fieldId
+                          value: { singleSelectOptionId: $optionId }
+                        }
+                      ) {
+                        projectV2Item { id }
+                      }
+                    }
+                  `;
+
+                  await github.graphql(updateMutation, {
+                    projectId: item.project.id,
+                    itemId: item.id,
+                    fieldId: statusField.id,
+                    optionId: devOption.id
+                  });
+
+                  console.log(`Moved Issue #${issue.number} card to Merged to Dev column.`);
+                }
+              }
+            }
