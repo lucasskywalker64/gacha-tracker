@@ -1,0 +1,65 @@
+name: Feature Request
+description: Suggest an idea or new feature for gacha-tracker
+title: "[Feat]: "
+labels: ["type: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve gacha-tracker! Please describe the feature you would like to see added.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What area does this feature request belong to?
+      options:
+        - New Game Support
+        - Wish History Import / Export
+        - Web UI & Data Visualization
+        - Statistics & Luck Analytics
+        - API & Database
+        - User Experience / Accessibility
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: Is your feature request related to a problem or limitation?
+      placeholder: Describe the problem (e.g. "I'm frustrated when trying to filter my pull history by...")
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: A clear and concise description of what you want to happen.
+      placeholder: Describe your ideal solution or feature behavior...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered.
+      placeholder: Any alternative approaches or workarounds...
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, UI wireframes, or reference links here.
+      placeholder: Additional details, screenshots, or examples...
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked existing feature requests and issues to ensure this is not a duplicate.
+          required: true
