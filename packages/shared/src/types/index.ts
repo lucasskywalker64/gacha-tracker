@@ -116,10 +116,17 @@ export interface ExportPullData {
     wasGuaranteed: number;
 }
 
+export interface ExportAccountData {
+    gameUid: string;
+    nickname?: string | null;
+    isPrimary: boolean;
+    lastImport?: string | null;
+    pulls: ExportPullData[];
+}
+
 export interface ExportGameData {
     gameId: string;
-    gameUid: string;
-    pulls: ExportPullData[];
+    accounts: ExportAccountData[];
 }
 
 export interface NativeExportData {
@@ -145,6 +152,9 @@ export interface UserGame {
     id: string;
     userId: string;
     gameId: string;
+    gameUid: string;
+    nickname?: string | null;
+    isPrimary: boolean;
     lastImport: Date | null;
     latestPullIds: Record<string, string> | null;
     createdAt: Date;
@@ -176,6 +186,7 @@ export interface GameStats {
     currentPity: Record<string, number>;
     fiveStarHistory: {
         id: string;
+        gameUid: string;
         itemId: string;
         itemName: string;
         pityAtPull: number;
