@@ -17,6 +17,9 @@ export const userGame = sqliteTable(
         gameId: text("game_id")
             .notNull()
             .references(() => game.id),
+        gameUid: text("game_uid").notNull(),
+        nickname: text("nickname"),
+        isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
         lastImport: integer("last_import", { mode: "timestamp_ms" }),
         /**
          * JSON object mapping banner type → most recent successfully imported
@@ -29,8 +32,9 @@ export const userGame = sqliteTable(
             .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
     },
     (table) => [
-        uniqueIndex("user_game_user_game_idx").on(table.userId, table.gameId),
+        uniqueIndex("user_game_user_game_uid_idx").on(table.userId, table.gameId, table.gameUid),
         index("idx_user_game_user").on(table.userId),
+        index("idx_user_game_user_game").on(table.userId, table.gameId),
     ]
 );
 
@@ -74,8 +78,9 @@ export const pull = sqliteTable(
     },
     (table) => [
         // Deduplication — the UNIQUE constraint also doubles as an index.
-        uniqueIndex("pull_dedup_idx").on(table.userId, table.gameId, table.pullId),
+        uniqueIndex("pull_dedup_idx").on(table.userId, table.gameId, table.gameUid, table.pullId),
         index("idx_pull_user_game").on(table.userId, table.gameId),
+        index("idx_pull_user_game_uid").on(table.userId, table.gameId, table.gameUid),
         index("idx_pull_game_banner").on(table.gameId, table.bannerType),
         index("idx_pull_pulled_at").on(table.pulledAt),
         index("idx_pull_rarity").on(table.rarity),
