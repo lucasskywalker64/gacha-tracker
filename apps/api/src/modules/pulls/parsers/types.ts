@@ -12,6 +12,7 @@ export interface ParsedPull {
 export interface ParsedGamePulls {
     gameId: string;
     gameUid: string;
+    nickname?: string | null;
     pulls: ParsedPull[];
 }
 
@@ -19,9 +20,10 @@ export interface ParsedImportResult {
     games: ParsedGamePulls[];
 }
 
-/** Optional caller-supplied metadata forwarded to the parser (e.g. a UID the file doesn't contain). */
+/** Optional caller-supplied metadata forwarded to the parser (e.g. a UID the file doesn't contain, or multi-profile mappings). */
 export interface ParseContext {
     gameUid?: string;
+    profileUids?: Record<string, string>;
 }
 
 export interface ImportParser {

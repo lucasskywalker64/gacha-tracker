@@ -1,5 +1,11 @@
 import { srgfDict } from "@gacha-tracker/shared";
-import type { ImportParser, ParsedImportResult, ParsedPull } from "../types";
+import type {
+    ImportParser,
+    ParsedGamePulls,
+    ParsedImportResult,
+    ParsedPull,
+    ParseContext,
+} from "../types";
 import { decompressFromUTF16 } from "./lz-string-safe";
 import { z } from "zod";
 
@@ -11,25 +17,31 @@ const datWarpItemSchema = z.object({
     gachaType: z.number().int(),
 });
 
+const datWarpStoreSchema = z
+    .object({
+        items_1: z.array(datWarpItemSchema).optional(),
+        items_2: z.array(datWarpItemSchema).optional(),
+        items_11: z.array(datWarpItemSchema).optional(),
+        items_12: z.array(datWarpItemSchema).optional(),
+        items_21: z.array(datWarpItemSchema).optional(),
+        items_22: z.array(datWarpItemSchema).optional(),
+    })
+    .catchall(z.unknown());
+
 const starRailStationDatSchema = z.object({
+    profiles: z
+        .record(
+            z.string(),
+            z.object({
+                id: z.string().optional(),
+                name: z.string().optional(),
+                key: z.string().optional(),
+            })
+        )
+        .optional(),
     data: z
         .object({
-            stores: z
-                .object({
-                    "1_warp-v2": z
-                        .object({
-                            items_1: z.array(datWarpItemSchema).optional(),
-                            items_2: z.array(datWarpItemSchema).optional(),
-                            items_11: z.array(datWarpItemSchema).optional(),
-                            items_12: z.array(datWarpItemSchema).optional(),
-                            items_21: z.array(datWarpItemSchema).optional(),
-                            items_22: z.array(datWarpItemSchema).optional(),
-                        })
-                        .catchall(z.unknown())
-                        .optional(),
-                })
-                .catchall(z.unknown())
-                .optional(),
+            stores: z.record(z.string(), z.unknown()).optional(),
         })
         .optional(),
 });
@@ -42,18 +54,18 @@ export class StarRailStationParser implements ImportParser {
     // Safety limit in characters, exposed for configuration and testing
     maxDecompressedLength = 20 * 1024 * 1024;
 
-    async parse(buffer: Buffer): Promise<ParsedImportResult> {
+    async parse(buffer: Buffer, context?: ParseContext): Promise<ParsedImportResult> {
         // Detect format: DAT files always start with 'srs'
         const isDat = buffer.subarray(0, 3).toString("utf-8") === "srs";
 
         if (isDat) {
-            return this.parseDat(buffer);
+            return this.parseDat(buffer, context);
         } else {
-            return this.parseCsv(buffer);
+            return this.parseCsv(buffer, context);
         }
     }
 
-    private parseDat(buffer: Buffer): ParsedImportResult {
+    private parseDat(buffer: Buffer, context?: ParseContext): ParsedImportResult {
         const payloadStr = buffer.subarray(3).toString("utf-8");
         const decompressed = decompressFromUTF16(payloadStr, this.maxDecompressedLength);
         if (!decompressed) {
@@ -74,13 +86,54 @@ export class StarRailStationParser implements ImportParser {
             throw new Error("Invalid Star Rail Station backup structure: " + parsed.error.message);
         }
 
-        const warpStore = parsed.data.data?.stores?.["1_warp-v2"];
-        if (!warpStore) {
+        const stores = parsed.data.data?.stores;
+        if (!stores) {
             throw new Error("Star Rail Station backup does not contain warp history data");
         }
 
-        const pulls: ParsedPull[] = [];
-        const seenPullIds = new Set<string>();
+        // Determine all profiles in the backup
+        const profilesMap = parsed.data.profiles || { "1": { name: "Default", key: "1" } };
+        const profileEntries = Object.entries(profilesMap);
+
+        // Pre-scan stores to identify which profiles have warp data
+        const activeProfiles: Array<{
+            key: string;
+            name: string;
+            warpStore: z.infer<typeof datWarpStoreSchema>;
+        }> = [];
+
+        for (const [key, profileObj] of profileEntries) {
+            const storeKey = `${key}_warp-v2`;
+            const rawStore = stores[storeKey];
+            if (!rawStore) continue;
+
+            const validatedStore = datWarpStoreSchema.safeParse(rawStore);
+            if (!validatedStore.success) continue;
+
+            const warpStore = validatedStore.data;
+            const hasPulls =
+                (warpStore.items_1?.length || 0) +
+                    (warpStore.items_2?.length || 0) +
+                    (warpStore.items_11?.length || 0) +
+                    (warpStore.items_12?.length || 0) +
+                    (warpStore.items_21?.length || 0) +
+                    (warpStore.items_22?.length || 0) >
+                0;
+
+            if (hasPulls) {
+                activeProfiles.push({
+                    key,
+                    name: profileObj.name || (key === "1" ? "Default" : `Profile ${key}`),
+                    warpStore,
+                });
+            }
+        }
+
+        if (activeProfiles.length === 0) {
+            throw new Error("Star Rail Station backup does not contain warp history data");
+        }
+
+        const games: ParsedGamePulls[] = [];
         const itemKeys = [
             "items_1",
             "items_2",
@@ -90,72 +143,113 @@ export class StarRailStationParser implements ImportParser {
             "items_22",
         ] as const;
 
-        for (const key of itemKeys) {
-            const items = warpStore[key];
-            if (!items) continue;
+        for (const profile of activeProfiles) {
+            // Find UID for this profile:
+            // 1. check context.profileUids[profile.key]
+            // 2. check context.profileUids[profile.name]
+            // 3. if only 1 active profile in total, fallback to context.gameUid
+            const assignedUid =
+                context?.profileUids?.[profile.key]?.trim() ||
+                context?.profileUids?.[profile.name]?.trim() ||
+                (activeProfiles.length === 1 ? context?.gameUid?.trim() : undefined);
 
-            for (let idx = 0; idx < items.length; idx++) {
-                const item = items[idx];
-                const pullId = String(item.uid);
-                const itemId = String(item.itemId);
-                const rarity = item.rarity;
-                const timestamp = item.timestamp;
-                const rawGachaType = item.gachaType;
-
-                // Map SRS internal rerun gacha types (21, 22) back to official Hoyoverse types (11, 12)
-                let bannerType = String(rawGachaType);
-                if (bannerType === "21") bannerType = "11";
-                if (bannerType === "22") bannerType = "12";
-
-                const pulledAt = new Date(timestamp);
-                if (isNaN(pulledAt.getTime())) {
-                    throw new Error(`Invalid timestamp detected in backup at ${key} index ${idx}`);
-                }
-
-                if (seenPullIds.has(pullId)) {
-                    throw new Error(
-                        `Duplicate pullId collision detected in backup file: ${pullId}`
-                    );
-                }
-                seenPullIds.add(pullId);
-
-                // Resolve item name and type using the dictionary
-                const dictEntry = srgfDict[itemId];
-                let itemName = `Unknown Item (${itemId})`;
-                let itemType = itemId.length === 4 ? "Character" : "Light Cone";
-
-                if (dictEntry) {
-                    itemName = dictEntry.name;
-                    itemType = dictEntry.type;
-                }
-
-                pulls.push({
-                    pullId,
-                    bannerType,
-                    itemId,
-                    itemName,
-                    itemType,
-                    rarity,
-                    pulledAt,
-                });
+            if (!assignedUid) {
+                throw new Error(
+                    `A Honkai: Star Rail UID is required for profile "${profile.name}". Please provide a UID.`
+                );
             }
+
+            if (!/^\d{9}$/.test(assignedUid)) {
+                throw new Error(
+                    `Invalid Honkai: Star Rail UID "${assignedUid}" for profile "${profile.name}". A standard UID is 9 digits.`
+                );
+            }
+
+            const pulls: ParsedPull[] = [];
+            const seenPullIds = new Set<string>();
+
+            for (const key of itemKeys) {
+                const items = profile.warpStore[key];
+                if (!items) continue;
+
+                for (let idx = 0; idx < items.length; idx++) {
+                    const item = items[idx];
+                    const pullId = String(item.uid);
+                    const itemId = String(item.itemId);
+                    const rarity = item.rarity;
+                    const timestamp = item.timestamp;
+                    const rawGachaType = item.gachaType;
+
+                    // Map SRS internal rerun gacha types (21, 22) back to official Hoyoverse types (11, 12)
+                    let bannerType = String(rawGachaType);
+                    if (bannerType === "21") bannerType = "11";
+                    if (bannerType === "22") bannerType = "12";
+
+                    const pulledAt = new Date(timestamp);
+                    if (isNaN(pulledAt.getTime())) {
+                        throw new Error(
+                            `Invalid timestamp detected in backup for profile "${profile.name}" at ${key} index ${idx}`
+                        );
+                    }
+
+                    if (seenPullIds.has(pullId)) {
+                        throw new Error(
+                            `Duplicate pullId collision detected in backup file: ${pullId}`
+                        );
+                    }
+                    seenPullIds.add(pullId);
+
+                    // Resolve item name and type using the dictionary
+                    const dictEntry = srgfDict[itemId];
+                    let itemName = `Unknown Item (${itemId})`;
+                    let itemType = itemId.length === 4 ? "Character" : "Light Cone";
+
+                    if (dictEntry) {
+                        itemName = dictEntry.name;
+                        itemType = dictEntry.type;
+                    }
+
+                    pulls.push({
+                        pullId,
+                        bannerType,
+                        itemId,
+                        itemName,
+                        itemType,
+                        rarity,
+                        pulledAt,
+                    });
+                }
+            }
+
+            // Sort pulls chronologically (oldest-first)
+            pulls.sort((a, b) => a.pulledAt.getTime() - b.pulledAt.getTime());
+
+            games.push({
+                gameId: "starrail",
+                gameUid: assignedUid,
+                nickname: profile.name !== "Default" ? profile.name : null,
+                pulls,
+            });
         }
 
-        // Sort pulls chronologically (oldest-first)
-        pulls.sort((a, b) => a.pulledAt.getTime() - b.pulledAt.getTime());
-
-        return {
-            games: [
-                {
-                    gameId: "starrail",
-                    gameUid: "StarRailStation",
-                    pulls,
-                },
-            ],
-        };
+        return { games };
     }
 
-    private parseCsv(buffer: Buffer): ParsedImportResult {
+    private parseCsv(buffer: Buffer, context?: ParseContext): ParsedImportResult {
+        const gameUid =
+            context?.gameUid?.trim() ||
+            context?.profileUids?.["1"]?.trim() ||
+            context?.profileUids?.default?.trim();
+        if (!gameUid) {
+            throw new Error(
+                "A Honkai: Star Rail UID is required to import Star Rail Station CSV files. Please provide your UID."
+            );
+        }
+
+        if (!/^\d{9}$/.test(gameUid)) {
+            throw new Error("Invalid Honkai: Star Rail UID. A standard UID is 9 digits.");
+        }
+
         const text = buffer.toString("utf-8");
         const lines = text
             .split(/\r?\n/)
@@ -253,7 +347,7 @@ export class StarRailStationParser implements ImportParser {
             games: [
                 {
                     gameId: "starrail",
-                    gameUid: "StarRailStation",
+                    gameUid,
                     pulls,
                 },
             ],

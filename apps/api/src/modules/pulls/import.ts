@@ -30,6 +30,7 @@ registerWorker(async (entry) => {
         const parser = getParser(entry.format);
         const context: ParseContext = {
             gameUid: entry.gameUid?.trim() || undefined,
+            profileUids: entry.profileUids,
         };
         const parsed = await parser.parse(entry.buffer, context);
 
@@ -55,7 +56,8 @@ registerWorker(async (entry) => {
                     entry.userId,
                     gameData.gameId,
                     gameData.gameUid,
-                    normalizedPulls
+                    normalizedPulls,
+                    gameData.nickname
                 );
 
                 summary.push({
@@ -121,7 +123,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
     .post(
         "/import/token",
         async ({ user, body, status }) => {
-            const { gameId } = body;
+            const { gameId, gameUid } = body;
             const userId = user!.id;
 
             const cooldownKey = RedisKeys.importCooldown(userId);
@@ -137,13 +139,24 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             const token = crypto.randomUUID();
             await redis.set(`import_token:${token}`, userId, "EX", IMPORT_TOKEN_TTL_SECONDS);
 
-            const existingUserGame = await db.query.userGame.findFirst({
-                where: and(eq(userGame.userId, user!.id), eq(userGame.gameId, gameId)),
-            });
+            let latestPullIds: Record<string, string> | null = null;
+            if (gameUid) {
+                const existingUserGame = await db.query.userGame.findFirst({
+                    where: and(
+                        eq(userGame.userId, userId),
+                        eq(userGame.gameId, gameId),
+                        eq(userGame.gameUid, gameUid)
+                    ),
+                });
 
-            const latestPullIds = existingUserGame?.latestPullIds
-                ? JSON.parse(existingUserGame.latestPullIds)
-                : null;
+                if (existingUserGame?.latestPullIds) {
+                    try {
+                        latestPullIds = JSON.parse(existingUserGame.latestPullIds);
+                    } catch {
+                        latestPullIds = null;
+                    }
+                }
+            }
 
             return status(200, {
                 success: true,
@@ -156,6 +169,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             auth: true,
             body: t.Object({
                 gameId: t.String(),
+                gameUid: t.Optional(t.String()),
             }),
             response: {
                 200: t.Object({
@@ -306,26 +320,58 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         async ({ user, set }) => {
             const userId = user!.id;
 
-            const userPulls = await db.query.pull.findMany({
-                where: eq(pull.userId, userId),
-                orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
-            });
+            const [userPulls, userGames] = await Promise.all([
+                db.query.pull.findMany({
+                    where: eq(pull.userId, userId),
+                    orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
+                }),
+                db.query.userGame.findMany({
+                    where: eq(userGame.userId, userId),
+                }),
+            ]);
 
             const gamesMap = new Map<
                 string,
-                { gameId: string; gameUid: string; pulls: ExportPullData[] }
+                Map<
+                    string,
+                    {
+                        gameUid: string;
+                        nickname: string | null;
+                        isPrimary: boolean;
+                        lastImport: string | null;
+                        pulls: ExportPullData[];
+                    }
+                >
             >();
 
+            for (const ug of userGames) {
+                if (!gamesMap.has(ug.gameId)) {
+                    gamesMap.set(ug.gameId, new Map());
+                }
+                gamesMap.get(ug.gameId)!.set(ug.gameUid, {
+                    gameUid: ug.gameUid,
+                    nickname: ug.nickname ?? null,
+                    isPrimary: ug.isPrimary,
+                    lastImport: ug.lastImport ? ug.lastImport.toISOString() : null,
+                    pulls: [],
+                });
+            }
+
             for (const p of userPulls) {
-                const key = `${p.gameId}:${p.gameUid}`;
-                if (!gamesMap.has(key)) {
-                    gamesMap.set(key, {
-                        gameId: p.gameId,
+                if (!gamesMap.has(p.gameId)) {
+                    gamesMap.set(p.gameId, new Map());
+                }
+                const accountsMap = gamesMap.get(p.gameId)!;
+                if (!accountsMap.has(p.gameUid)) {
+                    accountsMap.set(p.gameUid, {
                         gameUid: p.gameUid,
+                        nickname: null,
+                        isPrimary: false,
+                        lastImport: null,
                         pulls: [],
                     });
                 }
-                gamesMap.get(key)!.pulls.push({
+                accountsMap.get(p.gameUid)!.pulls.push({
                     pullId: p.pullId,
                     bannerType: p.bannerType,
                     bannerId: p.bannerId,
@@ -339,10 +385,15 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 });
             }
 
+            const games = Array.from(gamesMap.entries()).map(([gameId, accountsMap]) => ({
+                gameId,
+                accounts: Array.from(accountsMap.values()),
+            }));
+
             const exportData = {
                 version: 1,
                 exportedAt: new Date().toISOString(),
-                games: Array.from(gamesMap.values()),
+                games,
             };
 
             set.headers["content-type"] = "application/json";
@@ -392,6 +443,19 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 let queuedEntry;
 
                 try {
+                    let profileUidsMap: Record<string, string> | undefined;
+                    if (body.profileUids) {
+                        if (typeof body.profileUids === "string") {
+                            try {
+                                profileUidsMap = JSON.parse(body.profileUids);
+                            } catch {
+                                // ignore malformed JSON
+                            }
+                        } else if (typeof body.profileUids === "object") {
+                            profileUidsMap = body.profileUids as Record<string, string>;
+                        }
+                    }
+
                     buffer = Buffer.from(await file.arrayBuffer());
                     requestId = crypto.randomUUID();
                     queuedEntry = enqueue({
@@ -400,6 +464,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                         buffer,
                         format,
                         gameUid: body.gameUid?.trim() || undefined,
+                        profileUids: profileUidsMap,
                     });
                 } catch (err) {
                     // Release the cooldown lock if the request failed to parse or enqueue
@@ -459,6 +524,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 }),
                 format: t.String(),
                 gameUid: t.Optional(t.String()),
+                profileUids: t.Optional(t.Union([t.String(), t.Record(t.String(), t.String())])),
             }),
 
             response: {
@@ -661,13 +727,14 @@ export async function executePullsImport(
     userId: string,
     gameId: string,
     gameUid: string,
-    allPulls: NormalizedPull[]
+    allPulls: NormalizedPull[],
+    nickname?: string | null
 ): Promise<{ imported: number }> {
     if (allPulls.length === 0) {
         return { imported: 0 };
     }
 
-    const lockKey = `import_lock:${userId}:${gameId}`;
+    const lockKey = `import_lock:${userId}:${gameId}:${gameUid}`;
     let lockAcquired = true;
     try {
         const acquired = await redis.set(lockKey, "1", "EX", 60, "NX");
@@ -685,7 +752,7 @@ export async function executePullsImport(
 
         // 1. Read existing pulls outside transaction lock to reduce SQLite write lock contention
         const existingDbPulls = await db.query.pull.findMany({
-            where: and(eq(pull.userId, userId), eq(pull.gameId, gameId)),
+            where: and(eq(pull.userId, userId), eq(pull.gameId, gameId), eq(pull.gameUid, gameUid)),
             orderBy: (pull, { asc }) => [asc(pull.pulledAt)],
         });
 
@@ -704,29 +771,21 @@ export async function executePullsImport(
         }));
 
         const combinedPullsMap = new Map(existingNormalizedPulls.map((p) => [p.pullId, p]));
-        let newCount = 0;
-
         for (const p of allPulls) {
-            if (!combinedPullsMap.has(p.pullId)) {
-                combinedPullsMap.set(p.pullId, p);
-                newCount++;
-            }
-        }
-
-        if (newCount === 0) {
-            return { imported: 0 };
+            combinedPullsMap.set(p.pullId, p);
         }
 
         // 2. CPU Pity Calculation performed completely out of transaction lock
         const pullsByPool = new Map<string, NormalizedPull[]>();
         for (const p of Array.from(combinedPullsMap.values())) {
             const poolKey = adapter.pityPools?.[p.bannerType] || p.bannerType;
-            const arr = pullsByPool.get(poolKey) || [];
-            arr.push(p as NormalizedPull);
-            pullsByPool.set(poolKey, arr);
+            if (!pullsByPool.has(poolKey)) {
+                pullsByPool.set(poolKey, []);
+            }
+            pullsByPool.get(poolKey)!.push(p);
         }
 
-        const pullsToUpsert: {
+        const pullsToUpsert: Array<{
             id: string;
             userId: string;
             gameId: string;
@@ -742,38 +801,34 @@ export async function executePullsImport(
             pityAtPull: number;
             wasGuaranteed: number;
             pityVersion: number;
-        }[] = [];
+        }> = [];
+
         const latestIds: Record<string, string> = {};
 
-        for (const [poolKey, pullsInPool] of Array.from(pullsByPool.entries())) {
-            pullsInPool.sort((a: NormalizedPull, b: NormalizedPull) => {
-                if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
-                    return a.pullId.localeCompare(b.pullId);
+        for (const [poolKey, poolPulls] of pullsByPool) {
+            poolPulls.sort((a, b) => a.pulledAt.getTime() - b.pulledAt.getTime());
+            const computedPulls = adapter.computePity(poolPulls, poolKey);
+
+            for (const p of computedPulls) {
+                if (!existingDbPulls.some((edp) => edp.pullId === p.pullId)) {
+                    pullsToUpsert.push({
+                        id: crypto.randomUUID(),
+                        userId,
+                        gameId,
+                        gameUid,
+                        pullId: p.pullId,
+                        bannerType: p.bannerType,
+                        bannerId: p.bannerId || null,
+                        itemId: p.itemId,
+                        itemName: p.itemName,
+                        itemType: p.itemType,
+                        rarity: p.rarity,
+                        pulledAt: p.pulledAt,
+                        pityAtPull: p.pityAtPull,
+                        wasGuaranteed: p.wasGuaranteed,
+                        pityVersion: 1,
+                    });
                 }
-                return a.pulledAt.getTime() - b.pulledAt.getTime();
-            });
-
-            const processedPulls = adapter.computePity(pullsInPool, poolKey);
-
-            for (const p of processedPulls) {
-                pullsToUpsert.push({
-                    id: crypto.randomUUID(),
-                    userId,
-                    gameId,
-                    gameUid,
-                    pullId: p.pullId,
-                    bannerType: p.bannerType,
-                    bannerId: p.bannerId || null,
-                    itemId: p.itemId,
-                    itemName: p.itemName,
-                    itemType: p.itemType,
-                    rarity: p.rarity,
-                    pulledAt: p.pulledAt,
-                    pityAtPull: p.pityAtPull,
-                    wasGuaranteed: p.wasGuaranteed,
-                    pityVersion: 1,
-                });
-
                 latestIds[p.bannerType] = p.pullId;
             }
         }
@@ -781,15 +836,28 @@ export async function executePullsImport(
         // 3. Strictly write-only database transaction
         await db.transaction(async (tx) => {
             let currentUserGame = await tx.query.userGame.findFirst({
-                where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
+                where: and(
+                    eq(userGame.userId, userId),
+                    eq(userGame.gameId, gameId),
+                    eq(userGame.gameUid, gameUid)
+                ),
             });
 
             if (!currentUserGame) {
+                // Check if this is the first account for this user & game
+                const anyExistingGame = await tx.query.userGame.findFirst({
+                    where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
+                });
+                const isPrimary = !anyExistingGame;
+
                 const userGameId = crypto.randomUUID();
                 await tx.insert(userGame).values({
                     id: userGameId,
                     userId,
                     gameId,
+                    gameUid,
+                    nickname: nickname || null,
+                    isPrimary,
                     latestPullIds: "{}",
                 });
 
@@ -797,10 +865,18 @@ export async function executePullsImport(
                     id: userGameId,
                     userId,
                     gameId,
+                    gameUid,
+                    nickname: nickname || null,
+                    isPrimary,
                     lastImport: null,
                     latestPullIds: "{}",
                     createdAt: new Date(),
                 };
+            } else if (!currentUserGame.nickname && nickname) {
+                await tx
+                    .update(userGame)
+                    .set({ nickname })
+                    .where(eq(userGame.id, currentUserGame.id));
             }
 
             // Dynamically calculate insertion batch chunk size based on SQLite max variable limit
@@ -817,7 +893,7 @@ export async function executePullsImport(
                     .insert(pull)
                     .values(chunk)
                     .onConflictDoUpdate({
-                        target: [pull.userId, pull.gameId, pull.pullId],
+                        target: [pull.userId, pull.gameId, pull.gameUid, pull.pullId],
                         set: {
                             pityAtPull: sql`excluded.pity_at_pull`,
                             wasGuaranteed: sql`excluded.was_guaranteed`,
@@ -836,9 +912,11 @@ export async function executePullsImport(
                 .where(eq(userGame.id, currentUserGame.id));
         });
 
+        await redis.del(`stats:${userId}:${gameId}:${gameUid}`);
+        await redis.del(`stats:${userId}:${gameId}:all`);
         await redis.del(`stats:${userId}:${gameId}`);
 
-        return { imported: newCount };
+        return { imported: pullsToUpsert.length };
     } finally {
         if (lockAcquired) {
             try {
