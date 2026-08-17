@@ -5,11 +5,23 @@
 	import { LayoutDashboard, Star, Gamepad2, ArrowUpRight, Plus } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 
+	import { SvelteMap } from 'svelte/reactivity';
+
 	let { data } = $props();
 
 	let userGames = $derived(data.userGames || []);
 	let statsMap = $derived(data.statsMap || {});
 	let totalStats = $derived(data.totalStats || { pulls: 0, fiveStars: 0 });
+
+	let uniqueGameList = $derived.by(() => {
+		const map = new SvelteMap<string, (typeof userGames)[0]>();
+		for (const ug of userGames) {
+			if (!map.has(ug.gameId) || ug.isPrimary) {
+				map.set(ug.gameId, ug);
+			}
+		}
+		return Array.from(map.values());
+	});
 </script>
 
 <div class="p-6 lg:p-10 space-y-10 max-w-7xl mx-auto">
@@ -48,7 +60,7 @@
 		/>
 		<StatCard
 			title="Games Tracked"
-			value={userGames.length}
+			value={uniqueGameList.length}
 			icon={ArrowUpRight}
 			description="Active gacha games in your profile"
 		/>
@@ -60,9 +72,9 @@
 			<h2 class="text-xl font-bold">Active Games</h2>
 		</div>
 
-		{#if userGames.length > 0}
+		{#if uniqueGameList.length > 0}
 			<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-				{#each userGames as ug (ug.id)}
+				{#each uniqueGameList as ug (ug.gameId)}
 					{@const gameConfig = GAME_CONFIGS[ug.gameId]}
 					{@const stats = statsMap[ug.gameId]}
 

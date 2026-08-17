@@ -10,9 +10,18 @@
 		index: number;
 		rarityDisplay: RarityDisplayConfig[];
 		softPityThreshold?: number;
+		showAccount?: boolean;
+		accountLabel?: string;
 	}
 
-	let { pull, index, rarityDisplay, softPityThreshold = 74 }: Props = $props();
+	let {
+		pull,
+		index,
+		rarityDisplay,
+		softPityThreshold = 74,
+		showAccount = false,
+		accountLabel
+	}: Props = $props();
 
 	let bannerName = $derived(
 		BANNER_NAMES[pull.gameId as keyof typeof BANNER_NAMES]?.[Number(pull.bannerType)] ??
@@ -29,7 +38,16 @@
 	<td class="py-3 px-4">
 		<div class="flex items-center gap-3">
 			<div class="w-1.5 h-6 rounded-full {rarityConfig?.bgColor ?? 'bg-zinc-800'}"></div>
-			<span class="font-medium text-sm">{pull.itemName}</span>
+			<div class="min-w-0">
+				<span class="font-medium text-sm block truncate">{pull.itemName}</span>
+				{#if showAccount && accountLabel}
+					<span
+						class="text-[10px] text-zinc-400 font-mono inline-block px-1.5 py-0.2 rounded bg-zinc-850 border border-zinc-750 mt-0.5 truncate max-w-48"
+					>
+						{accountLabel}
+					</span>
+				{/if}
+			</div>
 		</div>
 	</td>
 	<td class="py-3 px-4 text-xs text-zinc-400">

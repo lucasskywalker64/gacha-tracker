@@ -1,20 +1,27 @@
 import { api } from '$lib/api/client';
 import { error } from '@sveltejs/kit';
-import type { Pull, GameStats, PaginatedResponse } from '@gacha-tracker/shared';
+import type { Pull, GameStats, PaginatedResponse, UserGame } from '@gacha-tracker/shared';
 
-export const load = async ({ params }) => {
+export const load = async ({ params, url }) => {
 	const gameId = params.game;
+	const selectedUid = url.searchParams.get('uid') || undefined;
 
 	try {
-		const [pullsRes, statsRes] = await Promise.all([
+		const [accountsRes, pullsRes, statsRes] = await Promise.all([
+			api.games({ gameId }).accounts.get(),
 			api.pulls.get({
 				query: {
 					gameId,
+					gameUid: selectedUid,
 					page: 1,
 					limit: 50
 				}
 			}),
-			api.stats({ gameId }).get()
+			api.stats({ gameId }).get({
+				query: {
+					gameUid: selectedUid
+				}
+			})
 		]);
 
 		if (pullsRes.error) {
@@ -27,8 +34,14 @@ export const load = async ({ params }) => {
 			// Stats are non-critical, continue with null
 		}
 
+		const accounts = (accountsRes.data?.accounts as UserGame[]) || [];
+		const primaryAccount = accounts.find((a) => a.isPrimary) || accounts[0];
+		const effectiveUid = selectedUid || primaryAccount?.gameUid || 'all';
+
 		return {
 			gameId,
+			accounts,
+			selectedUid: effectiveUid,
 			initialPulls: pullsRes.data as PaginatedResponse<Pull>,
 			stats: statsRes.error ? null : (statsRes.data as GameStats | null)
 		};
