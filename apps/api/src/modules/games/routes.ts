@@ -3,9 +3,11 @@ import { db } from "../../db/client";
 import { game, userGame } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { authPlugin } from "../auth";
+import { accountsRouter } from "./accounts";
 
 export const gamesRouter = new Elysia()
     .use(authPlugin)
+    .use(accountsRouter)
     .get("/games", async () => {
         return await db.select().from(game).where(eq(game.isActive, 1));
     })

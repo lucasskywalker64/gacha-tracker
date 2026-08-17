@@ -12,6 +12,7 @@ const OTP_ACTION_LABEL: Record<
     | "delete-account"
     | "unlink-primary-email"
     | "delete-game"
+    | "delete-profile"
     | "unlink-secondary-email"
     | "unlink-social",
     string
@@ -23,6 +24,7 @@ const OTP_ACTION_LABEL: Record<
     "delete-account": "authorizing account deletion",
     "unlink-primary-email": "unlinking your primary email",
     "delete-game": "purging game data",
+    "delete-profile": "purging profile data",
     "unlink-secondary-email": "unlinking a secondary email",
     "unlink-social": "unlinking a social provider",
 };
@@ -67,6 +69,7 @@ export async function sendOtpEmail({
         | "delete-account"
         | "unlink-primary-email"
         | "delete-game"
+        | "delete-profile"
         | "unlink-secondary-email"
         | "unlink-social";
 }): Promise<void> {
