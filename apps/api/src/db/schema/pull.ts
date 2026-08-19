@@ -33,6 +33,9 @@ export const userGame = sqliteTable(
     },
     (table) => [
         uniqueIndex("user_game_user_game_uid_idx").on(table.userId, table.gameId, table.gameUid),
+        uniqueIndex("idx_user_game_primary")
+            .on(table.userId, table.gameId)
+            .where(sql`${table.isPrimary} = 1`),
         index("idx_user_game_user").on(table.userId),
         index("idx_user_game_user_game").on(table.userId, table.gameId),
     ]

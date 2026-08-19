@@ -4,22 +4,37 @@ import type { Pull, GameStats, PaginatedResponse, UserGame } from '@gacha-tracke
 
 export const load = async ({ params, url }) => {
 	const gameId = params.game;
-	const selectedUid = url.searchParams.get('uid') || undefined;
+	const urlUid = url.searchParams.get('uid') || undefined;
 
 	try {
-		const [accountsRes, pullsRes, statsRes] = await Promise.all([
-			api.games({ gameId }).accounts.get(),
+		const accountsRes = await api.games({ gameId }).accounts.get();
+		if (accountsRes.error) {
+			console.error('Error fetching game accounts:', accountsRes.error);
+		}
+
+		const accounts = (accountsRes.data?.accounts as UserGame[]) || [];
+		const primaryAccount = accounts.find((a) => a.isPrimary) || accounts[0];
+
+		// Validate URL UID: must be 'all' or match an existing account UID
+		let effectiveUid: string;
+		if (urlUid && (urlUid === 'all' || accounts.some((a) => a.gameUid === urlUid))) {
+			effectiveUid = urlUid;
+		} else {
+			effectiveUid = primaryAccount?.gameUid || 'all';
+		}
+
+		const [pullsRes, statsRes] = await Promise.all([
 			api.pulls.get({
 				query: {
 					gameId,
-					gameUid: selectedUid,
+					gameUid: effectiveUid,
 					page: 1,
 					limit: 50
 				}
 			}),
 			api.stats({ gameId }).get({
 				query: {
-					gameUid: selectedUid
+					gameUid: effectiveUid
 				}
 			})
 		]);
@@ -33,14 +48,6 @@ export const load = async ({ params, url }) => {
 			console.error('Error fetching stats:', statsRes.error);
 			// Stats are non-critical, continue with null
 		}
-
-		if (accountsRes.error) {
-			console.error('Error fetching game accounts:', accountsRes.error);
-		}
-
-		const accounts = (accountsRes.data?.accounts as UserGame[]) || [];
-		const primaryAccount = accounts.find((a) => a.isPrimary) || accounts[0];
-		const effectiveUid = selectedUid || primaryAccount?.gameUid || 'all';
 
 		return {
 			gameId,

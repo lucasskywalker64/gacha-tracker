@@ -499,7 +499,7 @@
 
 			<div class="grid grid-cols-2 gap-4 mt-4">
 				<a
-					href="/{data.gameId}"
+					href="/{data.gameId}{selectedUid && selectedUid !== 'new' ? `?uid=${selectedUid}` : ''}"
 					class="flex flex-col items-center justify-center p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-yellow-400/30 hover:bg-zinc-800 transition-all group"
 				>
 					<div

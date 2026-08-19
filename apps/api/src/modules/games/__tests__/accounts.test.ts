@@ -250,10 +250,11 @@ describe("Game Accounts API", () => {
     it("DELETE /games/:gameId/accounts/:gameUid - verifies anonymous code for anonymous users", async () => {
         const hashedCode = await Bun.password.hash("1234567890123456");
         await sqlite.execute(`DELETE FROM user WHERE id = 'test-user-id'`);
-        await sqlite.execute(
-            `INSERT INTO user (id, name, email, email_verified, is_anonymous, code_hash, created_at, updated_at)
-             VALUES ('test-user-id', 'Anon', 'anon_user@anon.gacha-tracker.app', 1, 1, '${hashedCode}', 0, 0)`
-        );
+        await sqlite.execute({
+            sql: `INSERT INTO user (id, name, email, email_verified, is_anonymous, code_hash, created_at, updated_at)
+                  VALUES ('test-user-id', 'Anon', 'anon_user@anon.gacha-tracker.app', 1, 1, ?, 0, 0)`,
+            args: [hashedCode],
+        });
 
         await sqlite.execute(
             `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
@@ -426,14 +427,19 @@ describe("Game Accounts API", () => {
         );
         expect(deleteResp1.status).toBe(200);
 
-        // Replay same request - account is now gone, so existence check returns 404
+        // Re-create the account so the existence check passes and the token check is exercised
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+             VALUES ('acc-1b', 'test-user-id', 'genshin', '100000001', 'Main', 0, NULL, 3000)`
+        );
+
         const replayResp = await app.fetch(
             new Request("http://localhost/games/genshin/accounts/100000001", {
                 method: "DELETE",
                 headers: { Authorization: "Bearer session_token" },
             })
         );
-        expect(replayResp.status).toBe(404);
+        expect(replayResp.status).toBe(401);
     });
 
     it("PATCH /games/:gameId/accounts/:gameUid - setting nickname to null clears the nickname", async () => {

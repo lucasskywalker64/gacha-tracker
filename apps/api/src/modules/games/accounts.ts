@@ -103,9 +103,9 @@ export const accountsRouter = new Elysia()
             });
 
             // Flush Redis cache for stats
-            await redis.del(`stats:${userId}:${gameId}`);
-            await redis.del(`stats:${userId}:${gameId}:all`);
-            await redis.del(`stats:${userId}:${gameId}:${gameUid}`);
+            await redis.del(RedisKeys.stats(userId, gameId));
+            await redis.del(RedisKeys.stats(userId, gameId, "all"));
+            await redis.del(RedisKeys.stats(userId, gameId, gameUid));
 
             return status(200, { success: true });
         },
@@ -161,13 +161,11 @@ export const accountsRouter = new Elysia()
                 });
             }
 
-            const isAnonymous = userRecord.email.endsWith("@anon.gacha-tracker.app");
-
-            if (isAnonymous) {
+            if (userRecord.isAnonymous) {
                 if (!userRecord.codeHash) {
                     return status(400, {
                         success: false,
-                        error: "This verification method is only available for anonymous accounts.",
+                        error: "No account code is set for this anonymous account.",
                     });
                 }
                 if (!body?.code) {
@@ -232,9 +230,9 @@ export const accountsRouter = new Elysia()
             });
 
             // Flush Redis caches
-            await redis.del(`stats:${userId}:${gameId}`);
-            await redis.del(`stats:${userId}:${gameId}:all`);
-            await redis.del(`stats:${userId}:${gameId}:${gameUid}`);
+            await redis.del(RedisKeys.stats(userId, gameId));
+            await redis.del(RedisKeys.stats(userId, gameId, "all"));
+            await redis.del(RedisKeys.stats(userId, gameId, gameUid));
 
             return status(200, { success: true });
         },

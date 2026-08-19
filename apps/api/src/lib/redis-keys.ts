@@ -16,4 +16,6 @@ export const RedisKeys = {
     linkEmailOtp: (userId: string, email: string) =>
         `link_email_otp:${userId}:${email.toLowerCase()}`,
     importCooldown: (userId: string) => `import_cooldown:${userId}`,
+    stats: (userId: string, gameId: string, scope?: string) =>
+        scope ? `stats:${userId}:${gameId}:${scope}` : `stats:${userId}:${gameId}`,
 } as const;

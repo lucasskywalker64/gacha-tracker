@@ -113,9 +113,12 @@
 		return lastFiveStar.itemId !== lastFiveStar.bannerId;
 	}
 
+	let requestToken = 0;
+
 	async function loadMore() {
 		if (loading || !hasMore) return;
 		loading = true;
+		const token = ++requestToken;
 
 		const nextPage = page + 1;
 		const res = await api.pulls.get({
@@ -127,6 +130,8 @@
 				limit: 50
 			}
 		});
+
+		if (token !== requestToken) return;
 
 		if (res.data) {
 			pulls = [...pulls, ...res.data.data];
@@ -143,6 +148,7 @@
 		activeBanner = value;
 		loading = true;
 		page = 1;
+		const token = ++requestToken;
 
 		const res = await api.pulls.get({
 			query: {
@@ -153,6 +159,8 @@
 				limit: 50
 			}
 		});
+
+		if (token !== requestToken) return;
 
 		if (res.data) {
 			pulls = res.data.data;
@@ -172,6 +180,7 @@
 		showAccountDropdown = false;
 		loading = true;
 		page = 1;
+		const token = ++requestToken;
 
 		// Update URL
 		const url = new URL(pageState.url);
@@ -194,6 +203,8 @@
 				}
 			})
 		]);
+
+		if (token !== requestToken) return;
 
 		if (pullsRes.data) {
 			pulls = pullsRes.data.data;
@@ -253,7 +264,7 @@
 					onclick={() => (showAccountDropdown = !showAccountDropdown)}
 					aria-haspopup="menu"
 					aria-expanded={showAccountDropdown}
-					class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-100 hover:text-white transition-all shadow-lg text-sm font-semibold cursor-pointer"
+					class="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all text-xs font-semibold text-zinc-200 cursor-pointer shadow-lg hover:shadow-violet-950/20"
 				>
 					<div class="w-2.5 h-2.5 rounded-full bg-violet-500"></div>
 					<div class="flex items-center gap-2">
@@ -292,6 +303,7 @@
 
 						<button
 							type="button"
+							role="menuitem"
 							onclick={() => handleAccountChange('all')}
 							class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-xs font-semibold hover:bg-zinc-900 transition-colors {selectedUid ===
 							'all'
@@ -310,6 +322,7 @@
 						{#each accounts as acc (acc.id)}
 							<button
 								type="button"
+								role="menuitem"
 								onclick={() => handleAccountChange(acc.gameUid)}
 								class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-xs font-semibold hover:bg-zinc-900 transition-colors {selectedUid ===
 								acc.gameUid
@@ -389,7 +402,7 @@
 										: `UID: ${pull.gameUid}`}
 									<PullRow
 										{pull}
-										index={totalPulls - ((page - 1) * 50 + i)}
+										index={totalPulls - i}
 										rarityDisplay={gameConfig?.rarityDisplay || []}
 										softPityThreshold={gameConfig?.pityConfig.softPity[pull.bannerType]}
 										showAccount={selectedUid === 'all' && accounts.length > 1}

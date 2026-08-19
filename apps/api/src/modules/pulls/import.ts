@@ -511,7 +511,9 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     message = `Invalid backup data structure: ${issueMessages.join("; ")}`;
                 } else if (err instanceof Error) {
                     const msg = err.message;
-                    if (msg.includes("Unsupported import format") || msg.includes("validation")) {
+                    if (msg.startsWith("validation:")) {
+                        message = msg.replace(/^validation:\s*/, "");
+                    } else if (msg.includes("Unsupported import format")) {
                         message = msg;
                     } else if (err instanceof SyntaxError) {
                         message =
@@ -855,7 +857,7 @@ export async function executePullsImport(
 
         // 3. Strictly write-only database transaction
         await db.transaction(async (tx) => {
-            let currentUserGame = await tx.query.userGame.findFirst({
+            const currentUserGame = await tx.query.userGame.findFirst({
                 where: and(
                     eq(userGame.userId, userId),
                     eq(userGame.gameId, gameId),
@@ -863,6 +865,7 @@ export async function executePullsImport(
                 ),
             });
 
+            let userGameId: string;
             if (!currentUserGame) {
                 // Check if this is the first account for this user & game
                 const anyExistingGame = await tx.query.userGame.findFirst({
@@ -870,7 +873,7 @@ export async function executePullsImport(
                 });
                 const isPrimary = !anyExistingGame;
 
-                const userGameId = crypto.randomUUID();
+                userGameId = crypto.randomUUID();
                 await tx.insert(userGame).values({
                     id: userGameId,
                     userId,
@@ -880,23 +883,11 @@ export async function executePullsImport(
                     isPrimary,
                     latestPullIds: "{}",
                 });
-
-                currentUserGame = {
-                    id: userGameId,
-                    userId,
-                    gameId,
-                    gameUid,
-                    nickname: nickname || null,
-                    isPrimary,
-                    lastImport: null,
-                    latestPullIds: "{}",
-                    createdAt: new Date(),
-                };
-            } else if (!currentUserGame.nickname && nickname) {
-                await tx
-                    .update(userGame)
-                    .set({ nickname })
-                    .where(eq(userGame.id, currentUserGame.id));
+            } else {
+                userGameId = currentUserGame.id;
+                if (!currentUserGame.nickname && nickname) {
+                    await tx.update(userGame).set({ nickname }).where(eq(userGame.id, userGameId));
+                }
             }
 
             // Dynamically calculate insertion batch chunk size based on SQLite max variable limit
@@ -929,14 +920,14 @@ export async function executePullsImport(
                     lastImport: new Date(),
                     latestPullIds: JSON.stringify(latestIds),
                 })
-                .where(eq(userGame.id, currentUserGame.id));
+                .where(eq(userGame.id, userGameId));
         });
 
         try {
             await Promise.all([
-                redis.del(`stats:${userId}:${gameId}:${gameUid}`),
-                redis.del(`stats:${userId}:${gameId}:all`),
-                redis.del(`stats:${userId}:${gameId}`),
+                redis.del(RedisKeys.stats(userId, gameId, gameUid)),
+                redis.del(RedisKeys.stats(userId, gameId, "all")),
+                redis.del(RedisKeys.stats(userId, gameId)),
             ]);
         } catch {
             // Stats cache invalidation is best-effort; the import already committed

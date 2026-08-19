@@ -1,10 +1,12 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db/client";
 import { pull, userGame } from "../../db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { authPlugin } from "../auth";
 import { redis } from "../../lib/redis";
+import { RedisKeys } from "../../lib/redis-keys";
 import { getAdapter } from "../games/registry";
+import { resolvePrimaryOrEarliestAccount } from "../games/account-resolver";
 
 export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
     "/:gameId",
@@ -27,35 +29,19 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
             if (!owned) {
                 return status(404, { error: "Game account not found" });
             }
-            cacheKey = `stats:${userId}:${gameId}:${gameUid}`;
+            cacheKey = RedisKeys.stats(userId, gameId, gameUid);
             conditions.push(eq(pull.gameUid, gameUid));
         } else if (gameUid === "all") {
-            cacheKey = `stats:${userId}:${gameId}:all`;
+            cacheKey = RedisKeys.stats(userId, gameId, "all");
         } else {
-            // Default to primary game account if omitted
-            const primaryAccount = await db.query.userGame.findFirst({
-                where: and(
-                    eq(userGame.userId, userId),
-                    eq(userGame.gameId, gameId),
-                    eq(userGame.isPrimary, true)
-                ),
-            });
+            // Default to primary or earliest game account if omitted
+            const defaultAccount = await resolvePrimaryOrEarliestAccount(userId, gameId);
 
-            if (primaryAccount) {
-                cacheKey = `stats:${userId}:${gameId}:${primaryAccount.gameUid}`;
-                conditions.push(eq(pull.gameUid, primaryAccount.gameUid));
+            if (defaultAccount) {
+                cacheKey = RedisKeys.stats(userId, gameId, defaultAccount.gameUid);
+                conditions.push(eq(pull.gameUid, defaultAccount.gameUid));
             } else {
-                const anyAccount = await db.query.userGame.findFirst({
-                    where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
-                    orderBy: [asc(userGame.createdAt)],
-                });
-
-                if (anyAccount) {
-                    cacheKey = `stats:${userId}:${gameId}:${anyAccount.gameUid}`;
-                    conditions.push(eq(pull.gameUid, anyAccount.gameUid));
-                } else {
-                    cacheKey = `stats:${userId}:${gameId}:all`;
-                }
+                cacheKey = RedisKeys.stats(userId, gameId, "all");
             }
         }
 
@@ -111,25 +97,9 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
         // to avoid corrupting pity counters across separate in-game accounts.
         let pityPulls = allPulls;
         if (gameUid === "all") {
-            const primaryAccount = await db.query.userGame.findFirst({
-                where: and(
-                    eq(userGame.userId, userId),
-                    eq(userGame.gameId, gameId),
-                    eq(userGame.isPrimary, true)
-                ),
-            });
-
-            let targetUid = primaryAccount?.gameUid;
-            if (!targetUid) {
-                const anyAccount = await db.query.userGame.findFirst({
-                    where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
-                    orderBy: [asc(userGame.createdAt)],
-                });
-                targetUid = anyAccount?.gameUid;
-            }
-
-            if (targetUid) {
-                pityPulls = allPulls.filter((p) => p.gameUid === targetUid);
+            const targetAccount = await resolvePrimaryOrEarliestAccount(userId, gameId);
+            if (targetAccount) {
+                pityPulls = allPulls.filter((p) => p.gameUid === targetAccount.gameUid);
             }
         }
 
@@ -147,7 +117,9 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
         try {
             adapter = getAdapter(gameId);
         } catch {
-            // Adapter not registered
+            console.warn(
+                `[stats] No adapter registered for gameId=${gameId}; using default pity config`
+            );
         }
 
         const pityTriggerRarity = adapter?.pityConfig?.pityTriggerRarity ?? 5;
@@ -183,10 +155,14 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
         stats.fiveStarHistory.sort((a, b) => b.pulledAt - a.pulledAt);
 
         await redis.set(cacheKey, JSON.stringify(stats), "EX", 60 * 5); // cache for 5 minutes
+
         return stats;
     },
     {
         auth: true,
+        params: t.Object({
+            gameId: t.String(),
+        }),
         query: t.Optional(
             t.Object({
                 gameUid: t.Optional(t.String()),

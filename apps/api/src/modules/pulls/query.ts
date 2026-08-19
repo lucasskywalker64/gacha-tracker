@@ -1,9 +1,10 @@
 import { Elysia } from "elysia";
 import { db } from "../../db/client";
-import { pull, userGame } from "../../db/schema";
-import { eq, and, desc, sql, asc } from "drizzle-orm";
+import { pull } from "../../db/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { authPlugin } from "../auth";
 import { paginationSchema } from "@gacha-tracker/shared";
+import { resolvePrimaryOrEarliestAccount } from "../games/account-resolver";
 
 export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
     "/",
@@ -18,25 +19,10 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
         if (gameUid && gameUid !== "all") {
             conditions.push(eq(pull.gameUid, gameUid));
         } else if (!gameUid) {
-            // Default to user's primary game account if omitted
-            const primaryAccount = await db.query.userGame.findFirst({
-                where: and(
-                    eq(userGame.userId, userId),
-                    eq(userGame.gameId, gameId),
-                    eq(userGame.isPrimary, true)
-                ),
-            });
-
-            if (primaryAccount) {
-                conditions.push(eq(pull.gameUid, primaryAccount.gameUid));
-            } else {
-                const anyAccount = await db.query.userGame.findFirst({
-                    where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
-                    orderBy: [asc(userGame.createdAt)],
-                });
-                if (anyAccount) {
-                    conditions.push(eq(pull.gameUid, anyAccount.gameUid));
-                }
+            // Default to user's primary or earliest game account if omitted
+            const defaultAccount = await resolvePrimaryOrEarliestAccount(userId, gameId);
+            if (defaultAccount) {
+                conditions.push(eq(pull.gameUid, defaultAccount.gameUid));
             }
         }
 

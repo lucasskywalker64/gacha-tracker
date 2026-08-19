@@ -846,6 +846,8 @@
 		if (selectedFormat !== 'starrail-station') {
 			srsProfiles = [];
 			srsProfileUids = {};
+		} else if (importFile) {
+			updateSrsInspection(importFile);
 		}
 	});
 
@@ -1921,6 +1923,7 @@
 																	<input
 																		type="text"
 																		placeholder="Nickname"
+																		aria-label="Nickname for UID {acc.gameUid}"
 																		maxlength="50"
 																		value={editingNicknames[key] ?? acc.nickname ?? ''}
 																		oninput={(e) => {

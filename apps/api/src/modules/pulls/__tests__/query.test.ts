@@ -91,6 +91,31 @@ describe("Pulls Query API (Multi-Account)", () => {
         expect(body.data[0].itemName).toBe("Main Item");
     });
 
+    it("defaults to earliest-created game account pulls when gameUid is omitted and no account is marked primary", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_EARLY', 'Early', 0, NULL, 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_LATER', 'Later', 0, NULL, 2000)`
+        );
+
+        await sqlite.execute(
+            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_EARLY', '101', '301', 'ITEM1', 'Early Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('p-2', 'test-user-id', 'genshin', 'UID_LATER', '201', '301', 'ITEM2', 'Later Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+        );
+
+        const resp = await app.fetch(
+            new Request("http://localhost/pulls?gameId=genshin", {
+                headers: { Authorization: "Bearer session_token" },
+            })
+        );
+        expect(resp.status).toBe(200);
+        const body = await resp.json();
+        expect(body.data.length).toBe(1);
+        expect(body.data[0].gameUid).toBe("UID_EARLY");
+        expect(body.data[0].itemName).toBe("Early Item");
+    });
+
     it("filters pulls by specified gameUid", async () => {
         await sqlite.execute(
             `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)

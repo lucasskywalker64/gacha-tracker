@@ -1093,7 +1093,7 @@ describe("Pull File Import/Export E2E", () => {
         });
 
         it("should isolate pity calculation completely between multiple accounts during import", async () => {
-            // Import 5 pulls for Account A and 2 pulls for Account B
+            // Import 3 pulls for Account A and 1 pull for Account B
             const backupPayload = {
                 version: 1,
                 exportedAt: new Date().toISOString(),
@@ -1295,7 +1295,8 @@ describe("Pull File Import/Export E2E", () => {
             await pollStatusUntilFinished(postBody2.requestId);
 
             const userGames = await testDb.query.userGame.findMany({
-                where: (ug, { eq }) => eq(ug.gameId, "wuwa"),
+                where: (ug, { and, eq }) =>
+                    and(eq(ug.gameId, "wuwa"), eq(ug.userId, "test-user-id")),
             });
             const first = userGames.find((ug) => ug.gameUid === "WUWA_FIRST");
             const second = userGames.find((ug) => ug.gameUid === "WUWA_SECOND");
@@ -1311,7 +1312,9 @@ describe("Pull File Import/Export E2E", () => {
 
             // Set custom nickname for UID_ABC
             await sqlite.execute(
-                `UPDATE user_game SET nickname = 'My Special Main' WHERE user_id = 'test-user-id' AND game_uid = 'UID_ABC'`
+                `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+                 VALUES ('acc-abc', 'test-user-id', 'starrail', 'UID_ABC', 'My Special Main', 1, NULL, 1000)
+                 ON CONFLICT(user_id, game_id, game_uid) DO UPDATE SET nickname = 'My Special Main'`
             );
 
             const reimport = {

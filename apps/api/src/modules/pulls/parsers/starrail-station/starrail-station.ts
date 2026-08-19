@@ -1,4 +1,4 @@
-import { srgfDict } from "@gacha-tracker/shared";
+import { srgfDict, decompressFromUTF16 } from "@gacha-tracker/shared";
 import type {
     ImportParser,
     ParsedGamePulls,
@@ -6,7 +6,6 @@ import type {
     ParsedPull,
     ParseContext,
 } from "../types";
-import { decompressFromUTF16 } from "./lz-string-safe";
 import { z } from "zod";
 
 const datWarpItemSchema = z.object({
@@ -17,15 +16,23 @@ const datWarpItemSchema = z.object({
     gachaType: z.number().int(),
 });
 
+const WARP_ITEM_KEYS = [
+    "items_1",
+    "items_2",
+    "items_11",
+    "items_12",
+    "items_21",
+    "items_22",
+] as const;
+
+type WarpItemKey = (typeof WARP_ITEM_KEYS)[number];
+
 const datWarpStoreSchema = z
-    .object({
-        items_1: z.array(datWarpItemSchema).optional(),
-        items_2: z.array(datWarpItemSchema).optional(),
-        items_11: z.array(datWarpItemSchema).optional(),
-        items_12: z.array(datWarpItemSchema).optional(),
-        items_21: z.array(datWarpItemSchema).optional(),
-        items_22: z.array(datWarpItemSchema).optional(),
-    })
+    .object(
+        Object.fromEntries(
+            WARP_ITEM_KEYS.map((k) => [k, z.array(datWarpItemSchema).optional()])
+        ) as Record<WarpItemKey, z.ZodOptional<z.ZodArray<typeof datWarpItemSchema>>>
+    )
     .catchall(z.unknown());
 
 const starRailStationDatSchema = z.object({
@@ -121,14 +128,7 @@ export class StarRailStationParser implements ImportParser {
             }
 
             const warpStore = validatedStore.data;
-            const hasPulls =
-                (warpStore.items_1?.length || 0) +
-                    (warpStore.items_2?.length || 0) +
-                    (warpStore.items_11?.length || 0) +
-                    (warpStore.items_12?.length || 0) +
-                    (warpStore.items_21?.length || 0) +
-                    (warpStore.items_22?.length || 0) >
-                0;
+            const hasPulls = WARP_ITEM_KEYS.some((k) => (warpStore[k]?.length || 0) > 0);
 
             if (hasPulls) {
                 activeProfiles.push({
@@ -144,14 +144,6 @@ export class StarRailStationParser implements ImportParser {
         }
 
         const games: ParsedGamePulls[] = [];
-        const itemKeys = [
-            "items_1",
-            "items_2",
-            "items_11",
-            "items_12",
-            "items_21",
-            "items_22",
-        ] as const;
 
         for (const profile of activeProfiles) {
             // Find UID for this profile:
@@ -184,7 +176,7 @@ export class StarRailStationParser implements ImportParser {
             const pulls: ParsedPull[] = [];
             const seenPullIds = new Set<string>();
 
-            for (const key of itemKeys) {
+            for (const key of WARP_ITEM_KEYS) {
                 const items = profile.warpStore[key];
                 if (!items) continue;
 

@@ -13,9 +13,13 @@ export const load = async () => {
 		};
 	}
 
-	// Fetch stats for each unique game in parallel
+	// Fetch aggregate stats for each unique game in parallel
 	const uniqueGameIds = Array.from(new Set(userGames.map((ug) => ug.gameId)));
-	const statsPromises = uniqueGameIds.map((gameId) => api.stats({ gameId }).get());
+	const statsPromises = uniqueGameIds.map((gameId) =>
+		api.stats({ gameId }).get({
+			query: { gameUid: 'all' }
+		})
+	);
 	const statsResults = await Promise.allSettled(statsPromises);
 
 	const statsMap: Record<string, GameStats> = {};

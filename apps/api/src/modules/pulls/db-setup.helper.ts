@@ -11,12 +11,15 @@ export async function createTestTables(sqlite: Client) {
         `CREATE TABLE IF NOT EXISTS user_game (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, game_uid TEXT NOT NULL, nickname TEXT, is_primary INTEGER NOT NULL DEFAULT 0, last_import INTEGER, latest_pull_ids TEXT, created_at INTEGER)`
     );
     await sqlite.execute(
-        `CREATE TABLE IF NOT EXISTS pull (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, game_uid TEXT, pull_id TEXT, banner_type TEXT, banner_id TEXT, item_id TEXT, item_name TEXT, item_type TEXT, rarity INTEGER, pulled_at INTEGER, pity_at_pull INTEGER, was_guaranteed INTEGER, pity_version INTEGER, created_at INTEGER)`
+        `CREATE TABLE IF NOT EXISTS pull (id TEXT PRIMARY KEY, user_id TEXT, game_id TEXT, game_uid TEXT NOT NULL, pull_id TEXT, banner_type TEXT, banner_id TEXT, item_id TEXT, item_name TEXT, item_type TEXT, rarity INTEGER, pulled_at INTEGER, pity_at_pull INTEGER, was_guaranteed INTEGER, pity_version INTEGER, created_at INTEGER)`
     );
 
     // Add required indexes for ON CONFLICT
     await sqlite.execute(
         `CREATE UNIQUE INDEX IF NOT EXISTS user_game_user_game_uid_idx ON user_game (user_id, game_id, game_uid)`
+    );
+    await sqlite.execute(
+        `CREATE UNIQUE INDEX IF NOT EXISTS user_game_user_game_primary_idx ON user_game (user_id, game_id) WHERE is_primary = 1`
     );
     await sqlite.execute(
         `CREATE UNIQUE INDEX IF NOT EXISTS pull_dedup_idx ON pull (user_id, game_id, game_uid, pull_id)`

@@ -479,5 +479,42 @@ describe("StarRailStationParser", () => {
                 })
             ).rejects.toThrow('UID "700111222" is assigned to more than one profile');
         });
+
+        it("should parse warp stores when backup has no profiles object and synthesize profile names", async () => {
+            const mockBackup = {
+                data: {
+                    stores: {
+                        "1_warp-v2": {
+                            items_1: [
+                                {
+                                    uid: "1001",
+                                    itemId: 1009,
+                                    rarity: 4,
+                                    timestamp: 1682532852000,
+                                    gachaType: 1,
+                                },
+                            ],
+                        },
+                    },
+                },
+            };
+
+            const compressed = LZString.compressToUTF16(JSON.stringify(mockBackup));
+            const datBuffer = Buffer.concat([
+                Buffer.from("srs", "utf-8"),
+                Buffer.from(compressed, "utf-8"),
+            ]);
+
+            const result = await parser.parse(datBuffer, {
+                profileUids: {
+                    "1": "700111222",
+                },
+            });
+
+            expect(result.games).toHaveLength(1);
+            expect(result.games[0].gameUid).toBe("700111222");
+            expect(result.games[0].pulls).toHaveLength(1);
+            expect(result.games[0].nickname).toBeNull();
+        });
     });
 });
