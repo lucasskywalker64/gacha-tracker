@@ -82,21 +82,25 @@ const mockCheckRateLimit = mock(
         if (options.action === "link_email_resend") {
             return mockResendLimitResult;
         }
+        const { redis } = await import("../../../lib/redis");
         const key = `rate_limit:${options.action}:${options.ip}`;
-        const currentVal = parseInt(redisStore.get(key) || "0", 10) || 0;
-        const newCount = currentVal + 1;
-        redisStore.set(key, String(newCount));
+        const newCount = await redis.incr(key);
+        if (newCount === 1) {
+            await redis.expire(key, options.windowSeconds);
+        }
         if (newCount > options.limit) {
+            const ttl = await redis.ttl(key);
             return {
                 limited: true,
                 remaining: 0,
-                retryAfter: options.windowSeconds,
+                retryAfter: ttl > 0 ? ttl : options.windowSeconds,
             };
         }
+        const ttl = await redis.ttl(key);
         return {
             limited: false,
             remaining: Math.max(0, options.limit - newCount),
-            retryAfter: options.windowSeconds,
+            retryAfter: ttl > 0 ? ttl : options.windowSeconds,
         };
     }
 );
@@ -202,9 +206,11 @@ mock.module("../../../db/client", () => ({
 }));
 
 let originalAuth: any;
+let originalRateLimit: any;
 
 beforeAll(async () => {
     originalAuth = await import("../../auth/auth");
+    originalRateLimit = await import("../../../lib/rateLimit");
 
     mock.module("../../auth/auth", () => ({
         ...originalAuth,
@@ -242,6 +248,9 @@ beforeAll(async () => {
 afterAll(() => {
     if (originalAuth) {
         mock.module("../../auth/auth", () => originalAuth);
+    }
+    if (originalRateLimit) {
+        mock.module("../../../lib/rateLimit", () => originalRateLimit);
     }
 });
 

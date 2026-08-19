@@ -134,10 +134,10 @@ async function buildApp() {
     return new Elysia().use(anonymousAuthPlugin);
 }
 
-function makeRequest(path: string, body?: unknown) {
+function makeRequest(path: string, body?: unknown, headers?: Record<string, string>) {
     return new Request(`http://localhost${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...headers },
         body: body ? JSON.stringify(body) : undefined,
     });
 }
@@ -264,15 +264,20 @@ describe("anonymousAuthPlugin — Rate Limiting", () => {
 
     it("enforces rate limits on /anonymous/generate", async () => {
         const app = await buildApp();
+        const testHeaders = { "x-forwarded-for": "10.0.0.1" };
 
         // Send 5 successful requests
         for (let i = 0; i < 5; i++) {
-            const res = await app.handle(makeRequest("/anonymous/generate"));
+            const res = await app.handle(
+                makeRequest("/anonymous/generate", undefined, testHeaders)
+            );
             expect(res.status).toBe(200);
         }
 
         // The 6th request must trigger a 429 Too Many Requests
-        const blockedRes = await app.handle(makeRequest("/anonymous/generate"));
+        const blockedRes = await app.handle(
+            makeRequest("/anonymous/generate", undefined, testHeaders)
+        );
         expect(blockedRes.status).toBe(429);
         const body = await blockedRes.json();
         expect(body.success).toBe(false);
