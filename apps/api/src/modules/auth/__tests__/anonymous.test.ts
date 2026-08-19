@@ -34,6 +34,21 @@ const dbUsers: Array<{
 
 const flagsMock = { anonymousAccounts: true };
 
+mock.module("../../../lib/email", () => ({
+    sendOtpEmail: mock(async () => {}),
+    sendConflictOtpEmail: mock(async () => {}),
+}));
+
+mock.module("../../../config", () => ({
+    config: {
+        BETTER_AUTH_URL: "http://localhost:3000",
+        BETTER_AUTH_SECRET: "test_secret_key_minimum_length_32_characters",
+        RESEND_API_KEY: "re_dummy",
+    },
+    ANON_PENDING_TTL_SECONDS: 300,
+    IMPORT_TOKEN_TTL_SECONDS: 900,
+}));
+
 let originalAuth: typeof import("../auth");
 
 beforeAll(async () => {
@@ -62,15 +77,6 @@ beforeAll(async () => {
 
     mock.module("../../../config/flags", () => ({
         getFlags: mock(async () => flagsMock),
-    }));
-
-    mock.module("../../../config", () => ({
-        config: {
-            BETTER_AUTH_URL: "http://localhost:3000",
-            BETTER_AUTH_SECRET: "test",
-        },
-        ANON_PENDING_TTL_SECONDS: 300,
-        IMPORT_TOKEN_TTL_SECONDS: 900,
     }));
 
     originalAuth = await import("../auth");
@@ -233,9 +239,21 @@ describe("anonymousAuthPlugin — /confirm", () => {
 describe("anonymousAuthPlugin — Rate Limiting", () => {
     beforeEach(() => {
         redisStore.clear();
+        flagsMock.anonymousAccounts = true;
         redisMock.get.mockReset();
+        redisMock.set.mockReset();
         redisMock.incr.mockReset();
+        redisMock.exists.mockReset();
+        redisMock.ttl.mockReset();
         redisMock.get.mockImplementation(async (key: string) => redisStore.get(key) ?? null);
+        redisMock.set.mockImplementation(async (key: string) => {
+            redisStore.set(key, "1");
+            return "OK";
+        });
+        redisMock.exists.mockImplementation(
+            async (key: string) => (redisStore.has(key) ? 1 : 0) as 0 | 1
+        );
+        redisMock.ttl.mockImplementation(async () => 60);
         redisMock.incr.mockImplementation(async (key: string) => {
             const current = redisStore.get(key);
             const count = current ? parseInt(current, 10) + 1 : 1;
