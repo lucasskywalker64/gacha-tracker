@@ -39,9 +39,13 @@
 	let hasMore = $state(data.initialPulls.meta.hasNextPage);
 	let showAccountDropdown = $state(false);
 
+	let requestToken = 0;
+
 	// Watch for game / account change to reset state
 	$effect(() => {
 		if (data.gameId) {
+			requestToken += 1;
+			loading = false;
 			pulls = data.initialPulls.data;
 			totalPulls = data.initialPulls.meta.total || data.initialPulls.data.length;
 			stats = data.stats;
@@ -112,8 +116,6 @@
 		if (!lastFiveStar) return false;
 		return lastFiveStar.itemId !== lastFiveStar.bannerId;
 	}
-
-	let requestToken = 0;
 
 	async function loadMore() {
 		if (loading || !hasMore) return;

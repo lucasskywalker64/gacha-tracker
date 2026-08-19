@@ -817,7 +817,10 @@
 		| null
 	>(null);
 
+	let srsInspectionVersion = 0;
+
 	async function updateSrsInspection(file: File | null) {
+		const version = ++srsInspectionVersion;
 		if (!file || selectedFormat !== 'starrail-station') {
 			srsProfiles = [];
 			srsProfileUids = {};
@@ -827,6 +830,13 @@
 		inspectingSrs = true;
 		try {
 			const res = await inspectStarRailStationFile(file);
+			if (
+				version !== srsInspectionVersion ||
+				file !== importFile ||
+				selectedFormat !== 'starrail-station'
+			) {
+				return;
+			}
 			srsProfiles = res.profiles;
 			if (res.profiles.length > 0) {
 				const initialUids: Record<string, string> = {};
@@ -838,7 +848,9 @@
 				srsProfileUids = {};
 			}
 		} finally {
-			inspectingSrs = false;
+			if (version === srsInspectionVersion) {
+				inspectingSrs = false;
+			}
 		}
 	}
 

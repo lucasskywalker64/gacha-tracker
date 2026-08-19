@@ -3,6 +3,12 @@ const f = String.fromCharCode;
 /**
  * Decompresses a UTF-16 compressed string (produced by lz-string's compressToUTF16)
  * with a safety limit on the decompressed output size to prevent memory exhaustion (decompression bombs).
+ *
+ * Return and failure contract:
+ * - `null` or `undefined` input returns `""`.
+ * - `""` input returns `null`.
+ * - Corrupt or truncated input returns `null`.
+ * - Output exceeding `maxDecompressedLength` throws an `Error`.
  */
 export function decompressFromUTF16(
     compressed: string | null | undefined,

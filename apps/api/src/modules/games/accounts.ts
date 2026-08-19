@@ -213,8 +213,16 @@ export const accountsRouter = new Elysia()
                 // Delete the user_game account record
                 await tx.delete(userGame).where(eq(userGame.id, existingAccount.id));
 
-                // If this was the primary account, promote another account if one exists
-                if (existingAccount.isPrimary) {
+                // If no primary account remains for this game, promote the earliest remaining account
+                const remainingPrimary = await tx.query.userGame.findFirst({
+                    where: and(
+                        eq(userGame.userId, userId),
+                        eq(userGame.gameId, gameId),
+                        eq(userGame.isPrimary, true)
+                    ),
+                });
+
+                if (!remainingPrimary) {
                     const nextAccount = await tx.query.userGame.findFirst({
                         where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
                         orderBy: asc(userGame.createdAt),
