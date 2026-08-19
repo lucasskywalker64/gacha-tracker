@@ -91,9 +91,14 @@ export class StarRailStationParser implements ImportParser {
             throw new Error("Star Rail Station backup does not contain warp history data");
         }
 
-        // Determine all profiles in the backup
-        const profilesMap = parsed.data.profiles || { "1": { name: "Default", key: "1" } };
-        const profileEntries = Object.entries(profilesMap);
+        // Determine all profiles in the backup, including store keys with no profile entry
+        const profilesMap = parsed.data.profiles || {};
+        const storeKeys = Object.keys(stores)
+            .filter((k) => k.endsWith("_warp-v2"))
+            .map((k) => k.slice(0, -"_warp-v2".length));
+        const profileEntries = Array.from(new Set([...Object.keys(profilesMap), ...storeKeys])).map(
+            (key) => [key, profilesMap[key] ?? {}] as const
+        );
 
         // Pre-scan stores to identify which profiles have warp data
         const activeProfiles: Array<{
@@ -108,7 +113,12 @@ export class StarRailStationParser implements ImportParser {
             if (!rawStore) continue;
 
             const validatedStore = datWarpStoreSchema.safeParse(rawStore);
-            if (!validatedStore.success) continue;
+            if (!validatedStore.success) {
+                throw new Error(
+                    `Invalid warp history structure for profile "${profileObj.name || key}": ` +
+                        validatedStore.error.message
+                );
+            }
 
             const warpStore = validatedStore.data;
             const hasPulls =
@@ -162,6 +172,12 @@ export class StarRailStationParser implements ImportParser {
             if (!/^\d{9}$/.test(assignedUid)) {
                 throw new Error(
                     `Invalid Honkai: Star Rail UID "${assignedUid}" for profile "${profile.name}". A standard UID is 9 digits.`
+                );
+            }
+
+            if (games.some((g) => g.gameUid === assignedUid)) {
+                throw new Error(
+                    `UID "${assignedUid}" is assigned to more than one profile. Assign a distinct UID to each profile.`
                 );
             }
 

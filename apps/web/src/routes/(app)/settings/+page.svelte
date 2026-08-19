@@ -98,6 +98,10 @@
 			const res = await api.games({ gameId }).accounts({ gameUid }).patch({
 				isPrimary: true
 			});
+			if (res.error) {
+				alert('Failed to set primary profile: ' + extractApiError(res.error, 'Error'));
+				return;
+			}
 			if (res.data?.success) {
 				const { data: updatedGames } = await api.user.games.get();
 				if (updatedGames) {
@@ -120,6 +124,10 @@
 				.patch({
 					nickname: nickname.trim() || null
 				});
+			if (res.error) {
+				alert('Failed to save nickname: ' + extractApiError(res.error, 'Error'));
+				return;
+			}
 			if (res.data?.success) {
 				editingState[key] = false;
 				const { data: updatedGames } = await api.user.games.get();
@@ -821,13 +829,13 @@
 			const res = await inspectStarRailStationFile(file);
 			srsProfiles = res.profiles;
 			if (res.profiles.length > 0) {
-				const initialUids: Record<string, string> = { ...srsProfileUids };
+				const initialUids: Record<string, string> = {};
 				for (const p of res.profiles) {
-					if (!initialUids[p.key]) {
-						initialUids[p.key] = srsSingleUid;
-					}
+					initialUids[p.key] = srsProfileUids[p.key] || srsSingleUid;
 				}
 				srsProfileUids = initialUids;
+			} else {
+				srsProfileUids = {};
 			}
 		} finally {
 			inspectingSrs = false;
@@ -835,9 +843,7 @@
 	}
 
 	$effect(() => {
-		if (importFile && selectedFormat === 'starrail-station') {
-			updateSrsInspection(importFile);
-		} else if (selectedFormat !== 'starrail-station') {
+		if (selectedFormat !== 'starrail-station') {
 			srsProfiles = [];
 			srsProfileUids = {};
 		}

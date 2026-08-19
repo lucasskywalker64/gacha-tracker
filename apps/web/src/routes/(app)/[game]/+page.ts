@@ -34,6 +34,10 @@ export const load = async ({ params, url }) => {
 			// Stats are non-critical, continue with null
 		}
 
+		if (accountsRes.error) {
+			console.error('Error fetching game accounts:', accountsRes.error);
+		}
+
 		const accounts = (accountsRes.data?.accounts as UserGame[]) || [];
 		const primaryAccount = accounts.find((a) => a.isPrimary) || accounts[0];
 		const effectiveUid = selectedUid || primaryAccount?.gameUid || 'all';

@@ -202,7 +202,7 @@ describe("Stats Query API (Multi-Account)", () => {
                     ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 2000)`
         );
 
-        // Alt has 10 pulls, Main has 3 pulls
+        // Alt has 1 pull, Main has 3 pulls
         await sqlite.execute(
             `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
              VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'weapon', 3, 1704067200000, 1, 0, 1, 0),
@@ -219,7 +219,7 @@ describe("Stats Query API (Multi-Account)", () => {
         expect(resp.status).toBe(200);
         const body = await resp.json();
         expect(body.total).toBe(4);
-        // Current pity reflects the primary account (3 pulls), not interleaved with Alt (4 pulls)
+        // Current pity reflects the primary account only (3 pulls), not the Alt pull
         expect(body.currentPity["301"]).toBe(3);
     });
 
@@ -238,7 +238,7 @@ describe("Stats Query API (Multi-Account)", () => {
         expect(body.fiveStarHistory).toEqual([]);
     });
 
-    it("returns clean zero-value stats structure when querying a non-existent gameUid", async () => {
+    it("returns 404 when querying a non-existent gameUid", async () => {
         await sqlite.execute(
             `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
              VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1000)`
@@ -249,16 +249,17 @@ describe("Stats Query API (Multi-Account)", () => {
                 headers: { Authorization: "Bearer session_token" },
             })
         );
-        expect(resp.status).toBe(200);
+        expect(resp.status).toBe(404);
         const body = await resp.json();
-        expect(body.total).toBe(0);
-        expect(body.fiveStars).toBe(0);
-        expect(body.fourStars).toBe(0);
-        expect(body.currentPity).toEqual({});
-        expect(body.fiveStarHistory).toEqual([]);
+        expect(body.error).toBe("Game account not found");
     });
 
     it("serves cached stats on subsequent request without re-querying the database", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+             VALUES ('acc-cached', 'test-user-id', 'genshin', 'CACHED_UID', 'Cached', 1, NULL, 1000)`
+        );
+
         const cacheKey = "stats:test-user-id:genshin:CACHED_UID";
         redisStore.set(
             cacheKey,

@@ -42,7 +42,7 @@
 				<span class="font-medium text-sm block truncate">{pull.itemName}</span>
 				{#if showAccount && accountLabel}
 					<span
-						class="text-[10px] text-zinc-400 font-mono inline-block px-1.5 py-0.2 rounded bg-zinc-850 border border-zinc-750 mt-0.5 truncate max-w-48"
+						class="text-[10px] text-zinc-400 font-mono inline-block px-1.5 py-px rounded bg-zinc-800 border border-zinc-700 mt-0.5 truncate max-w-48"
 					>
 						{accountLabel}
 					</span>

@@ -251,13 +251,17 @@ export async function inspectStarRailStationFile(file: File): Promise<SrsInspect
 
 		const parsed = JSON.parse(decompressed);
 		const stores = parsed?.data?.stores || {};
-		const profilesMap = parsed?.profiles || { '1': { name: 'Default', key: '1' } };
+		const profilesMap: Record<string, { name?: string; key?: string }> = parsed?.profiles || {};
+		const storeKeys = Object.keys(stores)
+			.filter((k) => k.endsWith('_warp-v2'))
+			.map((k) => k.slice(0, -'_warp-v2'.length));
+		const profileEntries = Array.from(new Set([...Object.keys(profilesMap), ...storeKeys])).map(
+			(key) => [key, profilesMap[key] ?? {}] as const
+		);
 
 		const activeProfiles: SrsProfileInfo[] = [];
 
-		for (const [key, profileObj] of Object.entries(
-			profilesMap as Record<string, { name?: string; key?: string }>
-		)) {
+		for (const [key, profileObj] of profileEntries) {
 			const storeKey = `${key}_warp-v2`;
 			const store = stores[storeKey];
 			if (!store || typeof store !== 'object') continue;

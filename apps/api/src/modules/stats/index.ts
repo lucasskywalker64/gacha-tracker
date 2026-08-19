@@ -8,7 +8,7 @@ import { getAdapter } from "../games/registry";
 
 export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
     "/:gameId",
-    async ({ params, query, user }) => {
+    async ({ params, query, user, status }) => {
         const { gameId } = params;
         const gameUid = query?.gameUid;
         const userId = user!.id;
@@ -17,6 +17,16 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
         const conditions = [eq(pull.userId, userId), eq(pull.gameId, gameId)];
 
         if (gameUid && gameUid !== "all") {
+            const owned = await db.query.userGame.findFirst({
+                where: and(
+                    eq(userGame.userId, userId),
+                    eq(userGame.gameId, gameId),
+                    eq(userGame.gameUid, gameUid)
+                ),
+            });
+            if (!owned) {
+                return status(404, { error: "Game account not found" });
+            }
             cacheKey = `stats:${userId}:${gameId}:${gameUid}`;
             conditions.push(eq(pull.gameUid, gameUid));
         } else if (gameUid === "all") {
@@ -123,12 +133,14 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
             }
         }
 
+        const comparePullId = (a: string, b: string) =>
+            a.length === b.length ? (a < b ? -1 : a > b ? 1 : 0) : a.length - b.length;
+
         // Sort pulls chronologically
         const sortedPityPulls = [...pityPulls].sort((a, b) => {
-            if (a.pulledAt.getTime() === b.pulledAt.getTime()) {
-                return a.pullId.localeCompare(b.pullId);
-            }
-            return a.pulledAt.getTime() - b.pulledAt.getTime();
+            const delta = a.pulledAt.getTime() - b.pulledAt.getTime();
+            if (delta !== 0) return delta;
+            return comparePullId(a.pullId, b.pullId);
         });
 
         let adapter;

@@ -1,20 +1,13 @@
 <script lang="ts">
+	import { replaceState } from '$app/navigation';
+	import { page as pageState } from '$app/state';
 	import { api } from '$lib/api/client';
 	import { GAME_CONFIGS, BANNER_NAMES, type GameStats, type UserGame } from '@gacha-tracker/shared';
 	import PullRow from '$lib/components/pulls/PullRow.svelte';
 	import PityBar from '$lib/components/pulls/PityBar.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card } from '$lib/components/ui/card';
-	import {
-		LoaderCircle,
-		Funnel,
-		History,
-		Star,
-		User,
-		Users,
-		ChevronDown,
-		Check
-	} from 'lucide-svelte';
+	import { LoaderCircle, Funnel, Star, User, Users, ChevronDown, Check } from 'lucide-svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 
 	let { data } = $props();
@@ -165,6 +158,10 @@
 			pulls = res.data.data;
 			totalPulls = res.data.meta.total;
 			hasMore = res.data.meta.hasNextPage;
+		} else {
+			pulls = [];
+			totalPulls = 0;
+			hasMore = false;
 		}
 
 		loading = false;
@@ -177,13 +174,9 @@
 		page = 1;
 
 		// Update URL
-		const url = new URL(window.location.href);
-		if (uid === 'all') {
-			url.searchParams.set('uid', 'all');
-		} else {
-			url.searchParams.set('uid', uid);
-		}
-		window.history.replaceState({}, '', url.toString());
+		const url = new URL(pageState.url);
+		url.searchParams.set('uid', uid);
+		replaceState(url, {});
 
 		const [pullsRes, statsRes] = await Promise.all([
 			api.pulls.get({
@@ -206,6 +199,10 @@
 			pulls = pullsRes.data.data;
 			totalPulls = pullsRes.data.meta.total;
 			hasMore = pullsRes.data.meta.hasNextPage;
+		} else {
+			pulls = [];
+			totalPulls = 0;
+			hasMore = false;
 		}
 		if (statsRes.data) {
 			stats = statsRes.data as GameStats;
@@ -228,15 +225,22 @@
 	);
 </script>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape') showAccountDropdown = false;
+	}}
+/>
+
 <div class="p-6 lg:p-10 space-y-8 max-w-7xl mx-auto">
 	<!-- Header -->
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 		<div class="space-y-2">
 			<h1 class="text-4xl font-black tracking-tight flex items-center gap-3">
-				<History class="w-10 h-10 text-violet-500" />
-				{gameConfig?.displayName || 'Game'} History
+				<span class="bg-linear-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+					{gameConfig?.displayName || gameId}
+				</span>
 			</h1>
-			<p class="text-zinc-500">
+			<p class="text-zinc-400 text-sm">
 				{totalPulls.toLocaleString()} pulls total recorded for this game.
 			</p>
 		</div>
@@ -247,6 +251,8 @@
 				<button
 					type="button"
 					onclick={() => (showAccountDropdown = !showAccountDropdown)}
+					aria-haspopup="menu"
+					aria-expanded={showAccountDropdown}
 					class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-100 hover:text-white transition-all shadow-lg text-sm font-semibold cursor-pointer"
 				>
 					<div class="w-2.5 h-2.5 rounded-full bg-violet-500"></div>
@@ -269,15 +275,15 @@
 				</button>
 
 				{#if showAccountDropdown}
-					<button
-						type="button"
+					<div
 						class="fixed inset-0 z-40 cursor-default"
+						aria-hidden="true"
 						onclick={() => (showAccountDropdown = false)}
-						aria-label="Close dropdown"
-					></button>
+					></div>
 
 					<!-- Dropdown menu -->
 					<div
+						role="menu"
 						class="absolute right-0 mt-2 w-72 rounded-2xl bg-zinc-950 border border-zinc-800/90 shadow-2xl p-2 z-50 space-y-1"
 					>
 						<div class="px-3 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
@@ -317,7 +323,7 @@
 											<span class="truncate">{acc.nickname || `UID: ${acc.gameUid}`}</span>
 											{#if acc.isPrimary}
 												<span
-													class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded bg-violet-500/20 text-violet-300 border border-violet-500/30"
+													class="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded bg-violet-500/20 text-violet-300 border border-violet-500/30"
 												>
 													Primary
 												</span>
@@ -428,10 +434,12 @@
 						Current Pity
 					</h2>
 					{#if selectedUid === 'all' && accounts.length > 0}
+						{@const primaryUid = accounts.find((a) => a.isPrimary)?.gameUid || accounts[0]?.gameUid}
+						{@const primaryAcc = accounts.find((a) => a.gameUid === primaryUid)}
 						<span
 							class="text-[10px] font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full"
 						>
-							Primary Profile
+							{primaryAcc?.nickname ? `${primaryAcc.nickname}` : 'Primary Profile'}
 						</span>
 					{/if}
 				</div>

@@ -50,7 +50,7 @@ describe("StarRailStationParser", () => {
             ].join("\n");
 
             const buffer = Buffer.from(csvContent, "utf-8");
-            expect(parser.parse(buffer)).rejects.toThrow("Honkai: Star Rail UID is required");
+            await expect(parser.parse(buffer)).rejects.toThrow("Honkai: Star Rail UID is required");
         });
 
         it("should throw an error if UID is not 9 digits in CSV mode", async () => {
@@ -60,10 +60,10 @@ describe("StarRailStationParser", () => {
             ].join("\n");
 
             const buffer = Buffer.from(csvContent, "utf-8");
-            expect(parser.parse(buffer, { gameUid: "12345678" })).rejects.toThrow(
+            await expect(parser.parse(buffer, { gameUid: "12345678" })).rejects.toThrow(
                 "Invalid Honkai: Star Rail UID. A standard UID is 9 digits."
             );
-            expect(parser.parse(buffer, { gameUid: "1234567890" })).rejects.toThrow(
+            await expect(parser.parse(buffer, { gameUid: "1234567890" })).rejects.toThrow(
                 "Invalid Honkai: Star Rail UID. A standard UID is 9 digits."
             );
         });
@@ -97,7 +97,7 @@ describe("StarRailStationParser", () => {
             ].join("\n");
 
             const buffer = Buffer.from(csvContent, "utf-8");
-            expect(parser.parse(buffer, { gameUid: TEST_UID })).rejects.toThrow();
+            await expect(parser.parse(buffer, { gameUid: TEST_UID })).rejects.toThrow();
         });
     });
 
@@ -260,7 +260,9 @@ describe("StarRailStationParser", () => {
                 Buffer.from(compressed, "utf-8"),
             ]);
 
-            expect(parser.parse(datBuffer)).rejects.toThrow("Honkai: Star Rail UID is required");
+            await expect(parser.parse(datBuffer)).rejects.toThrow(
+                "Honkai: Star Rail UID is required"
+            );
         });
 
         it("should throw an error if UID is not 9 digits in DAT mode", async () => {
@@ -291,17 +293,17 @@ describe("StarRailStationParser", () => {
                 Buffer.from(compressed, "utf-8"),
             ]);
 
-            expect(parser.parse(datBuffer, { gameUid: "12345678" })).rejects.toThrow(
+            await expect(parser.parse(datBuffer, { gameUid: "12345678" })).rejects.toThrow(
                 "Invalid Honkai: Star Rail UID"
             );
-            expect(parser.parse(datBuffer, { gameUid: "1234567890" })).rejects.toThrow(
+            await expect(parser.parse(datBuffer, { gameUid: "1234567890" })).rejects.toThrow(
                 "Invalid Honkai: Star Rail UID"
             );
         });
 
         it("should throw an error for invalid magic header", async () => {
             const rawContent = Buffer.from("bad_header_payload", "utf-8");
-            expect(parser.parse(rawContent, { gameUid: TEST_UID })).rejects.toThrow();
+            await expect(parser.parse(rawContent, { gameUid: TEST_UID })).rejects.toThrow();
         });
 
         it("should throw an error for corrupt LZString payload", async () => {
@@ -309,7 +311,7 @@ describe("StarRailStationParser", () => {
                 Buffer.from("srs", "utf-8"),
                 Buffer.from("not_a_valid_lzstring_payload", "utf-8"),
             ]);
-            expect(parser.parse(datBuffer, { gameUid: TEST_UID })).rejects.toThrow();
+            await expect(parser.parse(datBuffer, { gameUid: TEST_UID })).rejects.toThrow();
         });
 
         it("should abort early and throw when decompressed payload size exceeds the limit", async () => {
@@ -340,7 +342,7 @@ describe("StarRailStationParser", () => {
             const customParser = new StarRailStationParser();
             customParser.maxDecompressedLength = 50;
 
-            expect(customParser.parse(datBuffer, { gameUid: TEST_UID })).rejects.toThrow(
+            await expect(customParser.parse(datBuffer, { gameUid: TEST_UID })).rejects.toThrow(
                 "Decompressed size validation failed"
             );
         });
@@ -426,6 +428,56 @@ describe("StarRailStationParser", () => {
             expect(result.games).toHaveLength(1);
             expect(result.games[0].gameUid).toBe("700888999");
             expect(result.games[0].nickname).toBe("Europe Account");
+        });
+
+        it("should reject when two profiles resolve to the same UID", async () => {
+            const mockBackup = {
+                profiles: {
+                    "1": { name: "Main", key: "1" },
+                    "2": { name: "Alt", key: "2" },
+                },
+                data: {
+                    stores: {
+                        "1_warp-v2": {
+                            items_1: [
+                                {
+                                    uid: "1001",
+                                    itemId: 1009,
+                                    rarity: 4,
+                                    timestamp: 1682532852000,
+                                    gachaType: 1,
+                                },
+                            ],
+                        },
+                        "2_warp-v2": {
+                            items_1: [
+                                {
+                                    uid: "2001",
+                                    itemId: 1009,
+                                    rarity: 4,
+                                    timestamp: 1682532853000,
+                                    gachaType: 1,
+                                },
+                            ],
+                        },
+                    },
+                },
+            };
+
+            const compressed = LZString.compressToUTF16(JSON.stringify(mockBackup));
+            const datBuffer = Buffer.concat([
+                Buffer.from("srs", "utf-8"),
+                Buffer.from(compressed, "utf-8"),
+            ]);
+
+            await expect(
+                parser.parse(datBuffer, {
+                    profileUids: {
+                        "1": "700111222",
+                        "2": "700111222",
+                    },
+                })
+            ).rejects.toThrow('UID "700111222" is assigned to more than one profile');
         });
     });
 });

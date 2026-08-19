@@ -5,7 +5,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { redis } from "../../lib/redis";
 import { getAdapter } from "../games/registry";
 import { authPlugin } from "../auth";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import {
     importPayloadSchema,
     type NormalizedPull,
@@ -445,15 +445,23 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 try {
                     let profileUidsMap: Record<string, string> | undefined;
                     if (body.profileUids) {
+                        let candidate: unknown = body.profileUids;
                         if (typeof body.profileUids === "string") {
                             try {
-                                profileUidsMap = JSON.parse(body.profileUids);
+                                candidate = JSON.parse(body.profileUids);
                             } catch {
-                                // ignore malformed JSON
+                                throw new Error(
+                                    "validation: profileUids must be valid JSON mapping profile keys to UIDs."
+                                );
                             }
-                        } else if (typeof body.profileUids === "object") {
-                            profileUidsMap = body.profileUids as Record<string, string>;
                         }
+                        const parsedUids = z.record(z.string(), z.string()).safeParse(candidate);
+                        if (!parsedUids.success) {
+                            throw new Error(
+                                "validation: profileUids must map profile keys to UID strings."
+                            );
+                        }
+                        profileUidsMap = parsedUids.data;
                     }
 
                     buffer = Buffer.from(await file.arrayBuffer());
@@ -734,7 +742,8 @@ export async function executePullsImport(
         return { imported: 0 };
     }
 
-    const lockKey = `import_lock:${userId}:${gameId}:${gameUid}`;
+    // Scoped per user and game so that concurrent first imports cannot both claim primary
+    const lockKey = `import_lock:${userId}:${gameId}`;
     let lockAcquired = true;
     try {
         const acquired = await redis.set(lockKey, "1", "EX", 60, "NX");
@@ -805,14 +814,25 @@ export async function executePullsImport(
 
         const latestIds: Record<string, string> = {};
 
+        const existingByPullId = new Map(existingDbPulls.map((p) => [p.pullId, p]));
+        let newPullCount = 0;
+
         for (const [poolKey, poolPulls] of pullsByPool) {
             poolPulls.sort((a, b) => a.pulledAt.getTime() - b.pulledAt.getTime());
             const computedPulls = adapter.computePity(poolPulls, poolKey);
 
             for (const p of computedPulls) {
-                if (!existingDbPulls.some((edp) => edp.pullId === p.pullId)) {
+                const existing = existingByPullId.get(p.pullId);
+                const pityChanged =
+                    existing !== undefined &&
+                    (existing.pityAtPull !== p.pityAtPull ||
+                        existing.wasGuaranteed !== p.wasGuaranteed);
+
+                if (existing === undefined) newPullCount++;
+
+                if (existing === undefined || pityChanged) {
                     pullsToUpsert.push({
-                        id: crypto.randomUUID(),
+                        id: existing?.id ?? crypto.randomUUID(),
                         userId,
                         gameId,
                         gameUid,
@@ -912,11 +932,17 @@ export async function executePullsImport(
                 .where(eq(userGame.id, currentUserGame.id));
         });
 
-        await redis.del(`stats:${userId}:${gameId}:${gameUid}`);
-        await redis.del(`stats:${userId}:${gameId}:all`);
-        await redis.del(`stats:${userId}:${gameId}`);
+        try {
+            await Promise.all([
+                redis.del(`stats:${userId}:${gameId}:${gameUid}`),
+                redis.del(`stats:${userId}:${gameId}:all`),
+                redis.del(`stats:${userId}:${gameId}`),
+            ]);
+        } catch {
+            // Stats cache invalidation is best-effort; the import already committed
+        }
 
-        return { imported: pullsToUpsert.length };
+        return { imported: newPullCount };
     } finally {
         if (lockAcquired) {
             try {

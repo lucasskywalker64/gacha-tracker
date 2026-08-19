@@ -136,6 +136,21 @@ export const accountsRouter = new Elysia()
         async ({ user, params: { gameId, gameUid }, body, status }) => {
             const userId = user!.id;
 
+            const existingAccount = await db.query.userGame.findFirst({
+                where: and(
+                    eq(userGame.userId, userId),
+                    eq(userGame.gameId, gameId),
+                    eq(userGame.gameUid, gameUid)
+                ),
+            });
+
+            if (!existingAccount) {
+                return status(404, {
+                    success: false,
+                    error: "Game account not found",
+                });
+            }
+
             const userRecord = await db.query.user.findFirst({
                 where: eq(userTable.id, userId),
             });
@@ -183,21 +198,6 @@ export const accountsRouter = new Elysia()
                     });
                 }
                 await redis.del(verifiedKey);
-            }
-
-            const existingAccount = await db.query.userGame.findFirst({
-                where: and(
-                    eq(userGame.userId, userId),
-                    eq(userGame.gameId, gameId),
-                    eq(userGame.gameUid, gameUid)
-                ),
-            });
-
-            if (!existingAccount) {
-                return status(404, {
-                    success: false,
-                    error: "Game account not found",
-                });
             }
 
             await db.transaction(async (tx) => {

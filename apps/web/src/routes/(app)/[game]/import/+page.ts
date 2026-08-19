@@ -9,6 +9,10 @@ export const load: PageLoad = async ({ params, url }) => {
 	if (!gameConfig) throw error(404, `Unknown game: ${gameId}`);
 
 	const accountsRes = await api.games({ gameId }).accounts.get();
+	const accountsLoadFailed = Boolean(accountsRes.error);
+	if (accountsRes.error) {
+		console.error('Error fetching game accounts for import:', accountsRes.error);
+	}
 	const accounts = (accountsRes.data?.accounts as UserGame[]) || [];
 
 	const paramUid = url.searchParams.get('uid');
@@ -44,6 +48,7 @@ export const load: PageLoad = async ({ params, url }) => {
 		gameId,
 		gameConfig,
 		accounts,
+		accountsLoadFailed,
 		selectedUid,
 		token: res.data.token,
 		cursors: res.data.latestPullIds ?? null

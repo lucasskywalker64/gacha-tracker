@@ -426,14 +426,14 @@ describe("Game Accounts API", () => {
         );
         expect(deleteResp1.status).toBe(200);
 
-        // Replay same request
+        // Replay same request - account is now gone, so existence check returns 404
         const replayResp = await app.fetch(
             new Request("http://localhost/games/genshin/accounts/100000001", {
                 method: "DELETE",
                 headers: { Authorization: "Bearer session_token" },
             })
         );
-        expect(replayResp.status).toBe(401);
+        expect(replayResp.status).toBe(404);
     });
 
     it("PATCH /games/:gameId/accounts/:gameUid - setting nickname to null clears the nickname", async () => {

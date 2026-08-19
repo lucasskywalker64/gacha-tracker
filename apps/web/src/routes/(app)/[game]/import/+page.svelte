@@ -101,6 +101,12 @@
 	<title>Import {data.gameConfig.displayName} - Gacha Tracker</title>
 </svelte:head>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape') showProfileDropdown = false;
+	}}
+/>
+
 {#snippet profileSelector()}
 	<div class="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-3">
 		<div class="flex items-center justify-between">
@@ -153,13 +159,13 @@
 							</span>
 							{#if selectedAccount?.isPrimary}
 								<span
-									class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded bg-violet-500/20 text-violet-300 border border-violet-500/30"
+									class="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded bg-violet-500/20 text-violet-300 border border-violet-500/30"
 								>
 									Primary
 								</span>
 							{:else if selectedUid === 'new'}
 								<span
-									class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+									class="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
 								>
 									Fresh Sync
 								</span>
@@ -194,6 +200,7 @@
 			{#if showProfileDropdown}
 				<button
 					type="button"
+					tabindex="-1"
 					class="fixed inset-0 z-40 cursor-default"
 					onclick={() => (showProfileDropdown = false)}
 					aria-label="Close dropdown"
@@ -232,7 +239,7 @@
 										<span class="truncate">{acc.nickname || `UID: ${acc.gameUid}`}</span>
 										{#if acc.isPrimary}
 											<span
-												class="px-1.5 py-0.2 text-[8px] font-black uppercase tracking-wider rounded bg-violet-500/20 text-violet-300"
+												class="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider rounded bg-violet-500/20 text-violet-300"
 											>
 												Primary
 											</span>

@@ -64,7 +64,11 @@ export const nativeExportAccountSchema = z.object({
 
 export const nativeExportGameSchema = z.object({
     gameId: z.enum(Object.keys(BANNER_NAMES) as [string, ...string[]]),
-    accounts: z.array(nativeExportAccountSchema),
+    accounts: z
+        .array(nativeExportAccountSchema)
+        .refine((accounts) => new Set(accounts.map((a) => a.gameUid)).size === accounts.length, {
+            message: "Duplicate gameUid values are not allowed within a game",
+        }),
 });
 
 export const nativeExportSchema = z.object({
