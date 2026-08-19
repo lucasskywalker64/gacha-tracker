@@ -34,6 +34,33 @@ const dbUsers: Array<{
 
 const flagsMock = { anonymousAccounts: true };
 
+mock.module("../../../lib/redis", () => ({ redis: redisMock }));
+
+mock.module("../../../db/client", () => ({
+    db: {
+        query: {
+            user: {
+                findFirst: mock(async () => null),
+                findMany: mock(async () => dbUsers.filter((u) => u.isAnonymous)),
+            },
+            verification: {
+                findFirst: mock(async () => null),
+                findMany: mock(async () => []),
+            },
+        },
+        update: mock(() => ({
+            set: mock(() => ({ where: mock(async () => undefined) })),
+        })),
+        insert: mock(() => ({
+            values: mock(async () => undefined),
+        })),
+    },
+}));
+
+mock.module("../../../config/flags", () => ({
+    getFlags: mock(async () => flagsMock),
+}));
+
 mock.module("../../../lib/email", () => ({
     sendOtpEmail: mock(async () => {}),
     sendConflictOtpEmail: mock(async () => {}),
@@ -52,33 +79,6 @@ mock.module("../../../config", () => ({
 let originalAuth: typeof import("../auth");
 
 beforeAll(async () => {
-    mock.module("../../../lib/redis", () => ({ redis: redisMock }));
-
-    mock.module("../../../db/client", () => ({
-        db: {
-            query: {
-                user: {
-                    findFirst: mock(async () => null),
-                    findMany: mock(async () => dbUsers.filter((u) => u.isAnonymous)),
-                },
-                verification: {
-                    findFirst: mock(async () => null),
-                    findMany: mock(async () => []),
-                },
-            },
-            update: mock(() => ({
-                set: mock(() => ({ where: mock(async () => undefined) })),
-            })),
-            insert: mock(() => ({
-                values: mock(async () => undefined),
-            })),
-        },
-    }));
-
-    mock.module("../../../config/flags", () => ({
-        getFlags: mock(async () => flagsMock),
-    }));
-
     originalAuth = await import("../auth");
 
     mock.module("../auth", () => ({
