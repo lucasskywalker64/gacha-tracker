@@ -181,10 +181,11 @@ describe("Pull File Import/Export E2E", () => {
         expect(body.version).toBe(1);
         expect(body.games.length).toBe(1);
         expect(body.games[0].gameId).toBe("starrail");
-        expect(body.games[0].gameUid).toBe("UID_ABC");
-        expect(body.games[0].pulls.length).toBe(1);
-        expect(body.games[0].pulls[0].pullId).toBe("1001");
-        expect(body.games[0].pulls[0].itemName).toBe("Seele");
+        expect(body.games[0].accounts.length).toBe(1);
+        expect(body.games[0].accounts[0].gameUid).toBe("UID_ABC");
+        expect(body.games[0].accounts[0].pulls.length).toBe(1);
+        expect(body.games[0].accounts[0].pulls[0].pullId).toBe("1001");
+        expect(body.games[0].accounts[0].pulls[0].itemName).toBe("Seele");
     });
 
     it("should return the list of supported import formats", async () => {
@@ -212,29 +213,35 @@ describe("Pull File Import/Export E2E", () => {
             games: [
                 {
                     gameId: "starrail",
-                    gameUid: "UID_ABC",
-                    pulls: [
+                    accounts: [
                         {
-                            pullId: "1001", // Duplicate
-                            bannerType: "11",
-                            itemId: "ITEM1",
-                            itemName: "Seele",
-                            itemType: "character",
-                            rarity: 5,
-                            pulledAt: "2024-01-01T00:00:00.000Z",
-                            pityAtPull: 1,
-                            wasGuaranteed: 0,
-                        },
-                        {
-                            pullId: "1002", // New Pull
-                            bannerType: "11",
-                            itemId: "ITEM2",
-                            itemName: "Natasha",
-                            itemType: "character",
-                            rarity: 4,
-                            pulledAt: "2024-01-01T00:01:00.000Z",
-                            pityAtPull: 1,
-                            wasGuaranteed: 0,
+                            gameUid: "UID_ABC",
+                            nickname: null,
+                            isPrimary: true,
+                            pulls: [
+                                {
+                                    pullId: "1001", // Duplicate
+                                    bannerType: "11",
+                                    itemId: "ITEM1",
+                                    itemName: "Seele",
+                                    itemType: "character",
+                                    rarity: 5,
+                                    pulledAt: "2024-01-01T00:00:00.000Z",
+                                    pityAtPull: 1,
+                                    wasGuaranteed: 0,
+                                },
+                                {
+                                    pullId: "1002", // New Pull
+                                    bannerType: "11",
+                                    itemId: "ITEM2",
+                                    itemName: "Natasha",
+                                    itemType: "character",
+                                    rarity: 4,
+                                    pulledAt: "2024-01-01T00:01:00.000Z",
+                                    pityAtPull: 1,
+                                    wasGuaranteed: 0,
+                                },
+                            ],
                         },
                     ],
                 },
@@ -498,6 +505,7 @@ describe("Pull File Import/Export E2E", () => {
 
         const formData = new FormData();
         formData.append("format", "starrail-station");
+        formData.append("gameUid", "700123456");
         formData.append(
             "file",
             new Blob([csvContent], { type: "text/csv" }),
@@ -564,6 +572,7 @@ describe("Pull File Import/Export E2E", () => {
 
         const formData = new FormData();
         formData.append("format", "starrail-station");
+        formData.append("gameUid", "700123456");
         formData.append(
             "file",
             new Blob([datBuffer], { type: "application/octet-stream" }),
@@ -811,6 +820,616 @@ describe("Pull File Import/Export E2E", () => {
             const cancelProcessingBody = await cancelProcessingResp.json();
             expect(cancelProcessingBody.success).toBe(false);
             expect(cancelProcessingBody.error).toContain("cannot be cancelled");
+        });
+
+        it("should import multiple profiles and UIDs from a single backup file and isolate their userGame records and pulls", async () => {
+            const multiProfileBackup = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                games: [
+                    {
+                        gameId: "starrail",
+                        accounts: [
+                            {
+                                gameUid: "UID_MAIN",
+                                nickname: "Main",
+                                isPrimary: true,
+                                pulls: [
+                                    {
+                                        pullId: "MAIN_101",
+                                        bannerType: "11",
+                                        itemId: "ITEM1",
+                                        itemName: "Seele",
+                                        itemType: "character",
+                                        rarity: 5,
+                                        pulledAt: "2024-01-01T00:00:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                            {
+                                gameUid: "UID_ALT",
+                                nickname: "Alt",
+                                isPrimary: false,
+                                pulls: [
+                                    {
+                                        pullId: "ALT_201",
+                                        bannerType: "11",
+                                        itemId: "ITEM2",
+                                        itemName: "Natasha",
+                                        itemType: "character",
+                                        rarity: 4,
+                                        pulledAt: "2024-01-01T00:05:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const formData = new FormData();
+            formData.append("format", "gacha-tracker");
+            formData.append(
+                "file",
+                new Blob([JSON.stringify(multiProfileBackup)], { type: "application/json" }),
+                "multi-profile.json"
+            );
+
+            const resp = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer session_token",
+                    },
+                    body: formData,
+                })
+            );
+
+            expect(resp.status).toBe(202);
+            const postBody = await resp.json();
+
+            const pollResult = await pollStatusUntilFinished(postBody.requestId);
+            expect(pollResult.status).toBe("done");
+            expect(pollResult.result!.success).toBe(true);
+            expect(pollResult.result!.summary.length).toBe(2);
+
+            const uidsImported = pollResult.result!.summary.map((s) => s.gameUid);
+            expect(uidsImported).toContain("UID_MAIN");
+            expect(uidsImported).toContain("UID_ALT");
+
+            // Verify userGame records in DB
+            const userGames = await testDb.query.userGame.findMany({
+                where: (ug, { eq }) => eq(ug.userId, "test-user-id"),
+            });
+            const trackedUids = userGames.map((ug) => ug.gameUid);
+            expect(trackedUids).toContain("UID_MAIN");
+            expect(trackedUids).toContain("UID_ALT");
+
+            // Verify export contains all profiles
+            const exportResp = await app.fetch(
+                new Request("http://localhost/pulls/export", {
+                    method: "GET",
+                    headers: {
+                        Authorization: "Bearer session_token",
+                    },
+                })
+            );
+            expect(exportResp.status).toBe(200);
+            const exportData = await exportResp.json();
+            const starRailGame = exportData.games.find(
+                (g: { gameId: string }) => g.gameId === "starrail"
+            );
+            expect(starRailGame).toBeDefined();
+            const exportedUids = starRailGame.accounts.map((a: { gameUid: string }) => a.gameUid);
+            expect(exportedUids).toContain("UID_MAIN");
+            expect(exportedUids).toContain("UID_ALT");
+        });
+
+        it("should import Star Rail Station DAT multi-profile backup with profileUids mapping and set nicknames", async () => {
+            const srsBackup = {
+                profiles: {
+                    "1": {
+                        id: "p1",
+                        name: "Main EU",
+                        key: "1",
+                    },
+                    "2": {
+                        id: "p2",
+                        name: "Alt NA",
+                        key: "2",
+                    },
+                },
+                data: {
+                    stores: {
+                        "1_warp-v2": {
+                            items_1: [
+                                {
+                                    uid: "SRS_101",
+                                    itemId: 1009,
+                                    rarity: 4,
+                                    timestamp: 1682532852000,
+                                    gachaType: 1,
+                                },
+                            ],
+                        },
+                        "2_warp-v2": {
+                            items_1: [
+                                {
+                                    uid: "SRS_201",
+                                    itemId: 20003,
+                                    rarity: 3,
+                                    timestamp: 1682698116000,
+                                    gachaType: 1,
+                                },
+                            ],
+                        },
+                    },
+                },
+            };
+
+            const compressed = LZString.compressToUTF16(JSON.stringify(srsBackup));
+            const datBuffer = Buffer.concat([
+                Buffer.from("srs", "utf-8"),
+                Buffer.from(compressed, "utf-8"),
+            ]);
+
+            const formData = new FormData();
+            formData.append("format", "starrail-station");
+            formData.append("profileUids", JSON.stringify({ "1": "700999111", "2": "800999222" }));
+            formData.append(
+                "file",
+                new Blob([datBuffer], { type: "application/octet-stream" }),
+                "srs-backup.dat"
+            );
+
+            const resp = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer session_token",
+                    },
+                    body: formData,
+                })
+            );
+
+            expect(resp.status).toBe(202);
+            const postBody = await resp.json();
+
+            const pollResult = await pollStatusUntilFinished(postBody.requestId);
+            expect(pollResult.status).toBe("done");
+            expect(pollResult.result!.success).toBe(true);
+            expect(pollResult.result!.summary.length).toBe(2);
+
+            const userGames = await testDb.query.userGame.findMany({
+                where: (ug, { eq }) => eq(ug.userId, "test-user-id"),
+            });
+            const p1 = userGames.find((ug) => ug.gameUid === "700999111");
+            const p2 = userGames.find((ug) => ug.gameUid === "800999222");
+            expect(p1).toBeDefined();
+            expect(p1?.nickname).toBe("Main EU");
+            expect(p2).toBeDefined();
+            expect(p2?.nickname).toBe("Alt NA");
+        });
+
+        it("should handle identical pullId across different UIDs without deduplication collision", async () => {
+            const backupWithSamePullIds = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                games: [
+                    {
+                        gameId: "starrail",
+                        accounts: [
+                            {
+                                gameUid: "700000001",
+                                pulls: [
+                                    {
+                                        pullId: "COMMON_ID_999",
+                                        bannerType: "11",
+                                        itemId: "1009",
+                                        itemName: "Asta",
+                                        itemType: "Character",
+                                        rarity: 4,
+                                        pulledAt: "2024-01-01T00:00:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                            {
+                                gameUid: "700000002",
+                                pulls: [
+                                    {
+                                        pullId: "COMMON_ID_999", // Same pullId, different UID
+                                        bannerType: "11",
+                                        itemId: "20003",
+                                        itemName: "Amber",
+                                        itemType: "Light Cone",
+                                        rarity: 3,
+                                        pulledAt: "2024-01-01T00:00:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const formData = new FormData();
+            formData.append("format", "gacha-tracker");
+            formData.append(
+                "file",
+                new Blob([JSON.stringify(backupWithSamePullIds)], { type: "application/json" }),
+                "same-pull-ids.json"
+            );
+
+            const resp = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData,
+                })
+            );
+            expect(resp.status).toBe(202);
+            const postBody = await resp.json();
+
+            const pollResult = await pollStatusUntilFinished(postBody.requestId);
+            expect(pollResult.status).toBe("done");
+            expect(pollResult.result!.success).toBe(true);
+
+            // Both pulls should exist in database
+            const pulls = await testDb.query.pull.findMany({
+                where: (p, { eq }) => eq(p.pullId, "COMMON_ID_999"),
+            });
+            expect(pulls.length).toBe(2);
+            const uids = pulls.map((p) => p.gameUid);
+            expect(uids).toContain("700000001");
+            expect(uids).toContain("700000002");
+        });
+
+        it("should isolate pity calculation completely between multiple accounts during import", async () => {
+            // Import 3 pulls for Account A and 1 pull for Account B
+            const backupPayload = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                games: [
+                    {
+                        gameId: "starrail",
+                        accounts: [
+                            {
+                                gameUid: "PITY_ACC_A",
+                                pulls: [
+                                    {
+                                        pullId: "A_1",
+                                        bannerType: "11",
+                                        itemId: "20003",
+                                        itemName: "Amber",
+                                        itemType: "Light Cone",
+                                        rarity: 3,
+                                        pulledAt: "2024-01-01T00:00:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                    {
+                                        pullId: "A_2",
+                                        bannerType: "11",
+                                        itemId: "20003",
+                                        itemName: "Amber",
+                                        itemType: "Light Cone",
+                                        rarity: 3,
+                                        pulledAt: "2024-01-01T00:01:00.000Z",
+                                        pityAtPull: 2,
+                                        wasGuaranteed: 0,
+                                    },
+                                    {
+                                        pullId: "A_3",
+                                        bannerType: "11",
+                                        itemId: "20003",
+                                        itemName: "Amber",
+                                        itemType: "Light Cone",
+                                        rarity: 3,
+                                        pulledAt: "2024-01-01T00:02:00.000Z",
+                                        pityAtPull: 3,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                            {
+                                gameUid: "PITY_ACC_B",
+                                pulls: [
+                                    {
+                                        pullId: "B_1",
+                                        bannerType: "11",
+                                        itemId: "20003",
+                                        itemName: "Amber",
+                                        itemType: "Light Cone",
+                                        rarity: 3,
+                                        pulledAt: "2024-01-01T00:03:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const formData = new FormData();
+            formData.append("format", "gacha-tracker");
+            formData.append(
+                "file",
+                new Blob([JSON.stringify(backupPayload)], { type: "application/json" }),
+                "pity-isolation.json"
+            );
+
+            const resp = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData,
+                })
+            );
+            const postBody = await resp.json();
+            await pollStatusUntilFinished(postBody.requestId);
+
+            const pullA3 = await testDb.query.pull.findFirst({
+                where: (p, { eq }) => eq(p.pullId, "A_3"),
+            });
+            const pullB1 = await testDb.query.pull.findFirst({
+                where: (p, { eq }) => eq(p.pullId, "B_1"),
+            });
+
+            expect(pullA3?.pityAtPull).toBe(3);
+            expect(pullB1?.pityAtPull).toBe(1); // Not affected by A's 3 pulls
+        });
+
+        it("should set isPrimary true for first imported UID and false for subsequent UIDs", async () => {
+            // Clear test-user-id games first
+            await sqlite.execute(
+                `DELETE FROM user_game WHERE user_id = 'test-user-id' AND game_id = 'wuwa'`
+            );
+
+            // Import 1st account for wuwa
+            const backup1 = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                games: [
+                    {
+                        gameId: "wuwa",
+                        accounts: [
+                            {
+                                gameUid: "WUWA_FIRST",
+                                pulls: [
+                                    {
+                                        pullId: "W1",
+                                        bannerType: "1",
+                                        itemId: "1205",
+                                        itemName: "Changli",
+                                        itemType: "Resonator",
+                                        rarity: 5,
+                                        pulledAt: "2024-01-01T00:00:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const formData1 = new FormData();
+            formData1.append("format", "gacha-tracker");
+            formData1.append(
+                "file",
+                new Blob([JSON.stringify(backup1)], { type: "application/json" }),
+                "wuwa-1.json"
+            );
+
+            const resp1 = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData1,
+                })
+            );
+            const postBody1 = await resp1.json();
+            await pollStatusUntilFinished(postBody1.requestId);
+
+            // Clear cooldown before 2nd import
+            const { RedisKeys } = await import("../../lib/redis-keys");
+            redisStore.delete(RedisKeys.importCooldown("test-user-id"));
+
+            // Import 2nd account for wuwa
+            const backup2 = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                games: [
+                    {
+                        gameId: "wuwa",
+                        accounts: [
+                            {
+                                gameUid: "WUWA_SECOND",
+                                pulls: [
+                                    {
+                                        pullId: "W2",
+                                        bannerType: "1",
+                                        itemId: "1205",
+                                        itemName: "Changli",
+                                        itemType: "Resonator",
+                                        rarity: 5,
+                                        pulledAt: "2024-01-01T00:00:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const formData2 = new FormData();
+            formData2.append("format", "gacha-tracker");
+            formData2.append(
+                "file",
+                new Blob([JSON.stringify(backup2)], { type: "application/json" }),
+                "wuwa-2.json"
+            );
+
+            const resp2 = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData2,
+                })
+            );
+            expect(resp2.status).toBe(202);
+            const postBody2 = await resp2.json();
+            await pollStatusUntilFinished(postBody2.requestId);
+
+            const userGames = await testDb.query.userGame.findMany({
+                where: (ug, { and, eq }) =>
+                    and(eq(ug.gameId, "wuwa"), eq(ug.userId, "test-user-id")),
+            });
+            const first = userGames.find((ug) => ug.gameUid === "WUWA_FIRST");
+            const second = userGames.find((ug) => ug.gameUid === "WUWA_SECOND");
+
+            expect(first?.isPrimary).toBe(true);
+            expect(second?.isPrimary).toBe(false);
+        });
+
+        it("should preserve custom nickname when re-importing without nickname", async () => {
+            // Clear cooldown before import
+            const { RedisKeys } = await import("../../lib/redis-keys");
+            redisStore.delete(RedisKeys.importCooldown("test-user-id"));
+
+            // Set custom nickname for UID_ABC
+            await sqlite.execute(
+                `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+                 VALUES ('acc-abc', 'test-user-id', 'starrail', 'UID_ABC', 'My Special Main', 1, NULL, 1000)
+                 ON CONFLICT(user_id, game_id, game_uid) DO UPDATE SET nickname = 'My Special Main'`
+            );
+
+            const reimport = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                games: [
+                    {
+                        gameId: "starrail",
+                        accounts: [
+                            {
+                                gameUid: "UID_ABC",
+                                nickname: null, // No nickname in backup
+                                pulls: [
+                                    {
+                                        pullId: "NEW_1003",
+                                        bannerType: "11",
+                                        itemId: "ITEM1",
+                                        itemName: "Seele",
+                                        itemType: "character",
+                                        rarity: 5,
+                                        pulledAt: "2024-01-02T00:00:00.000Z",
+                                        pityAtPull: 1,
+                                        wasGuaranteed: 0,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const formData = new FormData();
+            formData.append("format", "gacha-tracker");
+            formData.append(
+                "file",
+                new Blob([JSON.stringify(reimport)], { type: "application/json" }),
+                "reimport.json"
+            );
+
+            const resp = await app.fetch(
+                new Request("http://localhost/pulls/import/file", {
+                    method: "POST",
+                    headers: { Authorization: "Bearer session_token" },
+                    body: formData,
+                })
+            );
+            expect(resp.status).toBe(202);
+            const postBody = await resp.json();
+            await pollStatusUntilFinished(postBody.requestId);
+
+            const ug = await testDb.query.userGame.findFirst({
+                where: (u, { eq }) => eq(u.gameUid, "UID_ABC"),
+            });
+            expect(ug?.nickname).toBe("My Special Main");
+        });
+
+        it("POST /pulls/import/token - returns cursors scoped to specified gameUid, or null when gameUid is omitted for new profile sync", async () => {
+            await sqlite.execute(
+                `DELETE FROM user_game WHERE user_id = 'test-user-id' AND game_id = 'starrail'`
+            );
+            await sqlite.execute(
+                `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, latest_pull_ids, created_at)
+                 VALUES ('tok-1', 'test-user-id', 'starrail', 'UID_TOK_MAIN', 'Main', 1, '{"11":"CURSOR_MAIN"}', 1000),
+                        ('tok-2', 'test-user-id', 'starrail', 'UID_TOK_ALT', 'Alt', 0, '{"11":"CURSOR_ALT"}', 2000)`
+            );
+
+            // 1. Request with specific gameUid
+            const respAlt = await app.fetch(
+                new Request("http://localhost/pulls/import/token", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer session_token",
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ gameId: "starrail", gameUid: "UID_TOK_ALT" }),
+                })
+            );
+            expect(respAlt.status).toBe(200);
+            const bodyAlt = await respAlt.json();
+            expect(bodyAlt.latestPullIds).toEqual({ "11": "CURSOR_ALT" });
+
+            // Clear cooldown
+            const { RedisKeys } = await import("../../lib/redis-keys");
+            redisStore.delete(RedisKeys.importCooldown("test-user-id"));
+
+            // 2. Request without gameUid (new profile / full sync: returns null cursors)
+            const respNew = await app.fetch(
+                new Request("http://localhost/pulls/import/token", {
+                    method: "POST",
+                    headers: {
+                        Authorization: "Bearer session_token",
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ gameId: "starrail" }),
+                })
+            );
+            expect(respNew.status).toBe(200);
+            const bodyNew = await respNew.json();
+            expect(bodyNew.latestPullIds).toBeNull();
+        });
+
+        it("GET /pulls/export - returns valid export schema when user has 0 pulls", async () => {
+            await sqlite.execute(`DELETE FROM pull WHERE user_id = 'test-user-id'`);
+            await sqlite.execute(`DELETE FROM user_game WHERE user_id = 'test-user-id'`);
+
+            const resp = await app.fetch(
+                new Request("http://localhost/pulls/export", {
+                    method: "GET",
+                    headers: { Authorization: "Bearer session_token" },
+                })
+            );
+            expect(resp.status).toBe(200);
+            const data = await resp.json();
+            expect(data.version).toBe(1);
+            expect(data.games).toEqual([]);
         });
     });
 });

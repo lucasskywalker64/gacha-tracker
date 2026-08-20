@@ -29,6 +29,7 @@ export interface QueueEntry {
     buffer: Buffer;
     format: string;
     gameUid?: string;
+    profileUids?: Record<string, string>;
     result?: ImportSummaryItem[];
     error?: string;
 }
@@ -65,6 +66,7 @@ async function persistTaskToRedis(entry: QueueEntry) {
         };
         if (entry.completedAt) data.completedAt = entry.completedAt.toISOString();
         if (entry.gameUid) data.gameUid = entry.gameUid;
+        if (entry.profileUids) data.profileUids = JSON.stringify(entry.profileUids);
         if (entry.result) data.result = JSON.stringify(entry.result);
         if (entry.error) data.error = entry.error;
 
@@ -125,6 +127,7 @@ async function loadTaskFromRedis(requestId: string): Promise<QueueEntry | null> 
             status,
             format: data.format,
             gameUid: data.gameUid || undefined,
+            profileUids: data.profileUids ? JSON.parse(data.profileUids) : undefined,
             buffer,
             result: data.result ? JSON.parse(data.result) : undefined,
             error,

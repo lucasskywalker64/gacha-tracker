@@ -14,20 +14,23 @@ export class GachaTrackerParser implements ImportParser {
         const validated = nativeExportSchema.parse(json);
 
         return {
-            games: validated.games.map((g) => ({
-                gameId: g.gameId,
-                gameUid: g.gameUid,
-                pulls: g.pulls.map((p) => ({
-                    pullId: p.pullId,
-                    bannerType: p.bannerType,
-                    bannerId: p.bannerId,
-                    itemId: p.itemId,
-                    itemName: p.itemName,
-                    itemType: p.itemType,
-                    rarity: p.rarity,
-                    pulledAt: new Date(p.pulledAt),
-                })),
-            })),
+            games: validated.games.flatMap((g) =>
+                g.accounts.map((acc) => ({
+                    gameId: g.gameId,
+                    gameUid: acc.gameUid,
+                    nickname: acc.nickname ?? undefined,
+                    pulls: acc.pulls.map((p) => ({
+                        pullId: p.pullId,
+                        bannerType: p.bannerType,
+                        bannerId: p.bannerId || undefined,
+                        itemId: p.itemId,
+                        itemName: p.itemName,
+                        itemType: p.itemType,
+                        rarity: p.rarity,
+                        pulledAt: new Date(p.pulledAt),
+                    })),
+                }))
+            ),
         };
     }
 }

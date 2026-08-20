@@ -57,6 +57,13 @@
             "when": 1783212850317,
             "tag": "0007_remove_extra_column",
             "breakpoints": true
+        },
+        {
+            "idx": 8,
+            "version": "6",
+            "when": 1787171625652,
+            "tag": "0008_multi_account_support",
+            "breakpoints": true
         }
     ]
 }

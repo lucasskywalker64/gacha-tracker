@@ -18,13 +18,18 @@
 		Palette,
 		Settings,
 		Clock,
-		CircleX
+		CircleX,
+		Gamepad2,
+		Edit3,
+		Crown,
+		User
 	} from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import { fade, scale } from 'svelte/transition';
 	import DiscordIcon from '$lib/components/icons/DiscordIcon.svelte';
 	import GoogleIcon from '$lib/components/icons/GoogleIcon.svelte';
 	import { PUBLIC_API_URL } from '$env/static/public';
+	import { inspectStarRailStationFile, type SrsProfileInfo } from '$lib/utils/srs-inspector';
 
 	let { data }: { data: PageData } = $props();
 
@@ -54,6 +59,92 @@
 			userGames = data.userGames;
 		}
 	});
+
+	let activeTab = $state('account');
+	let editingNicknames = $state<Record<string, string>>({});
+	let editingState = $state<Record<string, boolean>>({});
+	let updatingAccountMap = $state<Record<string, boolean>>({});
+
+	let groupedGameAccounts = $derived.by(() => {
+		const groups: Record<
+			string,
+			{
+				gameId: string;
+				gameDisplayName: string;
+				gameIconUrl: string | null;
+				accounts: Array<(typeof userGames)[0]>;
+			}
+		> = {};
+
+		for (const ug of userGames) {
+			if (!groups[ug.gameId]) {
+				groups[ug.gameId] = {
+					gameId: ug.gameId,
+					gameDisplayName: (ug as { gameDisplayName?: string }).gameDisplayName || ug.gameId,
+					gameIconUrl: (ug as { gameIconUrl?: string | null }).gameIconUrl || null,
+					accounts: []
+				};
+			}
+			groups[ug.gameId].accounts.push(ug);
+		}
+
+		return Object.values(groups);
+	});
+
+	async function setPrimaryAccount(gameId: string, gameUid: string) {
+		const key = `${gameId}:${gameUid}`;
+		updatingAccountMap[key] = true;
+		try {
+			const res = await api.games({ gameId }).accounts({ gameUid }).patch({
+				isPrimary: true
+			});
+			if (res.error) {
+				alert('Failed to set primary profile: ' + extractApiError(res.error, 'Error'));
+				return;
+			}
+			if (res.data?.success) {
+				const { data: updatedGames } = await api.user.games.get();
+				if (updatedGames) {
+					userGames = updatedGames;
+				}
+			}
+		} catch (err) {
+			alert(
+				'Failed to set primary profile: ' + (err instanceof Error ? err.message : 'Network error')
+			);
+		} finally {
+			updatingAccountMap[key] = false;
+		}
+	}
+
+	async function saveAccountNickname(gameId: string, gameUid: string) {
+		const key = `${gameId}:${gameUid}`;
+		const nickname = editingNicknames[key] ?? '';
+		updatingAccountMap[key] = true;
+		try {
+			const res = await api
+				.games({ gameId })
+				.accounts({ gameUid })
+				.patch({
+					nickname: nickname.trim() || null
+				});
+			if (res.error) {
+				alert('Failed to save nickname: ' + extractApiError(res.error, 'Error'));
+				return;
+			}
+			if (res.data?.success) {
+				editingState[key] = false;
+				const { data: updatedGames } = await api.user.games.get();
+				if (updatedGames) {
+					userGames = updatedGames;
+				}
+			}
+		} catch (err) {
+			alert('Failed to save nickname: ' + (err instanceof Error ? err.message : 'Network error'));
+		} finally {
+			updatingAccountMap[key] = false;
+		}
+	}
 
 	let saving = $state(false);
 	let settingsLoaderError = $state(false);
@@ -144,9 +235,9 @@
 
 	// Generic sensitive action OTP verification state
 	let showSensitiveActionModal = $state(false);
-	let sensitiveActionType = $state<'delete-game' | 'unlink-secondary-email' | 'unlink-social' | ''>(
-		''
-	);
+	let sensitiveActionType = $state<
+		'delete-game' | 'delete-profile' | 'unlink-secondary-email' | 'unlink-social' | ''
+	>('');
 	let sensitiveActionTarget = $state('');
 	let sensitiveActionTargetName = $state('');
 	let sensitiveActionCode = $state('');
@@ -157,7 +248,7 @@
 	let onSensitiveActionVerifiedCallback = $state<() => Promise<void> | void>();
 
 	async function triggerSensitiveActionVerification(
-		type: 'delete-game' | 'unlink-secondary-email' | 'unlink-social',
+		type: 'delete-game' | 'delete-profile' | 'unlink-secondary-email' | 'unlink-social',
 		target: string,
 		targetName: string,
 		onVerified: () => Promise<void> | void
@@ -182,7 +273,11 @@
 		sensitiveActionSuccess = '';
 		try {
 			const { error } = await api.user['sensitive-action-otp'].post({
-				action: sensitiveActionType as 'delete-game' | 'unlink-secondary-email' | 'unlink-social',
+				action: sensitiveActionType as
+					| 'delete-game'
+					| 'delete-profile'
+					| 'unlink-secondary-email'
+					| 'unlink-social',
 				target: sensitiveActionTarget || undefined
 			});
 			if (error) {
@@ -213,7 +308,11 @@
 				showSensitiveActionModal = false;
 			} else {
 				const { error } = await api.user['verify-sensitive-action'].post({
-					action: sensitiveActionType as 'delete-game' | 'unlink-secondary-email' | 'unlink-social',
+					action: sensitiveActionType as
+						| 'delete-game'
+						| 'delete-profile'
+						| 'unlink-secondary-email'
+						| 'unlink-social',
 					target: sensitiveActionTarget || undefined,
 					code: sensitiveActionCode
 				});
@@ -708,6 +807,11 @@
 
 	let selectedFormat = $state('gacha-tracker');
 	let gameUid = $state('');
+	let srsSingleUid = $state('');
+	let srsProfiles = $state<SrsProfileInfo[]>([]);
+	let srsProfileUids = $state<Record<string, string>>({});
+	let inspectingSrs = $state(false);
+
 	let selectedFormatObj = $derived(formats.find((f) => f.id === selectedFormat));
 	let acceptedExtensions = $derived(selectedFormatObj?.acceptedExtensions || '.json');
 	let importFile = $state<File | null>(null);
@@ -718,6 +822,60 @@
 		| { gameId: string; gameUid: string; imported: number; message: string; success: boolean }[]
 		| null
 	>(null);
+
+	let srsInspectionVersion = 0;
+
+	async function updateSrsInspection(file: File | null) {
+		const version = ++srsInspectionVersion;
+		if (!file || selectedFormat !== 'starrail-station') {
+			inspectingSrs = false;
+			srsProfiles = [];
+			srsProfileUids = {};
+			srsSingleUid = '';
+			return;
+		}
+
+		inspectingSrs = true;
+		srsProfiles = [];
+		srsProfileUids = {};
+		srsSingleUid = '';
+		try {
+			const res = await inspectStarRailStationFile(file);
+			if (
+				version !== srsInspectionVersion ||
+				file !== importFile ||
+				selectedFormat !== 'starrail-station'
+			) {
+				return;
+			}
+			srsProfiles = res.profiles;
+			if (res.profiles.length > 0) {
+				const initialUids: Record<string, string> = {};
+				for (const p of res.profiles) {
+					initialUids[p.key] = srsProfileUids[p.key] || srsSingleUid;
+				}
+				srsProfileUids = initialUids;
+			} else {
+				srsProfileUids = {};
+			}
+		} finally {
+			if (version === srsInspectionVersion) {
+				inspectingSrs = false;
+			}
+		}
+	}
+
+	$effect(() => {
+		if (selectedFormat !== 'starrail-station') {
+			srsInspectionVersion++;
+			inspectingSrs = false;
+			srsProfiles = [];
+			srsProfileUids = {};
+			srsSingleUid = '';
+		} else if (importFile) {
+			updateSrsInspection(importFile);
+		}
+	});
 
 	// Cooldown states
 	let _cooldownExpiresAt = $state<number | null>(null); // Unix ms
@@ -1018,6 +1176,8 @@
 			if (!validation.isValid) {
 				importError = validation.error;
 				importFile = null;
+				srsProfiles = [];
+				srsProfileUids = {};
 				target.value = '';
 				return;
 			}
@@ -1028,7 +1188,7 @@
 	}
 
 	async function handleImport() {
-		if (!importFile) return;
+		if (!importFile || importing || inspectingSrs) return;
 
 		const validation = validateImportFile(importFile);
 		if (!validation.isValid) {
@@ -1048,6 +1208,38 @@
 			}
 		}
 
+		if (selectedFormat === 'starrail-station') {
+			if (srsProfiles.length > 1) {
+				const seenUids: string[] = [];
+				for (const p of srsProfiles) {
+					const uid = srsProfileUids[p.key]?.trim() || '';
+					if (!uid) {
+						importError = `Please enter a UID for profile "${p.name}".`;
+						return;
+					}
+					if (!/^\d{9}$/.test(uid)) {
+						importError = `Invalid Honkai: Star Rail UID for profile "${p.name}". A standard UID is 9 digits.`;
+						return;
+					}
+					if (seenUids.includes(uid)) {
+						importError = `Duplicate UID "${uid}" detected. Each profile must map to a distinct in-game account.`;
+						return;
+					}
+					seenUids.push(uid);
+				}
+			} else {
+				const cleanUid = srsSingleUid.trim();
+				if (!cleanUid) {
+					importError = 'Please enter your Honkai: Star Rail UID.';
+					return;
+				}
+				if (!/^\d{9}$/.test(cleanUid)) {
+					importError = 'Invalid Honkai: Star Rail UID. A standard UID is 9 digits.';
+					return;
+				}
+			}
+		}
+
 		importing = true;
 		importError = '';
 		importSuccess = null;
@@ -1059,6 +1251,18 @@
 			formData.append('file', importFile);
 			if (selectedFormat === 'paimon-moe') {
 				formData.append('gameUid', gameUid.trim());
+			} else if (selectedFormat === 'starrail-station') {
+				if (srsProfiles.length > 1) {
+					formData.append('profileUids', JSON.stringify(srsProfileUids));
+				} else {
+					formData.append('gameUid', srsSingleUid.trim());
+					if (srsProfiles.length === 1) {
+						formData.append(
+							'profileUids',
+							JSON.stringify({ [srsProfiles[0].key]: srsSingleUid.trim() })
+						);
+					}
+				}
 			}
 
 			const res = await fetch(`${PUBLIC_API_URL}/pulls/import/file`, {
@@ -1097,6 +1301,9 @@
 				const result = await res.json();
 				importSuccess = result.summary;
 				importFile = null;
+				srsSingleUid = '';
+				srsProfileUids = {};
+				srsProfiles = [];
 				if (fileInputRef) {
 					fileInputRef.value = '';
 				}
@@ -1123,6 +1330,29 @@
 				alert('Failed to purge: ' + extractApiError(error, 'Error'));
 			}
 		});
+	}
+
+	async function purgeProfileData(gameId: string, gameUid: string, profileLabel: string) {
+		await triggerSensitiveActionVerification(
+			'delete-profile',
+			`${gameId}:${gameUid}`,
+			profileLabel,
+			async () => {
+				const isPrimaryAnonymous =
+					authMethods?.primaryEmail?.endsWith('@anon.gacha-tracker.app') ?? false;
+				const payload = isPrimaryAnonymous ? { code: sensitiveActionCode } : undefined;
+				const { error } = await api.games({ gameId }).accounts({ gameUid }).delete(payload);
+				if (!error) {
+					alert(`Data for profile "${profileLabel}" has been purged.`);
+					const { data: updatedGames } = await api.user.games.get();
+					if (updatedGames) {
+						userGames = updatedGames;
+					}
+				} else {
+					alert('Failed to purge profile: ' + extractApiError(error, 'Error'));
+				}
+			}
+		);
 	}
 
 	let showDeleteModal = $state(false);
@@ -1222,7 +1452,7 @@
 		</div>
 	</div>
 
-	<Tabs.Root value="account" class="w-full">
+	<Tabs.Root bind:value={activeTab} class="w-full">
 		<Tabs.List
 			class="grid h-auto w-full grid-cols-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-1 mb-6"
 		>
@@ -1647,6 +1877,181 @@
 					</div>
 				</Card.Content>
 			</Card.Root>
+
+			<!-- Game Accounts & Profiles Management -->
+			<Card.Root
+				class="bg-zinc-950/60 backdrop-blur-xl border-zinc-800 rounded-2xl overflow-hidden shadow-xl shadow-black/30 p-0 gap-0"
+			>
+				<Card.Header
+					class="bg-linear-to-b from-zinc-900/50 to-transparent p-6 border-b border-zinc-900"
+				>
+					<div class="flex items-center gap-3">
+						<Gamepad2 class="w-5 h-5 text-violet-400" />
+						<Card.Title class="text-white text-lg font-bold">Game Accounts & Profiles</Card.Title>
+					</div>
+					<Card.Description class="text-zinc-500 mt-1"
+						>Manage multiple game accounts (UIDs), set primary profiles, and assign custom
+						nicknames.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="p-6 space-y-6">
+					{#if groupedGameAccounts.length === 0}
+						<div
+							class="flex flex-col items-center justify-center py-10 text-center rounded-xl bg-zinc-900/10 border border-zinc-850"
+						>
+							<Gamepad2 class="w-10 h-10 text-zinc-600 mb-3" />
+							<p class="text-sm font-semibold text-zinc-300">No game accounts tracked yet</p>
+							<p class="text-xs text-zinc-500 mt-1 max-w-sm">
+								Import pulls via file upload or extraction scripts to automatically link your game
+								UIDs.
+							</p>
+						</div>
+					{:else}
+						<div class="space-y-6">
+							{#each groupedGameAccounts as group (group.gameId)}
+								<div class="space-y-3">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<span class="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+												{group.gameDisplayName}
+											</span>
+											<span class="text-[10px] text-zinc-500 font-mono">
+												({group.accounts.length}
+												{group.accounts.length === 1 ? 'account' : 'accounts'})
+											</span>
+										</div>
+									</div>
+
+									<div class="grid gap-3">
+										{#each group.accounts as acc (acc.id)}
+											{@const key = `${acc.gameId}:${acc.gameUid}`}
+											<div
+												class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl bg-zinc-900/20 border border-zinc-800/80 hover:border-zinc-700/80 transition-all gap-4"
+											>
+												<div class="flex items-center gap-3.5 min-w-0">
+													<div
+														class="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 {acc.isPrimary
+															? 'bg-violet-500/10 border-violet-500/20 text-violet-400'
+															: 'bg-zinc-900/50 border-zinc-800 text-zinc-400'}"
+													>
+														{#if acc.isPrimary}
+															<Crown class="w-5 h-5 text-violet-400" />
+														{:else}
+															<User class="w-5 h-5 text-zinc-500" />
+														{/if}
+													</div>
+
+													<div class="min-w-0">
+														<div class="flex items-center gap-2 flex-wrap">
+															{#if editingState[key]}
+																<div class="flex items-center gap-2">
+																	<input
+																		type="text"
+																		placeholder="Nickname"
+																		aria-label="Nickname for UID {acc.gameUid}"
+																		maxlength="50"
+																		value={editingNicknames[key] ?? acc.nickname ?? ''}
+																		oninput={(e) => {
+																			editingNicknames[key] = e.currentTarget.value;
+																		}}
+																		class="h-8 px-2.5 py-1 text-xs bg-zinc-950 border border-violet-500/50 rounded-lg text-white font-semibold focus:outline-none focus:ring-1 focus:ring-violet-500"
+																	/>
+																	<Button
+																		size="sm"
+																		disabled={updatingAccountMap[key]}
+																		onclick={() => saveAccountNickname(acc.gameId, acc.gameUid)}
+																		class="h-8 px-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-bold cursor-pointer"
+																	>
+																		Save
+																	</Button>
+																	<Button
+																		size="sm"
+																		variant="ghost"
+																		onclick={() => (editingState[key] = false)}
+																		class="h-8 px-2 text-zinc-400 hover:text-white rounded-lg text-xs cursor-pointer"
+																	>
+																		Cancel
+																	</Button>
+																</div>
+															{:else}
+																<span class="text-sm font-bold text-white truncate">
+																	{acc.nickname || `UID: ${acc.gameUid}`}
+																</span>
+																<button
+																	type="button"
+																	onclick={() => {
+																		editingNicknames[key] = acc.nickname ?? '';
+																		editingState[key] = true;
+																	}}
+																	class="text-zinc-500 hover:text-zinc-300 transition-colors p-1 cursor-pointer"
+																	title="Edit Nickname"
+																>
+																	<Edit3 class="w-3.5 h-3.5" />
+																</button>
+															{/if}
+
+															{#if acc.isPrimary}
+																<span
+																	class="px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider rounded bg-violet-500/10 border border-violet-500/20 text-violet-400"
+																>
+																	Primary Account
+																</span>
+															{/if}
+														</div>
+
+														<div
+															class="flex items-center gap-3 text-xs text-zinc-500 mt-1 font-mono"
+														>
+															<span>UID: {acc.gameUid}</span>
+															{#if acc.lastImport}
+																<span class="text-zinc-600">&bull;</span>
+																<span class="text-zinc-500 text-[11px] font-sans">
+																	Last imported: {new Date(acc.lastImport).toLocaleDateString()}
+																</span>
+															{/if}
+														</div>
+													</div>
+												</div>
+
+												{#if !acc.isPrimary}
+													<div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+														<Button
+															size="sm"
+															variant="outline"
+															disabled={updatingAccountMap[key]}
+															onclick={() => setPrimaryAccount(acc.gameId, acc.gameUid)}
+															class="rounded-lg font-bold text-xs border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white cursor-pointer px-3 h-8"
+														>
+															{#if updatingAccountMap[key]}
+																<LoaderCircle class="h-3.5 w-3.5 animate-spin" />
+															{:else}
+																Set as Primary
+															{/if}
+														</Button>
+													</div>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/each}
+
+							<div
+								class="pt-3 border-t border-zinc-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-zinc-500"
+							>
+								<span>Need to remove an account or wipe pull logs?</span>
+								<button
+									type="button"
+									onclick={() => (activeTab = 'danger')}
+									class="text-red-400 hover:text-red-300 font-semibold cursor-pointer transition-colors"
+								>
+									Manage purges in Danger Zone &rarr;
+								</button>
+							</div>
+						</div>
+					{/if}
+				</Card.Content>
+			</Card.Root>
 		</Tabs.Content>
 
 		<!-- 2. PREFERENCES PANEL -->
@@ -1930,6 +2335,85 @@
 								class="w-full rounded-xl bg-zinc-900 border border-zinc-800 p-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
 							/>
 						</div>
+					{:else if selectedFormat === 'starrail-station'}
+						{#if inspectingSrs}
+							<div
+								class="flex items-center gap-2 p-3 bg-zinc-900/40 border border-zinc-800 rounded-xl text-zinc-400 text-xs animate-pulse"
+							>
+								<LoaderCircle class="w-4 h-4 animate-spin text-indigo-400" />
+								<span>Inspecting Star Rail Station backup profiles...</span>
+							</div>
+						{:else if srsProfiles.length > 1}
+							<!-- Multi-profile SRS detected -->
+							<div
+								class="grid gap-3 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-200"
+							>
+								<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+									<span class="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+										Multiple Profiles Detected ({srsProfiles.length})
+									</span>
+									<span class="text-xs text-zinc-500"
+										>Assign a Honkai: Star Rail UID to each profile</span
+									>
+								</div>
+								<div class="space-y-3 pt-1">
+									{#each srsProfiles as profile (profile.key)}
+										<div class="p-3 rounded-xl bg-zinc-950/60 border border-zinc-850 space-y-2">
+											<div class="flex items-center justify-between">
+												<span class="text-sm font-bold text-zinc-200">{profile.name}</span>
+												<span
+													class="text-xs font-medium text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20"
+												>
+													{profile.warpCount} warps
+												</span>
+											</div>
+											<input
+												type="text"
+												aria-label="UID for profile {profile.name}"
+												bind:value={srsProfileUids[profile.key]}
+												oninput={(e) => {
+													const val = e.currentTarget.value.replace(/\D/g, '');
+													srsProfileUids[profile.key] = val;
+													e.currentTarget.value = val;
+												}}
+												placeholder="Enter UID for {profile.name} (9 digits)"
+												maxlength="9"
+												disabled={importing}
+												class="w-full rounded-xl bg-zinc-900 border border-zinc-800 p-2.5 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+											/>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{:else}
+							<!-- Single UID input for Star Rail Station -->
+							<div class="grid gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+								<label
+									for="import-srs-uid"
+									class="text-xs font-bold text-zinc-400 uppercase tracking-wider"
+									>Honkai: Star Rail UID</label
+								>
+								<input
+									type="text"
+									id="import-srs-uid"
+									bind:value={srsSingleUid}
+									oninput={(e) => {
+										srsSingleUid = e.currentTarget.value.replace(/\D/g, '');
+										e.currentTarget.value = srsSingleUid;
+									}}
+									placeholder="Enter UID (9 digits)"
+									maxlength="9"
+									disabled={importing}
+									class="w-full rounded-xl bg-zinc-900 border border-zinc-800 p-3 text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+								/>
+								{#if srsProfiles.length === 1}
+									<span class="text-xs text-zinc-500">
+										Profile detected: <strong class="text-zinc-300">{srsProfiles[0].name}</strong>
+										({srsProfiles[0].warpCount} warps)
+									</span>
+								{/if}
+							</div>
+						{/if}
 					{/if}
 
 					<!-- File Dropzone -->
@@ -2037,6 +2521,7 @@
 						<Button
 							onclick={handleImport}
 							disabled={importing ||
+								inspectingSrs ||
 								!importFile ||
 								cooldownRemaining > 0 ||
 								queueStatus === 'queued' ||
@@ -2048,6 +2533,8 @@
 								<LoaderCircle class="h-4 w-4 animate-spin" /> Queued...
 							{:else if importing}
 								<LoaderCircle class="h-4 w-4 animate-spin" /> Importing...
+							{:else if inspectingSrs}
+								<LoaderCircle class="h-4 w-4 animate-spin" /> Inspecting...
 							{:else if cooldownRemaining > 0}
 								<Clock class="h-4 w-4" /> Cooldown ({cooldownRemaining}s)
 							{:else}
@@ -2150,38 +2637,99 @@
 
 					<Separator class="bg-red-950/10" />
 
-					<!-- Selective game purges -->
+					<!-- Selective game & profile purges -->
 					<div class="space-y-4">
 						<div>
-							<h3 class="text-sm font-bold text-zinc-200">Selective Game Data Purges</h3>
+							<h3 class="text-sm font-bold text-zinc-200">Selective Game & Profile Purges</h3>
 							<p class="text-xs text-zinc-500 mt-1">
-								Wipe pull history entries for a single specific game. This is helpful to correct
-								import bugs.
+								Wipe pull history entries for an entire game or selectively purge individual
+								profiles (UIDs).
 							</p>
 						</div>
 
-						{#if userGames.length === 0}
+						{#if groupedGameAccounts.length === 0}
 							<span class="text-xs text-zinc-650 italic block py-2"
 								>No active sync game logs found.</span
 							>
 						{:else}
-							<div class="grid gap-3">
-								{#each userGames as game (game.gameId)}
-									<div
-										class="flex items-center justify-between p-4 rounded-xl bg-zinc-950/80 border border-zinc-900"
-									>
-										<span class="text-sm font-bold text-zinc-200"
-											>{game.gameDisplayName || game.gameId}</span
+							<div class="grid gap-4">
+								{#each groupedGameAccounts as group (group.gameId)}
+									<div class="p-4 rounded-xl bg-zinc-950/80 border border-zinc-900 space-y-3">
+										<div
+											class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-zinc-900"
 										>
-										<Button
-											size="sm"
-											variant="destructive"
-											onclick={() =>
-												purgeGameData(game.gameId, game.gameDisplayName || game.gameId)}
-											class="rounded-lg font-bold text-xs bg-red-950/30 hover:bg-red-600 text-red-400 hover:text-white border border-red-900/30 cursor-pointer"
-										>
-											<Trash2 class="h-3.5 w-3.5 mr-1.5" /> Purge Logs
-										</Button>
+											<div class="space-y-0.5">
+												<span class="text-sm font-bold text-zinc-200 block"
+													>{group.gameDisplayName}</span
+												>
+												<span class="text-xs text-zinc-500 font-mono block">
+													{group.accounts.length}
+													{group.accounts.length === 1 ? 'profile' : 'profiles'} tracked
+												</span>
+											</div>
+											<Button
+												size="sm"
+												variant="destructive"
+												onclick={() => purgeGameData(group.gameId, group.gameDisplayName)}
+												class="rounded-lg font-bold text-xs bg-red-950/30 hover:bg-red-600 text-red-400 hover:text-white border border-red-900/30 cursor-pointer"
+											>
+												<Trash2 class="h-3.5 w-3.5 mr-1.5" /> Purge Entire Game ({group.gameDisplayName})
+											</Button>
+										</div>
+
+										<div class="space-y-2 pt-1">
+											<span
+												class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block"
+											>
+												Individual Profiles
+											</span>
+											<div class="grid gap-2">
+												{#each group.accounts as acc (acc.id)}
+													<div
+														class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/30 border border-zinc-850 gap-3"
+													>
+														<div class="min-w-0">
+															<div class="flex items-center gap-2 flex-wrap">
+																<span class="text-xs font-bold text-zinc-200 truncate">
+																	{acc.nickname || `UID: ${acc.gameUid}`}
+																</span>
+																{#if acc.isPrimary}
+																	<span
+																		class="px-1.5 py-0.5 text-[8.5px] font-black uppercase tracking-wider rounded bg-violet-500/10 border border-violet-500/20 text-violet-400"
+																	>
+																		Primary
+																	</span>
+																{/if}
+															</div>
+															<div class="text-[11px] text-zinc-500 font-mono mt-0.5">
+																UID: {acc.gameUid}
+																{#if acc.lastImport}
+																	&bull; Last imported: {new Date(
+																		acc.lastImport
+																	).toLocaleDateString()}
+																{/if}
+															</div>
+														</div>
+
+														<Button
+															size="sm"
+															variant="outline"
+															onclick={() =>
+																purgeProfileData(
+																	acc.gameId,
+																	acc.gameUid,
+																	acc.nickname
+																		? `${acc.nickname} (${acc.gameUid})`
+																		: `UID: ${acc.gameUid}`
+																)}
+															class="rounded-lg font-bold text-xs border-zinc-800 text-zinc-400 hover:bg-red-950/20 hover:text-red-400 hover:border-red-900/30 cursor-pointer px-3 h-8 transition-all shrink-0"
+														>
+															<Trash2 class="h-3.5 w-3.5 mr-1" /> Purge Profile
+														</Button>
+													</div>
+												{/each}
+											</div>
+										</div>
 									</div>
 								{/each}
 							</div>
@@ -2637,6 +3185,8 @@
 					<h3 class="text-lg font-bold text-white">
 						{#if sensitiveActionType === 'delete-game'}
 							Purge Game Data
+						{:else if sensitiveActionType === 'delete-profile'}
+							Purge Profile Data
 						{:else if sensitiveActionType === 'unlink-secondary-email'}
 							Remove Secondary Email
 						{:else if sensitiveActionType === 'unlink-social'}
@@ -2654,6 +3204,10 @@
 					{#if sensitiveActionType === 'delete-game'}
 						To permanently erase all pull histories for <span class="text-white font-semibold"
 							>{sensitiveActionTargetName}</span
+						>, please verify your identity.
+					{:else if sensitiveActionType === 'delete-profile'}
+						To permanently erase all pull histories for profile <span
+							class="text-white font-semibold">{sensitiveActionTargetName}</span
 						>, please verify your identity.
 					{:else if sensitiveActionType === 'unlink-secondary-email'}
 						To remove and unlink the secondary email <span class="text-white font-semibold"

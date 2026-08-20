@@ -81,7 +81,7 @@ describe("WuWaTrackerJsonParser", () => {
         };
 
         const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
-        expect(parser.parse(buffer)).rejects.toThrow();
+        await expect(parser.parse(buffer)).rejects.toThrow();
     });
 
     it("should throw a validation error for missing required fields", async () => {
@@ -100,7 +100,7 @@ describe("WuWaTrackerJsonParser", () => {
         };
 
         const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
-        expect(parser.parse(buffer)).rejects.toThrow();
+        await expect(parser.parse(buffer)).rejects.toThrow();
     });
 
     it("should throw an error for duplicate pullId collisions (repeated group index at same timestamp)", async () => {
@@ -127,7 +127,7 @@ describe("WuWaTrackerJsonParser", () => {
         };
 
         const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
-        expect(parser.parse(buffer)).rejects.toThrow("Duplicate pullId collision detected");
+        await expect(parser.parse(buffer)).rejects.toThrow("Duplicate pullId collision detected");
     });
 
     it("should throw an error for unexpected resourceId format/length", async () => {
@@ -146,6 +146,8 @@ describe("WuWaTrackerJsonParser", () => {
         };
 
         const buffer = Buffer.from(JSON.stringify(mockExport), "utf-8");
-        expect(parser.parse(buffer)).rejects.toThrow("Unknown resourceId format/length detected");
+        await expect(parser.parse(buffer)).rejects.toThrow(
+            "Unknown resourceId format/length detected"
+        );
     });
 });

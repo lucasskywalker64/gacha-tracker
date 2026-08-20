@@ -13,20 +13,25 @@ export const load = async () => {
 		};
 	}
 
-	// Fetch stats for each game in parallel
-	const statsPromises = userGames.map((ug) => api.stats({ gameId: ug.gameId }).get());
+	// Fetch aggregate stats for each unique game in parallel
+	const uniqueGameIds = Array.from(new Set(userGames.map((ug) => ug.gameId)));
+	const statsPromises = uniqueGameIds.map((gameId) =>
+		api.stats({ gameId }).get({
+			query: { gameUid: 'all' }
+		})
+	);
 	const statsResults = await Promise.allSettled(statsPromises);
 
 	const statsMap: Record<string, GameStats> = {};
 	let totalPulls = 0;
 	let totalFiveStars = 0;
 
-	userGames.forEach((ug, i) => {
+	uniqueGameIds.forEach((gameId, i) => {
 		const result = statsResults[i];
 		if (result.status === 'fulfilled') {
 			const data = result.value.data as GameStats | null;
 			if (data) {
-				statsMap[ug.gameId] = data;
+				statsMap[gameId] = data;
 				totalPulls += data.total || 0;
 				totalFiveStars += data.fiveStars || 0;
 			}

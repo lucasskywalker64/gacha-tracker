@@ -158,13 +158,25 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 await redis.del(verifiedKey);
             }
 
+            const userGameRecords = await db.query.userGame.findMany({
+                where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
+            });
+
             await db.transaction(async (tx) => {
-                // Delete all pulls and the user_game link for this game
+                // Delete all pulls and the user_game links for this game
                 await tx.delete(pull).where(and(eq(pull.userId, userId), eq(pull.gameId, gameId)));
                 await tx
                     .delete(userGame)
                     .where(and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)));
             });
+
+            await redis.del(`stats:${userId}:${gameId}`);
+            await redis.del(`stats:${userId}:${gameId}:all`);
+            for (const ug of userGameRecords) {
+                if (ug.gameUid) {
+                    await redis.del(`stats:${userId}:${gameId}:${ug.gameUid}`);
+                }
+            }
 
             return { success: true };
         },
@@ -952,6 +964,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 action: t.Union([
                     t.Literal("delete-account"),
                     t.Literal("delete-game"),
+                    t.Literal("delete-profile"),
                     t.Literal("unlink-secondary-email"),
                     t.Literal("unlink-social"),
                 ]),
@@ -1048,6 +1061,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 action: t.Union([
                     t.Literal("delete-account"),
                     t.Literal("delete-game"),
+                    t.Literal("delete-profile"),
                     t.Literal("unlink-secondary-email"),
                     t.Literal("unlink-social"),
                 ]),

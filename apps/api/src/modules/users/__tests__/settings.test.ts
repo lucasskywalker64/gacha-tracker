@@ -122,6 +122,9 @@ mock.module("../../../db/client", () => ({
             account: {
                 findFirst: mock(async () => mockAccount),
             },
+            userGame: {
+                findMany: mock(async () => [{ gameUid: "100000001" }, { gameUid: "100000002" }]),
+            },
             verification: {
                 findFirst: mock(async () => null),
                 findMany: mock(async () => []),
@@ -562,6 +565,69 @@ describe("userRouter — Account Deletion Re-authentication", () => {
             );
             expect(res.status).toBe(401);
             expect(dbDeletedCalled).toBe(false);
+        });
+    });
+
+    describe("DELETE /user/game/:gameId", () => {
+        it("fails with 401 when sensitive action OTP is not verified", async () => {
+            const app = await buildApp();
+            const res = await app.handle(
+                new Request("http://localhost/user/game/genshin", {
+                    method: "DELETE",
+                })
+            );
+            expect(res.status).toBe(401);
+            const data = await res.json();
+            expect(data.error.code).toBe("VERIFICATION_REQUIRED");
+        });
+
+        it("purges game data and invalidates stats caches when verified", async () => {
+            const verifiedKey = RedisKeys.sensitiveActionVerified(
+                "test_user_id",
+                "delete-game",
+                "genshin"
+            );
+            redisStore.set(verifiedKey, "verified");
+            redisStore.set("stats:test_user_id:genshin", "cached_stats");
+            redisStore.set("stats:test_user_id:genshin:all", "cached_stats_all");
+            redisStore.set("stats:test_user_id:genshin:100000001", "cached_stats_acc1");
+            redisStore.set("stats:test_user_id:genshin:100000002", "cached_stats_acc2");
+
+            const app = await buildApp();
+            const res = await app.handle(
+                new Request("http://localhost/user/game/genshin", {
+                    method: "DELETE",
+                })
+            );
+            expect(res.status).toBe(200);
+            const data = await res.json();
+            expect(data.success).toBe(true);
+
+            // Verified token consumed
+            expect(redisStore.has(verifiedKey)).toBe(false);
+            // Stats caches cleared
+            expect(redisStore.has("stats:test_user_id:genshin")).toBe(false);
+            expect(redisStore.has("stats:test_user_id:genshin:all")).toBe(false);
+            expect(redisStore.has("stats:test_user_id:genshin:100000001")).toBe(false);
+            expect(redisStore.has("stats:test_user_id:genshin:100000002")).toBe(false);
+        });
+
+        it("deletes game data for anonymous user with valid code", async () => {
+            mockUser.isAnonymous = true;
+            mockUser.email = "anon_user@anon.gacha-tracker.app";
+            mockUser.codeHash = await Bun.password.hash("1234567890123456");
+
+            const app = await buildApp();
+            const res = await app.handle(
+                new Request("http://localhost/user/game/genshin", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code: "1234567890123456" }),
+                })
+            );
+            expect(res.status).toBe(200);
+            const data = await res.json();
+            expect(data.success).toBe(true);
         });
     });
 });
