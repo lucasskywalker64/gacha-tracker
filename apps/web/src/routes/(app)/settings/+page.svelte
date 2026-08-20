@@ -108,6 +108,10 @@
 					userGames = updatedGames;
 				}
 			}
+		} catch (err) {
+			alert(
+				'Failed to set primary profile: ' + (err instanceof Error ? err.message : 'Network error')
+			);
 		} finally {
 			updatingAccountMap[key] = false;
 		}
@@ -135,6 +139,8 @@
 					userGames = updatedGames;
 				}
 			}
+		} catch (err) {
+			alert('Failed to save nickname: ' + (err instanceof Error ? err.message : 'Network error'));
 		} finally {
 			updatingAccountMap[key] = false;
 		}
@@ -822,6 +828,7 @@
 	async function updateSrsInspection(file: File | null) {
 		const version = ++srsInspectionVersion;
 		if (!file || selectedFormat !== 'starrail-station') {
+			inspectingSrs = false;
 			srsProfiles = [];
 			srsProfileUids = {};
 			srsSingleUid = '';
@@ -860,8 +867,11 @@
 
 	$effect(() => {
 		if (selectedFormat !== 'starrail-station') {
+			srsInspectionVersion++;
+			inspectingSrs = false;
 			srsProfiles = [];
 			srsProfileUids = {};
+			srsSingleUid = '';
 		} else if (importFile) {
 			updateSrsInspection(importFile);
 		}
@@ -1158,7 +1168,7 @@
 		return { isValid: true, error: '' };
 	}
 
-	async function handleFileChange(e: Event) {
+	function handleFileChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		if (target.files && target.files.length > 0) {
 			const file = target.files[0];
@@ -1174,7 +1184,6 @@
 			importFile = file;
 			importError = '';
 			importSuccess = null;
-			await updateSrsInspection(file);
 		}
 	}
 
@@ -2360,6 +2369,7 @@
 											</div>
 											<input
 												type="text"
+												aria-label="UID for profile {profile.name}"
 												bind:value={srsProfileUids[profile.key]}
 												oninput={(e) => {
 													const val = e.currentTarget.value.replace(/\D/g, '');
