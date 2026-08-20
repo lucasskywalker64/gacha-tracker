@@ -6,6 +6,12 @@ param(
     [switch]$DebugMode
 )
 
+$ScriptVersion = if ($MyInvocation.Line -match 'raw\.githubusercontent\.com/[^/]+/[^/]+/([^/]+)') {
+    $Matches[1]
+} else {
+    $null
+}
+
 function Write-DebugLog {
     param([string]$Message)
     if ($DebugMode -or $DebugPreference -ne 'SilentlyContinue') {
@@ -582,10 +588,15 @@ Write-DebugLog "Sending payload to tracker (JSON size: $($payloadJson.Length) ch
 try {
     $importUrl = "$ApiUrl/pulls/import"
     Write-DebugLog "Import URL: $importUrl"
-    $result = Invoke-RestMethod -Uri $importUrl -Method Post -Headers @{
+    $importHeaders = @{
         "Authorization" = "Bearer $ImportToken"
         "Content-Type"  = "application/json"
-    } -Body $payloadJson -TimeoutSec 30
+    }
+    if ($ScriptVersion) {
+        $importHeaders["x-script-version"] = $ScriptVersion
+    }
+
+    $result = Invoke-RestMethod -Uri $importUrl -Method Post -Headers $importHeaders -Body $payloadJson -TimeoutSec 30
     Write-DebugLog "Tracker response success: $($result.success), message: $($result.message), error: $($result.error)"
 
     if ($result.success) {

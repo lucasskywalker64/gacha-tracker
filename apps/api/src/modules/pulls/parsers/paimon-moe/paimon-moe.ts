@@ -245,10 +245,56 @@ export class PaimonMoeParser implements ImportParser {
             return diff !== 0 ? diff : a.pullId.localeCompare(b.pullId);
         });
 
+        let fileVersion: string | undefined;
+        const infoSheetKey = Array.from(sheetNameToPath.keys()).find(
+            (k) => k.trim().toLowerCase() === "information"
+        );
+        if (infoSheetKey) {
+            const infoPath = sheetNameToPath.get(infoSheetKey);
+            if (infoPath) {
+                const infoXml = getText(infoPath);
+                if (infoXml) {
+                    fileVersion = parseInformationSheet(infoXml, resolveCell);
+                }
+            }
+        }
+
         return {
+            ...(fileVersion ? { fileVersion } : {}),
             games: [{ gameId: "genshin", gameUid, pulls: allPulls }],
         };
     }
+}
+
+// ---------------------------------------------------------------------------
+// Information Sheet parsing
+// ---------------------------------------------------------------------------
+
+export function parseInformationSheet(
+    sheetXml: string,
+    resolveCell: (type: string | undefined, value: string) => string
+): string | undefined {
+    try {
+        const parsedSheet = xmlParser.parse(sheetXml);
+        const rowList = toArray(parsedSheet?.worksheet?.sheetData?.row);
+
+        for (const row of rowList) {
+            const cells = extractRowCellsFromObj(row?.c);
+            const colA = resolveCell(cells.A?.type, cells.A?.value ?? "")
+                .trim()
+                .toLowerCase();
+            const colB = resolveCell(cells.B?.type, cells.B?.value ?? "").trim();
+
+            if (!colA || !colB) continue;
+
+            if (colA.includes("version")) {
+                return colB;
+            }
+        }
+    } catch {
+        // Fallback silently if Information sheet parsing fails
+    }
+    return undefined;
 }
 
 // ---------------------------------------------------------------------------

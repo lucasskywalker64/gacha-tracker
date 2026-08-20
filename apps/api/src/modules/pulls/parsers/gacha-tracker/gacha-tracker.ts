@@ -14,6 +14,7 @@ export class GachaTrackerParser implements ImportParser {
         const validated = nativeExportSchema.parse(json);
 
         return {
+            fileVersion: validated.version ? String(validated.version) : undefined,
             games: validated.games.flatMap((g) =>
                 g.accounts.map((acc) => ({
                     gameId: g.gameId,
