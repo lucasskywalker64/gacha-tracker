@@ -32,6 +32,7 @@ import {
 
 registerWorker(async (entry) => {
     const tWorkerStart = performance.now();
+    let rootLogFinalized = false;
     const queueWaitDurationMs = entry.startedProcessingAt
         ? Math.max(0, Math.round(entry.startedProcessingAt.getTime() - entry.queuedAt.getTime()))
         : 0;
@@ -48,6 +49,11 @@ registerWorker(async (entry) => {
 
         if (parsed.games.length === 0) {
             await updateSuccessImportLog(entry.requestId, {
+                userId: entry.userId,
+                importMethod: `file_${entry.format}`,
+                sourceIp: entry.sourceIp,
+                userAgent: entry.userAgent,
+                payloadSizeBytes: entry.payloadSizeBytes,
                 totalFetched: 0,
                 newPulls: 0,
                 duplicates: 0,
@@ -56,6 +62,7 @@ registerWorker(async (entry) => {
                 totalDurationMs: Date.now() - entry.queuedAt.getTime(),
                 bannersAffectedCount: 0,
             });
+            rootLogFinalized = true;
         }
 
         for (let i = 0; i < parsed.games.length; i++) {
@@ -103,6 +110,11 @@ registerWorker(async (entry) => {
                 );
 
                 await updateSuccessImportLog(importLogId, {
+                    userId: entry.userId,
+                    importMethod: `file_${entry.format}`,
+                    sourceIp: entry.sourceIp,
+                    userAgent: entry.userAgent,
+                    payloadSizeBytes: entry.payloadSizeBytes,
                     gameId: gameData.gameId,
                     gameUid: gameData.gameUid,
                     totalFetched: result.totalFetched,
@@ -120,6 +132,9 @@ registerWorker(async (entry) => {
                     initiatedAt: entry.queuedAt,
                     tBackendStart: tGameStart,
                 });
+                if (i === 0) {
+                    rootLogFinalized = true;
+                }
 
                 summary.push({
                     gameId: gameData.gameId,
@@ -149,6 +164,11 @@ registerWorker(async (entry) => {
                 }
 
                 await updateFailedImportLog(importLogId, {
+                    userId: entry.userId,
+                    importMethod: `file_${entry.format}`,
+                    sourceIp: entry.sourceIp,
+                    userAgent: entry.userAgent,
+                    payloadSizeBytes: entry.payloadSizeBytes,
                     errorMessage: errMsg,
                     errorCode: "GAME_IMPORT_FAILED",
                     rawErrorStack: gameErr instanceof Error ? gameErr.stack : undefined,
@@ -156,6 +176,9 @@ registerWorker(async (entry) => {
                     queueWaitDurationMs,
                     totalDurationMs: Date.now() - entry.queuedAt.getTime(),
                 });
+                if (i === 0) {
+                    rootLogFinalized = true;
+                }
 
                 summary.push({
                     gameId: gameData.gameId,
@@ -184,7 +207,27 @@ registerWorker(async (entry) => {
                 "Invalid JSON structure. Please ensure the file is a valid JSON backup.";
         }
 
-        await updateFailedImportLog(entry.requestId, {
+        const failLogId = rootLogFinalized
+            ? await createPendingImportLog({
+                  userId: entry.userId,
+                  importMethod: `file_${entry.format}`,
+                  sourceIp: entry.sourceIp,
+                  userAgent: entry.userAgent,
+                  scriptVersion: entry.scriptVersion,
+                  webAppVersion: entry.webAppVersion,
+                  fileVersion: entry.fileVersion,
+                  payloadSizeBytes: entry.payloadSizeBytes,
+                  queueWaitDurationMs,
+                  initiatedAt: entry.queuedAt,
+              })
+            : entry.requestId;
+
+        await updateFailedImportLog(failLogId, {
+            userId: entry.userId,
+            importMethod: `file_${entry.format}`,
+            sourceIp: entry.sourceIp,
+            userAgent: entry.userAgent,
+            payloadSizeBytes: entry.payloadSizeBytes,
             errorMessage: formattedMessage,
             errorCode,
             rawErrorStack: err instanceof Error ? err.stack : undefined,
@@ -225,8 +268,7 @@ function extractClientMetadata(request: Request, body?: unknown) {
         getHeader("x-forwarded-for")?.split(",")[0]?.trim() ||
         getHeader("x-real-ip") ||
         getHeader("cf-connecting-ip") ||
-        getHeader("x-client-ip") ||
-        "127.0.0.1";
+        getHeader("x-client-ip");
 
     const userAgent = getHeader("user-agent");
 
@@ -358,11 +400,6 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         "/import",
         async ({ request, body, status }) => {
             const tBackendStart = performance.now();
-            const { sourceIp, userAgent, scriptVersion, webAppVersion } = extractClientMetadata(
-                request,
-                body
-            );
-            const payloadSizeBytes = Buffer.byteLength(JSON.stringify(body), "utf-8");
 
             const authHeader = request.headers.get("authorization");
             if (!authHeader?.startsWith("Bearer ")) {
@@ -395,10 +432,31 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             // Acquire cooldown lock
             await redis.set(cooldownKey, "1", "EX", IMPORT_USER_COOLDOWN_SECONDS);
 
+            const { sourceIp, userAgent, scriptVersion, webAppVersion } = extractClientMetadata(
+                request,
+                body
+            );
+            const contentLength = Number(request.headers.get("content-length"));
+            const payloadSizeBytes =
+                Number.isFinite(contentLength) && contentLength > 0 ? contentLength : undefined;
+
             let payload;
             try {
                 payload = importPayloadSchema.parse(body);
             } catch (err) {
+                await redis.del(cooldownKey);
+
+                if (body !== null && typeof body === "object" && "gameId" in body) {
+                    const rawGameId = (body as Record<string, unknown>).gameId;
+                    if (typeof rawGameId === "string") {
+                        try {
+                            await redis.del(`import_start:${userId}:${rawGameId}`);
+                        } catch {
+                            // Redis cleanup is best-effort
+                        }
+                    }
+                }
+
                 const importLogId = await createPendingImportLog({
                     userId,
                     importMethod: "script_api",
@@ -409,6 +467,11 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     payloadSizeBytes,
                 });
                 await updateFailedImportLog(importLogId, {
+                    userId,
+                    importMethod: "script_api",
+                    sourceIp,
+                    userAgent,
+                    payloadSizeBytes,
                     errorMessage: err instanceof Error ? err.message : String(err),
                     errorCode: "SCHEMA_VALIDATION_ERROR",
                     rawErrorStack: err instanceof Error ? err.stack : undefined,
@@ -460,6 +523,11 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 );
 
                 await updateSuccessImportLog(importLogId, {
+                    userId,
+                    importMethod: "script_api",
+                    sourceIp,
+                    userAgent,
+                    payloadSizeBytes,
                     gameId: payload.gameId,
                     gameUid: payload.gameUid,
                     totalFetched: result.totalFetched,
@@ -507,6 +575,11 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 });
             } catch (err) {
                 await updateFailedImportLog(importLogId, {
+                    userId,
+                    importMethod: "script_api",
+                    sourceIp,
+                    userAgent,
+                    payloadSizeBytes,
                     errorMessage: err instanceof Error ? err.message : String(err),
                     errorCode:
                         err instanceof Error && err.message === "CONCURRENT_IMPORT_IN_PROGRESS"
@@ -1244,6 +1317,10 @@ export async function executePullsImport(
             // Stats cache invalidation is best-effort; the import already committed
         }
 
+        const affectedPools = new Set(
+            allPulls.map((p) => adapter.pityPools?.[p.bannerType] || p.bannerType)
+        );
+
         return {
             imported: newPullCount,
             totalFetched: allPulls.length,
@@ -1252,7 +1329,7 @@ export async function executePullsImport(
             dbWriteDurationMs,
             earliestPullAt,
             latestPullAt,
-            bannersAffectedCount: pullsByPool.size,
+            bannersAffectedCount: affectedPools.size,
         };
     } finally {
         if (lockAcquired) {

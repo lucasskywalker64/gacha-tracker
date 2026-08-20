@@ -225,7 +225,9 @@ describe("HSR Pull Import E2E", () => {
         const pullCount = allPulls.filter((p) => p.pullId === "P1001").length;
         expect(pullCount).toBe(1); // Should still be 1
 
-        const logs = await testDb.query.importLog.findMany();
+        const logs = await testDb.query.importLog.findMany({
+            orderBy: (log, { asc }) => [asc(log.initiatedAt)],
+        });
         expect(logs.length).toBe(2);
         const secondLog = logs[1];
         expect(secondLog.status).toBe("success");
@@ -273,11 +275,14 @@ describe("HSR Pull Import E2E", () => {
 
         expect(response.status).toBe(200);
 
-        const logs = await testDb.query.importLog.findMany();
-        const latestLog = logs[logs.length - 1];
-        expect(latestLog.status).toBe("success");
-        expect(latestLog.scriptVersion).toBe(null);
-        expect(latestLog.webAppVersion).toBe(null);
-        expect(latestLog.fileVersion).toBe(null);
+        const logs = await testDb.query.importLog.findMany({
+            where: (log, { eq }) => eq(log.gameUid, "UID999"),
+        });
+        expect(logs.length).toBe(1);
+        const targetLog = logs[0];
+        expect(targetLog.status).toBe("success");
+        expect(targetLog.scriptVersion).toBe(null);
+        expect(targetLog.webAppVersion).toBe(null);
+        expect(targetLog.fileVersion).toBe(null);
     });
 });

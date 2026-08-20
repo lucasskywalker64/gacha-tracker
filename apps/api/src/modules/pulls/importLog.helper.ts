@@ -1,5 +1,6 @@
 import { db } from "../../db/client";
 import { importLog } from "../../db/schema/import-log";
+import { redis } from "../../lib/redis";
 
 export interface CreateImportLogParams {
     id?: string;
@@ -19,6 +20,11 @@ export interface CreateImportLogParams {
 }
 
 export interface UpdateSuccessImportLogParams {
+    userId?: string;
+    importMethod?: string;
+    sourceIp?: string;
+    userAgent?: string;
+    payloadSizeBytes?: number;
     gameId?: string;
     gameUid?: string;
     totalFetched?: number;
@@ -41,6 +47,13 @@ export interface UpdateSuccessImportLogParams {
 }
 
 export interface UpdateFailedImportLogParams {
+    userId?: string;
+    gameId?: string;
+    gameUid?: string;
+    importMethod?: string;
+    sourceIp?: string;
+    userAgent?: string;
+    payloadSizeBytes?: number;
     errorMessage: string;
     errorCode?: string;
     rawErrorStack?: string;
@@ -69,6 +82,20 @@ export async function createPendingImportLog(params: CreateImportLogParams): Pro
 
     pendingLogStore.set(id, logParams);
 
+    try {
+        await redis.set(
+            `pending_import_log:${id}`,
+            JSON.stringify({
+                ...logParams,
+                initiatedAt: initiatedAt.toISOString(),
+            }),
+            "EX",
+            3600
+        );
+    } catch {
+        // Redis persistence is best-effort
+    }
+
     // Auto cleanup after 15 minutes to prevent memory leaks if an import crashes unexpectedly
     const timer = setTimeout(
         () => {
@@ -83,53 +110,82 @@ export async function createPendingImportLog(params: CreateImportLogParams): Pro
     return id;
 }
 
+async function getPendingLog(id: string): Promise<CreateImportLogParams | undefined> {
+    const local = pendingLogStore.get(id);
+    if (local) {
+        pendingLogStore.delete(id);
+        try {
+            await redis.del(`pending_import_log:${id}`);
+        } catch {
+            // Best-effort redis delete
+        }
+        return local;
+    }
+
+    try {
+        const raw = await redis.get(`pending_import_log:${id}`);
+        if (raw) {
+            await redis.del(`pending_import_log:${id}`);
+            const parsed = JSON.parse(raw);
+            return {
+                ...parsed,
+                initiatedAt: parsed.initiatedAt ? new Date(parsed.initiatedAt) : undefined,
+            };
+        }
+    } catch {
+        // Fallback silently if Redis is offline
+    }
+
+    return undefined;
+}
+
 export async function updateSuccessImportLog(
     id: string,
     params: UpdateSuccessImportLogParams
 ): Promise<void> {
-    const pending = pendingLogStore.get(id);
-    pendingLogStore.delete(id);
+    const pending = await getPendingLog(id);
 
     const initiatedAt = params.initiatedAt || pending?.initiatedAt || new Date();
     const completedAt = new Date();
 
-    const backendDurationMs = params.tBackendStart
-        ? Math.max(0, Math.round(performance.now() - params.tBackendStart))
-        : params.backendDurationMs !== undefined
-          ? Math.max(0, Math.round(params.backendDurationMs))
-          : undefined;
+    const backendDurationMs =
+        params.tBackendStart !== undefined
+            ? Math.max(0, Math.round(performance.now() - params.tBackendStart))
+            : params.backendDurationMs !== undefined
+              ? Math.max(0, Math.round(params.backendDurationMs))
+              : undefined;
 
     const scriptDurationMs =
         params.scriptDurationMs !== undefined
             ? Math.max(0, Math.round(params.scriptDurationMs))
-            : pending?.scriptDurationMs || 0;
+            : (pending?.scriptDurationMs ?? 0);
 
     const queueWaitDurationMs =
         params.queueWaitDurationMs !== undefined
             ? Math.max(0, Math.round(params.queueWaitDurationMs))
-            : pending?.queueWaitDurationMs || 0;
+            : (pending?.queueWaitDurationMs ?? 0);
 
     const totalDurationMs =
         params.totalDurationMs !== undefined
             ? Math.max(0, Math.round(params.totalDurationMs))
-            : scriptDurationMs + queueWaitDurationMs + (backendDurationMs || 0);
+            : scriptDurationMs + queueWaitDurationMs + (backendDurationMs ?? 0);
 
     try {
         await db.insert(importLog).values({
             id,
-            userId: pending?.userId || "unknown",
+            userId: params.userId || pending?.userId || "unknown",
             gameId: params.gameId || pending?.gameId || null,
             gameUid: params.gameUid || pending?.gameUid || null,
-            importMethod: pending?.importMethod || "unknown",
+            importMethod: params.importMethod || pending?.importMethod || "unknown",
             status: "success",
-            sourceIp: pending?.sourceIp || null,
-            userAgent: pending?.userAgent || null,
+            sourceIp: params.sourceIp ?? pending?.sourceIp ?? null,
+            userAgent: params.userAgent ?? pending?.userAgent ?? null,
             scriptVersion: params.scriptVersion || pending?.scriptVersion || null,
             webAppVersion: params.webAppVersion || pending?.webAppVersion || null,
             fileVersion: params.fileVersion || pending?.fileVersion || null,
-            payloadSizeBytes: pending?.payloadSizeBytes ?? null,
-            scriptDurationMs: scriptDurationMs || null,
-            queueWaitDurationMs: queueWaitDurationMs || null,
+            payloadSizeBytes: params.payloadSizeBytes ?? pending?.payloadSizeBytes ?? null,
+            scriptDurationMs: scriptDurationMs ?? null,
+            queueWaitDurationMs: queueWaitDurationMs ?? null,
             pityCalcDurationMs:
                 params.pityCalcDurationMs !== undefined
                     ? Math.max(0, Math.round(params.pityCalcDurationMs))
@@ -139,7 +195,7 @@ export async function updateSuccessImportLog(
                     ? Math.max(0, Math.round(params.dbWriteDurationMs))
                     : null,
             backendDurationMs: backendDurationMs ?? null,
-            totalDurationMs: totalDurationMs || null,
+            totalDurationMs: totalDurationMs ?? null,
             totalFetched: params.totalFetched ?? null,
             newPulls: params.newPulls ?? null,
             duplicates: params.duplicates ?? null,
@@ -158,51 +214,51 @@ export async function updateFailedImportLog(
     id: string,
     params: UpdateFailedImportLogParams
 ): Promise<void> {
-    const pending = pendingLogStore.get(id);
-    pendingLogStore.delete(id);
+    const pending = await getPendingLog(id);
 
     const initiatedAt = params.initiatedAt || pending?.initiatedAt || new Date();
     const completedAt = new Date();
 
-    const backendDurationMs = params.tBackendStart
-        ? Math.max(0, Math.round(performance.now() - params.tBackendStart))
-        : params.backendDurationMs !== undefined
-          ? Math.max(0, Math.round(params.backendDurationMs))
-          : undefined;
+    const backendDurationMs =
+        params.tBackendStart !== undefined
+            ? Math.max(0, Math.round(performance.now() - params.tBackendStart))
+            : params.backendDurationMs !== undefined
+              ? Math.max(0, Math.round(params.backendDurationMs))
+              : undefined;
 
     const scriptDurationMs =
         params.scriptDurationMs !== undefined
             ? Math.max(0, Math.round(params.scriptDurationMs))
-            : pending?.scriptDurationMs || 0;
+            : (pending?.scriptDurationMs ?? 0);
 
     const queueWaitDurationMs =
         params.queueWaitDurationMs !== undefined
             ? Math.max(0, Math.round(params.queueWaitDurationMs))
-            : pending?.queueWaitDurationMs || 0;
+            : (pending?.queueWaitDurationMs ?? 0);
 
     const totalDurationMs =
         params.totalDurationMs !== undefined
             ? Math.max(0, Math.round(params.totalDurationMs))
-            : scriptDurationMs + queueWaitDurationMs + (backendDurationMs || 0);
+            : scriptDurationMs + queueWaitDurationMs + (backendDurationMs ?? 0);
 
     try {
         await db.insert(importLog).values({
             id,
-            userId: pending?.userId || "unknown",
-            gameId: pending?.gameId || null,
-            gameUid: pending?.gameUid || null,
-            importMethod: pending?.importMethod || "unknown",
+            userId: params.userId || pending?.userId || "unknown",
+            gameId: params.gameId || pending?.gameId || null,
+            gameUid: params.gameUid || pending?.gameUid || null,
+            importMethod: params.importMethod || pending?.importMethod || "unknown",
             status: "failed",
-            sourceIp: pending?.sourceIp || null,
-            userAgent: pending?.userAgent || null,
+            sourceIp: params.sourceIp ?? pending?.sourceIp ?? null,
+            userAgent: params.userAgent ?? pending?.userAgent ?? null,
             scriptVersion: params.scriptVersion || pending?.scriptVersion || null,
             webAppVersion: params.webAppVersion || pending?.webAppVersion || null,
             fileVersion: params.fileVersion || pending?.fileVersion || null,
-            payloadSizeBytes: pending?.payloadSizeBytes ?? null,
-            scriptDurationMs: scriptDurationMs || null,
-            queueWaitDurationMs: queueWaitDurationMs || null,
+            payloadSizeBytes: params.payloadSizeBytes ?? pending?.payloadSizeBytes ?? null,
+            scriptDurationMs: scriptDurationMs ?? null,
+            queueWaitDurationMs: queueWaitDurationMs ?? null,
             backendDurationMs: backendDurationMs ?? null,
-            totalDurationMs: totalDurationMs || null,
+            totalDurationMs: totalDurationMs ?? null,
             errorMessage: params.errorMessage,
             errorCode: params.errorCode || null,
             rawErrorStack: params.rawErrorStack || null,
