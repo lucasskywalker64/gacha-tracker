@@ -824,10 +824,14 @@
 		if (!file || selectedFormat !== 'starrail-station') {
 			srsProfiles = [];
 			srsProfileUids = {};
+			srsSingleUid = '';
 			return;
 		}
 
 		inspectingSrs = true;
+		srsProfiles = [];
+		srsProfileUids = {};
+		srsSingleUid = '';
 		try {
 			const res = await inspectStarRailStationFile(file);
 			if (
@@ -1175,7 +1179,7 @@
 	}
 
 	async function handleImport() {
-		if (!importFile) return;
+		if (!importFile || importing || inspectingSrs) return;
 
 		const validation = validateImportFile(importFile);
 		if (!validation.isValid) {
@@ -2507,6 +2511,7 @@
 						<Button
 							onclick={handleImport}
 							disabled={importing ||
+								inspectingSrs ||
 								!importFile ||
 								cooldownRemaining > 0 ||
 								queueStatus === 'queued' ||
@@ -2518,6 +2523,8 @@
 								<LoaderCircle class="h-4 w-4 animate-spin" /> Queued...
 							{:else if importing}
 								<LoaderCircle class="h-4 w-4 animate-spin" /> Importing...
+							{:else if inspectingSrs}
+								<LoaderCircle class="h-4 w-4 animate-spin" /> Inspecting...
 							{:else if cooldownRemaining > 0}
 								<Clock class="h-4 w-4" /> Cooldown ({cooldownRemaining}s)
 							{:else}
