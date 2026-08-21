@@ -158,17 +158,17 @@ export async function updateSuccessImportLog(
     const scriptDurationMs =
         params.scriptDurationMs !== undefined
             ? Math.max(0, Math.round(params.scriptDurationMs))
-            : (pending?.scriptDurationMs ?? 0);
+            : pending?.scriptDurationMs;
 
     const queueWaitDurationMs =
         params.queueWaitDurationMs !== undefined
             ? Math.max(0, Math.round(params.queueWaitDurationMs))
-            : (pending?.queueWaitDurationMs ?? 0);
+            : pending?.queueWaitDurationMs;
 
     const totalDurationMs =
         params.totalDurationMs !== undefined
             ? Math.max(0, Math.round(params.totalDurationMs))
-            : scriptDurationMs + queueWaitDurationMs + (backendDurationMs ?? 0);
+            : (scriptDurationMs ?? 0) + (queueWaitDurationMs ?? 0) + (backendDurationMs ?? 0);
 
     try {
         await db.insert(importLog).values({
@@ -229,17 +229,17 @@ export async function updateFailedImportLog(
     const scriptDurationMs =
         params.scriptDurationMs !== undefined
             ? Math.max(0, Math.round(params.scriptDurationMs))
-            : (pending?.scriptDurationMs ?? 0);
+            : pending?.scriptDurationMs;
 
     const queueWaitDurationMs =
         params.queueWaitDurationMs !== undefined
             ? Math.max(0, Math.round(params.queueWaitDurationMs))
-            : (pending?.queueWaitDurationMs ?? 0);
+            : pending?.queueWaitDurationMs;
 
     const totalDurationMs =
         params.totalDurationMs !== undefined
             ? Math.max(0, Math.round(params.totalDurationMs))
-            : scriptDurationMs + queueWaitDurationMs + (backendDurationMs ?? 0);
+            : (scriptDurationMs ?? 0) + (queueWaitDurationMs ?? 0) + (backendDurationMs ?? 0);
 
     try {
         await db.insert(importLog).values({

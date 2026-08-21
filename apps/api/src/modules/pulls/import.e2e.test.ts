@@ -225,11 +225,10 @@ describe("HSR Pull Import E2E", () => {
         const pullCount = allPulls.filter((p) => p.pullId === "P1001").length;
         expect(pullCount).toBe(1); // Should still be 1
 
-        const logs = await testDb.query.importLog.findMany({
-            orderBy: (log, { asc }) => [asc(log.initiatedAt)],
-        });
+        const logs = await testDb.query.importLog.findMany();
         expect(logs.length).toBe(2);
-        const secondLog = logs[1];
+        const secondLog = logs.find((l) => l.newPulls === 0)!;
+        expect(secondLog).toBeDefined();
         expect(secondLog.status).toBe("success");
         expect(secondLog.totalFetched).toBe(1);
         expect(secondLog.newPulls).toBe(0);
@@ -251,7 +250,7 @@ describe("HSR Pull Import E2E", () => {
             gameUid: "UID999",
             scriptVersion: "   ", // whitespace only
             webAppVersion: null, // null value
-            fileVersion: 123, // number value
+            appVersion: 123, // number value coerced by safeString
             pulls: [
                 {
                     pullId: "P2001",
@@ -282,7 +281,43 @@ describe("HSR Pull Import E2E", () => {
         const targetLog = logs[0];
         expect(targetLog.status).toBe("success");
         expect(targetLog.scriptVersion).toBe(null);
-        expect(targetLog.webAppVersion).toBe(null);
+        expect(targetLog.webAppVersion).toBe("123");
         expect(targetLog.fileVersion).toBe(null);
+    });
+
+    it("should record failed import_log on schema validation error", async () => {
+        const tokenResp = await app.fetch(
+            new Request("http://localhost/pulls/import/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ gameId: "starrail" }),
+            })
+        );
+        const { token } = (await tokenResp.json()) as { token: string };
+
+        // Invalid payload missing pulls array
+        const invalidPayload = {
+            gameId: "starrail",
+            gameUid: "UID_INVALID",
+        };
+
+        const response = await app.fetch(
+            new Request("http://localhost/pulls/import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify(invalidPayload),
+            })
+        );
+
+        expect(response.status).toBe(400);
+
+        const logs = await testDb.query.importLog.findMany({
+            where: (log, { eq }) => eq(log.status, "failed"),
+        });
+        expect(logs.length).toBeGreaterThanOrEqual(1);
+        const failedLog = logs[logs.length - 1];
+        expect(failedLog.status).toBe("failed");
+        expect(failedLog.errorCode).toBe("SCHEMA_VALIDATION_ERROR");
+        expect(failedLog.errorMessage).toContain("Invalid import payload");
     });
 });

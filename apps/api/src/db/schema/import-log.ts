@@ -6,8 +6,8 @@ import { game } from "./game";
 /**
  * import_log
  *
- * One row per import attempt. Created as 'pending' at the start of the import
- * request and updated to 'success', 'partial', or 'failed' on completion.
+ * One row per completed import attempt ('success', 'partial', or 'failed').
+ * Transient in-flight and queue state is tracked in Redis.
  */
 export const importLog = sqliteTable(
     "import_log",
@@ -22,8 +22,8 @@ export const importLog = sqliteTable(
             .notNull()
             .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
         completedAt: integer("completed_at", { mode: "timestamp_ms" }),
-        /** 'pending' | 'success' | 'partial' | 'failed' */
-        status: text("status").notNull().default("pending"),
+        /** 'success' | 'partial' | 'failed' */
+        status: text("status").notNull(),
         totalFetched: integer("total_fetched"),
         newPulls: integer("new_pulls"),
         duplicates: integer("duplicates"),

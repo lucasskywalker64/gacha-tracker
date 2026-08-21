@@ -6,7 +6,7 @@ CREATE TABLE `__new_import_log` (
 	`game_uid` text,
 	`initiated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`completed_at` integer,
-	`status` text DEFAULT 'pending' NOT NULL,
+	`status` text NOT NULL,
 	`total_fetched` integer,
 	`new_pulls` integer,
 	`duplicates` integer,

@@ -198,8 +198,7 @@
                     "type": "text",
                     "primaryKey": false,
                     "notNull": true,
-                    "autoincrement": false,
-                    "default": "'pending'"
+                    "autoincrement": false
                 },
                 "total_fetched": {
                     "name": "total_fetched",

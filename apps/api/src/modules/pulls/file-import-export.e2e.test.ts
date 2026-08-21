@@ -295,6 +295,8 @@ describe("Pull File Import/Export E2E", () => {
         expect(importLogs[0].newPulls).toBe(1);
         expect(importLogs[0].duplicates).toBe(1);
         expect(importLogs[0].payloadSizeBytes).toBeGreaterThan(0);
+        expect(importLogs[0].gameUid).toBe("UID_ABC");
+        expect(importLogs[0].initiatedAt).toBeInstanceOf(Date);
     });
 
     it("should return 401 Unauthorized for unauthenticated access on export", async () => {

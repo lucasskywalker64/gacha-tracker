@@ -265,9 +265,9 @@ function extractClientMetadata(request: Request, body?: unknown) {
     };
 
     const sourceIp =
-        getHeader("x-forwarded-for")?.split(",")[0]?.trim() ||
-        getHeader("x-real-ip") ||
         getHeader("cf-connecting-ip") ||
+        getHeader("x-real-ip") ||
+        getHeader("x-forwarded-for")?.split(",")[0]?.trim() ||
         getHeader("x-client-ip");
 
     const userAgent = getHeader("user-agent");
@@ -466,20 +466,34 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                     webAppVersion,
                     payloadSizeBytes,
                 });
+
+                let formattedMessage = err instanceof Error ? err.message : String(err);
+                if (err instanceof ZodError) {
+                    const issueMessages = err.issues.map((issue) => {
+                        const path = issue.path.join(".");
+                        return `${path ? `[${path}] ` : ""}${issue.message}`;
+                    });
+                    formattedMessage = `Invalid import payload: ${issueMessages.join("; ")}`;
+                }
+
                 await updateFailedImportLog(importLogId, {
                     userId,
                     importMethod: "script_api",
                     sourceIp,
                     userAgent,
                     payloadSizeBytes,
-                    errorMessage: err instanceof Error ? err.message : String(err),
+                    errorMessage: formattedMessage,
                     errorCode: "SCHEMA_VALIDATION_ERROR",
                     rawErrorStack: err instanceof Error ? err.stack : undefined,
                     backendDurationMs: Math.round(performance.now() - tBackendStart),
                     scriptVersion,
                     webAppVersion,
                 });
-                throw err;
+
+                return status(400, {
+                    success: false,
+                    error: formattedMessage,
+                });
             }
 
             const startKey = `import_start:${userId}:${payload.gameId}`;
@@ -594,12 +608,15 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             }
         },
         {
-            body: importPayloadSchema,
             response: {
                 200: t.Object({
                     success: t.Boolean(),
                     imported: t.Number(),
                     message: t.String(),
+                }),
+                400: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
                 }),
                 401: t.Object({
                     success: t.Boolean(),
@@ -770,6 +787,21 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
 
                     buffer = Buffer.from(await file.arrayBuffer());
                     requestId = crypto.randomUUID();
+                    const initiatedAt = new Date();
+
+                    await createPendingImportLog({
+                        id: requestId,
+                        userId,
+                        gameUid: body.gameUid?.trim() || undefined,
+                        importMethod: `file_${format}`,
+                        sourceIp,
+                        userAgent,
+                        scriptVersion,
+                        webAppVersion,
+                        payloadSizeBytes: buffer.length,
+                        initiatedAt,
+                    });
+
                     queuedEntry = enqueue({
                         requestId,
                         userId,
@@ -782,19 +814,6 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                         scriptVersion,
                         webAppVersion,
                         payloadSizeBytes: buffer.length,
-                    });
-
-                    await createPendingImportLog({
-                        id: requestId,
-                        userId,
-                        gameUid: body.gameUid?.trim() || undefined,
-                        importMethod: `file_${format}`,
-                        sourceIp,
-                        userAgent,
-                        scriptVersion,
-                        webAppVersion,
-                        payloadSizeBytes: buffer.length,
-                        initiatedAt: queuedEntry.queuedAt,
                     });
                 } catch (err) {
                     // Release the cooldown lock if the request failed to parse or enqueue

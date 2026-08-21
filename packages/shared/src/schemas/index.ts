@@ -39,6 +39,8 @@ export const importPayloadSchema = z
         script_version: z.unknown().optional(),
         webAppVersion: z.unknown().optional(),
         web_app_version: z.unknown().optional(),
+        appVersion: z.unknown().optional(),
+        app_version: z.unknown().optional(),
         fileVersion: z.unknown().optional(),
         file_version: z.unknown().optional(),
     })

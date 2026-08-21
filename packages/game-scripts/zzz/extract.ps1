@@ -15,7 +15,7 @@ if ([string]::IsNullOrEmpty($ImportToken)) {
 
 $ApiUrl = $ApiUrl.TrimEnd('/')
 
-$ScriptVersion = if ($MyInvocation.Line -match 'raw\.githubusercontent\.com/[^/]+/[^/]+/([^/]+)') {
+$ScriptVersion = if ($MyInvocation.Line -match 'raw\.githubusercontent\.com/[^/]+/[^/]+/(?:refs/(?:heads|tags)/)?([^/]+)') {
     $Matches[1]
 } else {
     $null
