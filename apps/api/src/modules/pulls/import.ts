@@ -1340,9 +1340,7 @@ export async function executePullsImport(
             // Stats cache invalidation is best-effort; the import already committed
         }
 
-        const affectedPools = new Set(
-            allPulls.map((p) => adapter.pityPools?.[p.bannerType] || p.bannerType)
-        );
+        const affectedBanners = new Set(allPulls.map((p) => p.bannerType));
 
         return {
             imported: newPullCount,
@@ -1352,7 +1350,7 @@ export async function executePullsImport(
             dbWriteDurationMs,
             earliestPullAt,
             latestPullAt,
-            bannersAffectedCount: affectedPools.size,
+            bannersAffectedCount: affectedBanners.size,
         };
     } finally {
         if (lockAcquired) {

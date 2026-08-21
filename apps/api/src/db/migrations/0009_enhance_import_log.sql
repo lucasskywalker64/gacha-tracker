@@ -33,7 +33,7 @@ CREATE TABLE `__new_import_log` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`game_id`) REFERENCES `game`(`id`) ON UPDATE no action ON DELETE no action
 );
-INSERT INTO `__new_import_log`("id", "user_id", "game_id", "game_uid", "initiated_at", "completed_at", "status", "total_fetched", "new_pulls", "duplicates", "error_message", "source_ip") SELECT "id", "user_id", "game_id", "game_uid", "initiated_at", "completed_at", "status", "total_fetched", "new_pulls", "duplicates", "error_message", "source_ip" FROM `import_log`;--> statement-breakpoint
+INSERT INTO `__new_import_log`("id", "user_id", "game_id", "game_uid", "initiated_at", "completed_at", "status", "total_fetched", "new_pulls", "duplicates", "error_message", "source_ip") SELECT "id", "user_id", "game_id", "game_uid", "initiated_at", "completed_at", CASE WHEN "status" = 'pending' THEN 'failed' ELSE "status" END, "total_fetched", "new_pulls", "duplicates", "error_message", "source_ip" FROM `import_log`;--> statement-breakpoint
 DROP TABLE `import_log`;--> statement-breakpoint
 ALTER TABLE `__new_import_log` RENAME TO `import_log`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
