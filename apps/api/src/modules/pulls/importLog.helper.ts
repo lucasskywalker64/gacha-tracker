@@ -110,6 +110,15 @@ export async function createPendingImportLog(params: CreateImportLogParams): Pro
     return id;
 }
 
+export async function deletePendingLog(id: string): Promise<void> {
+    pendingLogStore.delete(id);
+    try {
+        await redis.del(`pending_import_log:${id}`);
+    } catch {
+        // Best-effort redis delete
+    }
+}
+
 async function getPendingLog(id: string): Promise<CreateImportLogParams | undefined> {
     const local = pendingLogStore.get(id);
     if (local) {

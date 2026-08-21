@@ -384,7 +384,12 @@
             },
             "compositePrimaryKeys": {},
             "uniqueConstraints": {},
-            "checkConstraints": {}
+            "checkConstraints": {
+                "import_log_status_check": {
+                    "name": "import_log_status_check",
+                    "value": "\"import_log\".\"status\" IN ('success', 'partial', 'failed')"
+                }
+            }
         },
         "account": {
             "name": "account",

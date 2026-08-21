@@ -29,6 +29,7 @@ CREATE TABLE `__new_import_log` (
 	`banners_affected_count` integer,
 	`error_code` text,
 	`raw_error_stack` text,
+	CONSTRAINT "import_log_status_check" CHECK("status" IN ('success', 'partial', 'failed')),
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`game_id`) REFERENCES `game`(`id`) ON UPDATE no action ON DELETE no action
 );

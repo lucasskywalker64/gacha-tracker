@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, check } from "drizzle-orm/sqlite-core";
 import { sql, relations } from "drizzle-orm";
 import { user } from "./user";
 import { game } from "./game";
@@ -30,7 +30,7 @@ export const importLog = sqliteTable(
         errorMessage: text("error_message"),
         sourceIp: text("source_ip"),
 
-        // Granular timing breakdown (in ms)
+        // Duration metrics (ms)
         scriptDurationMs: integer("script_duration_ms"),
         pityCalcDurationMs: integer("pity_calc_duration_ms"),
         dbWriteDurationMs: integer("db_write_duration_ms"),
@@ -38,15 +38,15 @@ export const importLog = sqliteTable(
         queueWaitDurationMs: integer("queue_wait_duration_ms"),
         totalDurationMs: integer("total_duration_ms"),
 
-        // Import source & client identification
+        // Client metadata & versioning
         importMethod: text("import_method"),
         scriptVersion: text("script_version"),
         webAppVersion: text("web_app_version"),
         fileVersion: text("file_version"),
         userAgent: text("user_agent"),
-
-        // Data characteristics & coverage
         payloadSizeBytes: integer("payload_size_bytes"),
+
+        // Pull range & count diagnostics
         earliestPullAt: integer("earliest_pull_at", { mode: "timestamp_ms" }),
         latestPullAt: integer("latest_pull_at", { mode: "timestamp_ms" }),
         bannersAffectedCount: integer("banners_affected_count"),
@@ -55,7 +55,10 @@ export const importLog = sqliteTable(
         errorCode: text("error_code"),
         rawErrorStack: text("raw_error_stack"),
     },
-    (table) => [index("idx_import_log_user").on(table.userId, table.gameId)]
+    (table) => [
+        index("idx_import_log_user").on(table.userId, table.gameId),
+        check("import_log_status_check", sql`${table.status} IN ('success', 'partial', 'failed')`),
+    ]
 );
 
 export type ImportLog = typeof importLog.$inferSelect;

@@ -28,6 +28,7 @@ import {
     createPendingImportLog,
     updateSuccessImportLog,
     updateFailedImportLog,
+    deletePendingLog,
 } from "./importLog.helper";
 
 registerWorker(async (entry) => {
@@ -760,7 +761,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 }
 
                 let buffer: Buffer;
-                let requestId: string;
+                let requestId: string | undefined;
                 let queuedEntry;
 
                 try {
@@ -818,6 +819,9 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 } catch (err) {
                     // Release the cooldown lock if the request failed to parse or enqueue
                     await redis.del(cooldownKey);
+                    if (requestId) {
+                        await deletePendingLog(requestId);
+                    }
 
                     if (err instanceof Error && err.message === "QUEUE_FULL") {
                         return status(503, {

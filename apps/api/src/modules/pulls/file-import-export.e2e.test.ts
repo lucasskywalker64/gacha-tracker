@@ -763,6 +763,13 @@ describe("Pull File Import/Export E2E", () => {
             const body = await resp.json();
             expect(body.success).toBe(false);
             expect(body.error).toContain("queue is currently full");
+
+            // Verify cooldown was cleaned up and no QUEUE_FULL error was written to import_log
+            expect(redisStore.has(cooldownKey)).toBe(false);
+            const queueFullLogs = await testDb.query.importLog.findMany({
+                where: (l, { eq }) => eq(l.errorCode, "QUEUE_FULL"),
+            });
+            expect(queueFullLogs.length).toBe(0);
         });
 
         it("returns 403 when trying to access status of another user's request", async () => {
