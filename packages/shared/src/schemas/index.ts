@@ -35,6 +35,14 @@ export const importPayloadSchema = z
         gameId: z.enum(Object.keys(BANNER_NAMES) as [string, ...string[]]),
         gameUid: z.string().min(1),
         pulls: z.array(rawPullSchema),
+        scriptVersion: z.unknown().optional(),
+        script_version: z.unknown().optional(),
+        webAppVersion: z.unknown().optional(),
+        web_app_version: z.unknown().optional(),
+        appVersion: z.unknown().optional(),
+        app_version: z.unknown().optional(),
+        fileVersion: z.unknown().optional(),
+        file_version: z.unknown().optional(),
     })
     .strict();
 

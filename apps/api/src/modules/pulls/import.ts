@@ -24,8 +24,20 @@ import {
     ImportStatus,
     type ImportSummaryItem,
 } from "../../lib/importQueue";
+import {
+    createPendingImportLog,
+    updateSuccessImportLog,
+    updateFailedImportLog,
+    deletePendingLog,
+} from "./importLog.helper";
 
 registerWorker(async (entry) => {
+    const tWorkerStart = performance.now();
+    let rootLogFinalized = false;
+    const queueWaitDurationMs = entry.startedProcessingAt
+        ? Math.max(0, Math.round(entry.startedProcessingAt.getTime() - entry.queuedAt.getTime()))
+        : 0;
+
     try {
         const parser = getParser(entry.format);
         const context: ParseContext = {
@@ -36,8 +48,46 @@ registerWorker(async (entry) => {
 
         const summary: ImportSummaryItem[] = [];
 
-        for (const gameData of parsed.games) {
+        if (parsed.games.length === 0) {
+            await updateSuccessImportLog(entry.requestId, {
+                userId: entry.userId,
+                importMethod: `file_${entry.format}`,
+                sourceIp: entry.sourceIp,
+                userAgent: entry.userAgent,
+                payloadSizeBytes: entry.payloadSizeBytes,
+                totalFetched: 0,
+                newPulls: 0,
+                duplicates: 0,
+                backendDurationMs: Math.round(performance.now() - tWorkerStart),
+                queueWaitDurationMs,
+                totalDurationMs: Date.now() - entry.queuedAt.getTime(),
+                bannersAffectedCount: 0,
+            });
+            rootLogFinalized = true;
+        }
+
+        for (let i = 0; i < parsed.games.length; i++) {
+            const gameData = parsed.games[i];
+            const importLogId =
+                i === 0
+                    ? entry.requestId
+                    : await createPendingImportLog({
+                          userId: entry.userId,
+                          gameId: gameData.gameId,
+                          gameUid: gameData.gameUid,
+                          importMethod: `file_${entry.format}`,
+                          sourceIp: entry.sourceIp,
+                          userAgent: entry.userAgent,
+                          scriptVersion: entry.scriptVersion,
+                          webAppVersion: entry.webAppVersion,
+                          fileVersion: parsed.fileVersion,
+                          payloadSizeBytes: entry.payloadSizeBytes,
+                          queueWaitDurationMs,
+                          initiatedAt: entry.queuedAt,
+                      });
+
             try {
+                const tGameStart = performance.now();
                 const normalizedPulls: NormalizedPull[] = gameData.pulls.map((p) => ({
                     pullId: p.pullId,
                     gameUid: gameData.gameUid,
@@ -52,7 +102,7 @@ registerWorker(async (entry) => {
                     wasGuaranteed: 0,
                 }));
 
-                const { imported } = await executePullsImport(
+                const result = await executePullsImport(
                     entry.userId,
                     gameData.gameId,
                     gameData.gameUid,
@@ -60,11 +110,38 @@ registerWorker(async (entry) => {
                     gameData.nickname
                 );
 
+                await updateSuccessImportLog(importLogId, {
+                    userId: entry.userId,
+                    importMethod: `file_${entry.format}`,
+                    sourceIp: entry.sourceIp,
+                    userAgent: entry.userAgent,
+                    payloadSizeBytes: entry.payloadSizeBytes,
+                    gameId: gameData.gameId,
+                    gameUid: gameData.gameUid,
+                    totalFetched: result.totalFetched,
+                    newPulls: result.imported,
+                    duplicates: result.duplicates,
+                    pityCalcDurationMs: result.pityCalcDurationMs,
+                    dbWriteDurationMs: result.dbWriteDurationMs,
+                    queueWaitDurationMs,
+                    earliestPullAt: result.earliestPullAt,
+                    latestPullAt: result.latestPullAt,
+                    bannersAffectedCount: result.bannersAffectedCount,
+                    scriptVersion: entry.scriptVersion,
+                    webAppVersion: entry.webAppVersion,
+                    fileVersion: parsed.fileVersion,
+                    initiatedAt: entry.queuedAt,
+                    tBackendStart: tGameStart,
+                });
+                if (i === 0) {
+                    rootLogFinalized = true;
+                }
+
                 summary.push({
                     gameId: gameData.gameId,
                     gameUid: gameData.gameUid,
-                    imported,
-                    message: `Imported ${imported} new pulls.`,
+                    imported: result.imported,
+                    message: `Imported ${result.imported} new pulls.`,
                     success: true,
                 });
             } catch (gameErr) {
@@ -87,6 +164,23 @@ registerWorker(async (entry) => {
                     }
                 }
 
+                await updateFailedImportLog(importLogId, {
+                    userId: entry.userId,
+                    importMethod: `file_${entry.format}`,
+                    sourceIp: entry.sourceIp,
+                    userAgent: entry.userAgent,
+                    payloadSizeBytes: entry.payloadSizeBytes,
+                    errorMessage: errMsg,
+                    errorCode: "GAME_IMPORT_FAILED",
+                    rawErrorStack: gameErr instanceof Error ? gameErr.stack : undefined,
+                    backendDurationMs: Math.round(performance.now() - tWorkerStart),
+                    queueWaitDurationMs,
+                    totalDurationMs: Date.now() - entry.queuedAt.getTime(),
+                });
+                if (i === 0) {
+                    rootLogFinalized = true;
+                }
+
                 summary.push({
                     gameId: gameData.gameId,
                     gameUid: gameData.gameUid,
@@ -98,24 +192,106 @@ registerWorker(async (entry) => {
         }
         return summary;
     } catch (err) {
+        let errorCode = "IMPORT_FAILED";
+        let formattedMessage = err instanceof Error ? err.message : String(err);
+
         if (err instanceof ZodError) {
+            errorCode = "SCHEMA_VALIDATION_ERROR";
             const issueMessages = err.issues.map((issue) => {
                 const path = issue.path.join(".");
                 return `${path ? `[${path}] ` : ""}${issue.message}`;
             });
-            throw new Error(`Invalid backup data structure: ${issueMessages.join("; ")}`, {
-                cause: err,
-            });
+            formattedMessage = `Invalid backup data structure: ${issueMessages.join("; ")}`;
+        } else if (err instanceof SyntaxError) {
+            errorCode = "PARSER_INVALID_JSON";
+            formattedMessage =
+                "Invalid JSON structure. Please ensure the file is a valid JSON backup.";
         }
-        if (err instanceof SyntaxError) {
-            throw new Error(
-                "Invalid JSON structure. Please ensure the file is a valid JSON backup.",
-                { cause: err }
-            );
+
+        const failLogId = rootLogFinalized
+            ? await createPendingImportLog({
+                  userId: entry.userId,
+                  importMethod: `file_${entry.format}`,
+                  sourceIp: entry.sourceIp,
+                  userAgent: entry.userAgent,
+                  scriptVersion: entry.scriptVersion,
+                  webAppVersion: entry.webAppVersion,
+                  fileVersion: entry.fileVersion,
+                  payloadSizeBytes: entry.payloadSizeBytes,
+                  queueWaitDurationMs,
+                  initiatedAt: entry.queuedAt,
+              })
+            : entry.requestId;
+
+        await updateFailedImportLog(failLogId, {
+            userId: entry.userId,
+            importMethod: `file_${entry.format}`,
+            sourceIp: entry.sourceIp,
+            userAgent: entry.userAgent,
+            payloadSizeBytes: entry.payloadSizeBytes,
+            errorMessage: formattedMessage,
+            errorCode,
+            rawErrorStack: err instanceof Error ? err.stack : undefined,
+            backendDurationMs: Math.round(performance.now() - tWorkerStart),
+            queueWaitDurationMs,
+            totalDurationMs: Date.now() - entry.queuedAt.getTime(),
+        });
+
+        if (err instanceof ZodError || err instanceof SyntaxError) {
+            throw new Error(formattedMessage, { cause: err });
         }
         throw err;
     }
 });
+
+function safeString(value: unknown): string | undefined {
+    if (value === null || value === undefined) return undefined;
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+    }
+    if (typeof value === "number" && !isNaN(value)) {
+        return String(value);
+    }
+    return undefined;
+}
+
+function extractClientMetadata(request: Request, body?: unknown) {
+    const getHeader = (headerName: string): string | undefined => {
+        try {
+            return safeString(request.headers.get(headerName));
+        } catch {
+            return undefined;
+        }
+    };
+
+    const sourceIp =
+        getHeader("cf-connecting-ip") ||
+        getHeader("x-real-ip") ||
+        getHeader("x-forwarded-for")?.split(",")[0]?.trim() ||
+        getHeader("x-client-ip");
+
+    const userAgent = getHeader("user-agent");
+
+    let scriptVersion = getHeader("x-script-version");
+    let webAppVersion = getHeader("x-web-app-version") || getHeader("x-app-version");
+
+    if (body !== null && typeof body === "object") {
+        const b = body as Record<string, unknown>;
+        if (!scriptVersion) {
+            scriptVersion = safeString(b.scriptVersion) || safeString(b.script_version);
+        }
+        if (!webAppVersion) {
+            webAppVersion =
+                safeString(b.webAppVersion) ||
+                safeString(b.web_app_version) ||
+                safeString(b.appVersion) ||
+                safeString(b.app_version);
+        }
+    }
+
+    return { sourceIp, userAgent, scriptVersion, webAppVersion };
+}
 
 export const importRouter = new Elysia({ prefix: "/pulls" })
     .use(authPlugin)
@@ -206,6 +382,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 return status(401, { success: false, error: "Invalid or expired import token" });
             }
             const { gameId } = body;
+            await redis.set(`import_start:${userId}:${gameId}`, Date.now().toString(), "EX", 300);
             const channel = `import:${userId}:${gameId}`;
             await redis.publish(channel, JSON.stringify({ type: "started", gameId }));
             return status(200, { success: true });
@@ -223,6 +400,8 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
     .post(
         "/import",
         async ({ request, body, status }) => {
+            const tBackendStart = performance.now();
+
             const authHeader = request.headers.get("authorization");
             if (!authHeader?.startsWith("Bearer ")) {
                 return status(401, {
@@ -254,52 +433,191 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             // Acquire cooldown lock
             await redis.set(cooldownKey, "1", "EX", IMPORT_USER_COOLDOWN_SECONDS);
 
-            const payload = importPayloadSchema.parse(body);
-            const adapter = getAdapter(payload.gameId);
+            const { sourceIp, userAgent, scriptVersion, webAppVersion } = extractClientMetadata(
+                request,
+                body
+            );
+            const contentLength = Number(request.headers.get("content-length"));
+            const payloadSizeBytes =
+                Number.isFinite(contentLength) && contentLength > 0 ? contentLength : undefined;
 
-            // Normalize pulls
-            const normalizedResult = await adapter.normalizeImport(payload);
-            const allPulls = normalizedResult.pulls;
+            let payload;
+            try {
+                payload = importPayloadSchema.parse(body);
+            } catch (err) {
+                await redis.del(cooldownKey);
 
-            if (allPulls.length === 0) {
-                return status(200, { success: true, imported: 0, message: "No pulls to import" });
+                if (body !== null && typeof body === "object" && "gameId" in body) {
+                    const rawGameId = (body as Record<string, unknown>).gameId;
+                    if (typeof rawGameId === "string") {
+                        try {
+                            await redis.del(`import_start:${userId}:${rawGameId}`);
+                        } catch {
+                            // Redis cleanup is best-effort
+                        }
+                    }
+                }
+
+                const importLogId = await createPendingImportLog({
+                    userId,
+                    importMethod: "script_api",
+                    sourceIp,
+                    userAgent,
+                    scriptVersion,
+                    webAppVersion,
+                    payloadSizeBytes,
+                });
+
+                let formattedMessage = err instanceof Error ? err.message : String(err);
+                if (err instanceof ZodError) {
+                    const issueMessages = err.issues.map((issue) => {
+                        const path = issue.path.join(".");
+                        return `${path ? `[${path}] ` : ""}${issue.message}`;
+                    });
+                    formattedMessage = `Invalid import payload: ${issueMessages.join("; ")}`;
+                }
+
+                await updateFailedImportLog(importLogId, {
+                    userId,
+                    importMethod: "script_api",
+                    sourceIp,
+                    userAgent,
+                    payloadSizeBytes,
+                    errorMessage: formattedMessage,
+                    errorCode: "SCHEMA_VALIDATION_ERROR",
+                    rawErrorStack: err instanceof Error ? err.stack : undefined,
+                    backendDurationMs: Math.round(performance.now() - tBackendStart),
+                    scriptVersion,
+                    webAppVersion,
+                });
+
+                return status(400, {
+                    success: false,
+                    error: formattedMessage,
+                });
             }
 
-            const { imported } = await executePullsImport(
+            const startKey = `import_start:${userId}:${payload.gameId}`;
+            const scriptStartStr = await redis.get(startKey);
+            let scriptDurationMs: number | undefined;
+            let initiatedAt = new Date();
+
+            if (scriptStartStr) {
+                const scriptStartMs = parseInt(scriptStartStr, 10);
+                initiatedAt = new Date(scriptStartMs);
+                scriptDurationMs = Math.max(0, Date.now() - scriptStartMs);
+                await redis.del(startKey);
+            }
+
+            const importLogId = await createPendingImportLog({
                 userId,
-                payload.gameId,
-                payload.gameUid,
-                allPulls
-            );
+                gameId: payload.gameId,
+                gameUid: payload.gameUid,
+                importMethod: "script_api",
+                sourceIp,
+                userAgent,
+                scriptVersion,
+                webAppVersion,
+                payloadSizeBytes,
+                scriptDurationMs,
+                initiatedAt,
+            });
 
-            const channel = `import:${userId}:${payload.gameId}`;
+            try {
+                const adapter = getAdapter(payload.gameId);
 
-            if (imported === 0) {
+                // Normalize pulls
+                const normalizedResult = await adapter.normalizeImport(payload);
+                const allPulls = normalizedResult.pulls;
+
+                const result = await executePullsImport(
+                    userId,
+                    payload.gameId,
+                    payload.gameUid,
+                    allPulls
+                );
+
+                await updateSuccessImportLog(importLogId, {
+                    userId,
+                    importMethod: "script_api",
+                    sourceIp,
+                    userAgent,
+                    payloadSizeBytes,
+                    gameId: payload.gameId,
+                    gameUid: payload.gameUid,
+                    totalFetched: result.totalFetched,
+                    newPulls: result.imported,
+                    duplicates: result.duplicates,
+                    pityCalcDurationMs: result.pityCalcDurationMs,
+                    dbWriteDurationMs: result.dbWriteDurationMs,
+                    earliestPullAt: result.earliestPullAt,
+                    latestPullAt: result.latestPullAt,
+                    bannersAffectedCount: result.bannersAffectedCount,
+                    scriptDurationMs,
+                    scriptVersion,
+                    webAppVersion,
+                    initiatedAt,
+                    tBackendStart,
+                });
+
+                const channel = `import:${userId}:${payload.gameId}`;
+
+                if (result.imported === 0) {
+                    await redis.publish(
+                        channel,
+                        JSON.stringify({ type: "complete", imported: 0, gameId: payload.gameId })
+                    );
+                    return status(200, {
+                        success: true,
+                        imported: 0,
+                        message: "No new pulls found",
+                    });
+                }
+
                 await redis.publish(
                     channel,
-                    JSON.stringify({ type: "complete", imported: 0, gameId: payload.gameId })
+                    JSON.stringify({
+                        type: "complete",
+                        imported: result.imported,
+                        gameId: payload.gameId,
+                    })
                 );
-                return status(200, { success: true, imported: 0, message: "No new pulls found" });
+
+                return status(200, {
+                    success: true,
+                    imported: result.imported,
+                    message: "Pulls imported successfully",
+                });
+            } catch (err) {
+                await updateFailedImportLog(importLogId, {
+                    userId,
+                    importMethod: "script_api",
+                    sourceIp,
+                    userAgent,
+                    payloadSizeBytes,
+                    errorMessage: err instanceof Error ? err.message : String(err),
+                    errorCode:
+                        err instanceof Error && err.message === "CONCURRENT_IMPORT_IN_PROGRESS"
+                            ? "CONCURRENT_IMPORT_LOCKED"
+                            : "IMPORT_FAILED",
+                    rawErrorStack: err instanceof Error ? err.stack : undefined,
+                    initiatedAt,
+                    tBackendStart,
+                });
+
+                throw err;
             }
-
-            await redis.publish(
-                channel,
-                JSON.stringify({ type: "complete", imported, gameId: payload.gameId })
-            );
-
-            return status(200, {
-                success: true,
-                imported,
-                message: "Pulls imported successfully",
-            });
         },
         {
-            body: importPayloadSchema,
             response: {
                 200: t.Object({
                     success: t.Boolean(),
                     imported: t.Number(),
                     message: t.String(),
+                }),
+                400: t.Object({
+                    success: t.Boolean(),
+                    error: t.String(),
                 }),
                 401: t.Object({
                     success: t.Boolean(),
@@ -410,9 +728,13 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
     // 5. Import from uploaded file
     .post(
         "/import/file",
-        async ({ user, body, status }) => {
+        async ({ request, user, body, status }) => {
             const userId = user!.id;
             const { file, format } = body;
+            const { sourceIp, userAgent, scriptVersion, webAppVersion } = extractClientMetadata(
+                request,
+                body
+            );
 
             try {
                 // Validate format synchronously first
@@ -439,7 +761,7 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                 }
 
                 let buffer: Buffer;
-                let requestId: string;
+                let requestId: string | undefined;
                 let queuedEntry;
 
                 try {
@@ -466,6 +788,21 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
 
                     buffer = Buffer.from(await file.arrayBuffer());
                     requestId = crypto.randomUUID();
+                    const initiatedAt = new Date();
+
+                    await createPendingImportLog({
+                        id: requestId,
+                        userId,
+                        gameUid: body.gameUid?.trim() || undefined,
+                        importMethod: `file_${format}`,
+                        sourceIp,
+                        userAgent,
+                        scriptVersion,
+                        webAppVersion,
+                        payloadSizeBytes: buffer.length,
+                        initiatedAt,
+                    });
+
                     queuedEntry = enqueue({
                         requestId,
                         userId,
@@ -473,10 +810,18 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
                         format,
                         gameUid: body.gameUid?.trim() || undefined,
                         profileUids: profileUidsMap,
+                        sourceIp,
+                        userAgent,
+                        scriptVersion,
+                        webAppVersion,
+                        payloadSizeBytes: buffer.length,
                     });
                 } catch (err) {
                     // Release the cooldown lock if the request failed to parse or enqueue
                     await redis.del(cooldownKey);
+                    if (requestId) {
+                        await deletePendingLog(requestId);
+                    }
 
                     if (err instanceof Error && err.message === "QUEUE_FULL") {
                         return status(503, {
@@ -503,23 +848,52 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
             } catch (err) {
                 console.error("[file-import] Failed to initialize import:", err);
                 let message = "Failed to process import file.";
+                let errorCode = "FILE_IMPORT_INIT_FAILED";
                 if (err instanceof ZodError) {
+                    errorCode = "SCHEMA_VALIDATION_ERROR";
                     const issueMessages = err.issues.map((issue) => {
                         const path = issue.path.join(".");
                         return `${path ? `[${path}] ` : ""}${issue.message}`;
                     });
                     message = `Invalid backup data structure: ${issueMessages.join("; ")}`;
+                } else if (err instanceof SyntaxError) {
+                    errorCode = "PARSER_INVALID_JSON";
+                    message =
+                        "Invalid JSON structure. Please ensure the file is a valid JSON backup.";
                 } else if (err instanceof Error) {
                     const msg = err.message;
                     if (msg.startsWith("validation:")) {
+                        errorCode = "SCHEMA_VALIDATION_ERROR";
                         message = msg.replace(/^validation:\s*/, "");
                     } else if (msg.includes("Unsupported import format")) {
+                        errorCode = "UNSUPPORTED_FORMAT";
                         message = msg;
-                    } else if (err instanceof SyntaxError) {
-                        message =
-                            "Invalid JSON structure. Please ensure the file is a valid JSON backup.";
+                    } else if (msg.includes("validation")) {
+                        errorCode = "SCHEMA_VALIDATION_ERROR";
+                        message = msg;
+                    } else {
+                        message = msg;
                     }
                 }
+
+                const errId = crypto.randomUUID();
+                await createPendingImportLog({
+                    id: errId,
+                    userId,
+                    importMethod: `file_${format}`,
+                    sourceIp,
+                    userAgent,
+                    scriptVersion,
+                    webAppVersion,
+                });
+                await updateFailedImportLog(errId, {
+                    errorMessage: message,
+                    errorCode,
+                    rawErrorStack: err instanceof Error ? err.stack : undefined,
+                    scriptVersion,
+                    webAppVersion,
+                });
+
                 return status(422, {
                     success: false,
                     error: message,
@@ -733,15 +1107,44 @@ export const importRouter = new Elysia({ prefix: "/pulls" })
         }
     );
 
+export interface ExecutePullsImportResult {
+    imported: number;
+    totalFetched: number;
+    duplicates: number;
+    pityCalcDurationMs: number;
+    dbWriteDurationMs: number;
+    earliestPullAt?: Date;
+    latestPullAt?: Date;
+    bannersAffectedCount: number;
+}
+
 export async function executePullsImport(
     userId: string,
     gameId: string,
     gameUid: string,
     allPulls: NormalizedPull[],
     nickname?: string | null
-): Promise<{ imported: number }> {
+): Promise<ExecutePullsImportResult> {
     if (allPulls.length === 0) {
-        return { imported: 0 };
+        return {
+            imported: 0,
+            totalFetched: 0,
+            duplicates: 0,
+            pityCalcDurationMs: 0,
+            dbWriteDurationMs: 0,
+            bannersAffectedCount: 0,
+        };
+    }
+
+    let earliestPullAt: Date | undefined;
+    let latestPullAt: Date | undefined;
+    for (const p of allPulls) {
+        if (!earliestPullAt || p.pulledAt < earliestPullAt) {
+            earliestPullAt = p.pulledAt;
+        }
+        if (!latestPullAt || p.pulledAt > latestPullAt) {
+            latestPullAt = p.pulledAt;
+        }
     }
 
     // Scoped per user and game so that concurrent first imports cannot both claim primary
@@ -787,6 +1190,7 @@ export async function executePullsImport(
         }
 
         // 2. CPU Pity Calculation performed completely out of transaction lock
+        const tPityStart = performance.now();
         const pullsByPool = new Map<string, NormalizedPull[]>();
         for (const p of Array.from(combinedPullsMap.values())) {
             const poolKey = adapter.pityPools?.[p.bannerType] || p.bannerType;
@@ -854,8 +1258,10 @@ export async function executePullsImport(
                 latestIds[p.bannerType] = p.pullId;
             }
         }
+        const pityCalcDurationMs = Math.round(performance.now() - tPityStart);
 
         // 3. Strictly write-only database transaction
+        const tDbStart = performance.now();
         await db.transaction(async (tx) => {
             const currentUserGame = await tx.query.userGame.findFirst({
                 where: and(
@@ -922,6 +1328,7 @@ export async function executePullsImport(
                 })
                 .where(eq(userGame.id, userGameId));
         });
+        const dbWriteDurationMs = Math.round(performance.now() - tDbStart);
 
         try {
             await Promise.all([
@@ -933,7 +1340,18 @@ export async function executePullsImport(
             // Stats cache invalidation is best-effort; the import already committed
         }
 
-        return { imported: newPullCount };
+        const affectedBanners = new Set(allPulls.map((p) => p.bannerType));
+
+        return {
+            imported: newPullCount,
+            totalFetched: allPulls.length,
+            duplicates: allPulls.length - newPullCount,
+            pityCalcDurationMs,
+            dbWriteDurationMs,
+            earliestPullAt,
+            latestPullAt,
+            bannersAffectedCount: affectedBanners.size,
+        };
     } finally {
         if (lockAcquired) {
             try {

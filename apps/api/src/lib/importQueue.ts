@@ -24,6 +24,7 @@ export interface QueueEntry {
     requestId: string;
     userId: string;
     queuedAt: Date;
+    startedProcessingAt?: Date;
     completedAt?: Date;
     status: ImportStatus;
     buffer: Buffer;
@@ -32,6 +33,12 @@ export interface QueueEntry {
     profileUids?: Record<string, string>;
     result?: ImportSummaryItem[];
     error?: string;
+    sourceIp?: string;
+    userAgent?: string;
+    scriptVersion?: string;
+    webAppVersion?: string;
+    fileVersion?: string;
+    payloadSizeBytes?: number;
 }
 
 export interface QueueSnapshot {
@@ -65,10 +72,19 @@ async function persistTaskToRedis(entry: QueueEntry) {
             format: entry.format,
         };
         if (entry.completedAt) data.completedAt = entry.completedAt.toISOString();
+        if (entry.startedProcessingAt)
+            data.startedProcessingAt = entry.startedProcessingAt.toISOString();
         if (entry.gameUid) data.gameUid = entry.gameUid;
         if (entry.profileUids) data.profileUids = JSON.stringify(entry.profileUids);
         if (entry.result) data.result = JSON.stringify(entry.result);
         if (entry.error) data.error = entry.error;
+        if (entry.sourceIp) data.sourceIp = entry.sourceIp;
+        if (entry.userAgent) data.userAgent = entry.userAgent;
+        if (entry.scriptVersion) data.scriptVersion = entry.scriptVersion;
+        if (entry.webAppVersion) data.webAppVersion = entry.webAppVersion;
+        if (entry.fileVersion) data.fileVersion = entry.fileVersion;
+        if (entry.payloadSizeBytes !== undefined)
+            data.payloadSizeBytes = String(entry.payloadSizeBytes);
 
         const isTerminal =
             entry.status === ImportStatus.DONE ||
@@ -123,6 +139,9 @@ async function loadTaskFromRedis(requestId: string): Promise<QueueEntry | null> 
             requestId: data.requestId,
             userId: data.userId,
             queuedAt: new Date(data.queuedAt),
+            startedProcessingAt: data.startedProcessingAt
+                ? new Date(data.startedProcessingAt)
+                : undefined,
             completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
             status,
             format: data.format,
@@ -131,6 +150,14 @@ async function loadTaskFromRedis(requestId: string): Promise<QueueEntry | null> 
             buffer,
             result: data.result ? JSON.parse(data.result) : undefined,
             error,
+            sourceIp: data.sourceIp || undefined,
+            userAgent: data.userAgent || undefined,
+            scriptVersion: data.scriptVersion || undefined,
+            webAppVersion: data.webAppVersion || undefined,
+            fileVersion: data.fileVersion || undefined,
+            payloadSizeBytes: data.payloadSizeBytes
+                ? parseInt(data.payloadSizeBytes, 10)
+                : undefined,
         };
     } catch {
         return null;
@@ -270,6 +297,7 @@ async function processQueue() {
     }
 
     nextEntry.status = ImportStatus.PROCESSING;
+    nextEntry.startedProcessingAt = new Date();
     runningCount++;
     persistTaskToRedis(nextEntry);
 

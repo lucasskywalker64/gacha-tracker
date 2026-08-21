@@ -15,6 +15,12 @@ if ([string]::IsNullOrEmpty($ImportToken)) {
 
 $ApiUrl = $ApiUrl.TrimEnd('/')
 
+$ScriptVersion = if ($MyInvocation.Line -match 'raw\.githubusercontent\.com/[^/]+/[^/]+/(?:refs/(?:heads|tags)/)?([^/]+)') {
+    $Matches[1]
+} else {
+    $null
+}
+
 # Notify tracker that import is starting
 try {
     Invoke-RestMethod -Uri "$ApiUrl/pulls/import/start" -Method Post `
@@ -232,10 +238,15 @@ $payloadJson = $payload | ConvertTo-Json -Depth 10
 
 try {
     $importUrl = "$ApiUrl/pulls/import"
-    $result = Invoke-RestMethod -Uri $importUrl -Method Post -Headers @{
+    $importHeaders = @{
         "Authorization" = "Bearer $ImportToken"
         "Content-Type"  = "application/json"
-    } -Body $payloadJson
+    }
+    if ($ScriptVersion) {
+        $importHeaders["x-script-version"] = $ScriptVersion
+    }
+
+    $result = Invoke-RestMethod -Uri $importUrl -Method Post -Headers $importHeaders -Body $payloadJson
 
     if ($result.success) {
         Write-Host "Successfully imported pulls: $($result.message)" -ForegroundColor Green

@@ -89,6 +89,7 @@ describe("HSR Pull Import E2E", () => {
         await createTestTables(sqlite);
 
         await sqlite.execute(`DELETE FROM pull`);
+        await sqlite.execute(`DELETE FROM import_log`);
         await sqlite.execute(`DELETE FROM user_game`);
         await sqlite.execute(`DELETE FROM game`);
         await sqlite.execute(
@@ -147,6 +148,8 @@ describe("HSR Pull Import E2E", () => {
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
+                    "x-forwarded-for": "1.2.3.4",
+                    "x-script-version": "1.5.0",
                 },
                 body: JSON.stringify(payload),
             })
@@ -167,6 +170,17 @@ describe("HSR Pull Import E2E", () => {
         expect(dbPulls.length).toBe(1);
         expect(dbPulls[0].itemName).toBe("Seele");
         expect(dbPulls[0].pityAtPull).toBe(1);
+
+        // 4. Verify import_log entry
+        const logs = await testDb.query.importLog.findMany();
+        expect(logs.length).toBe(1);
+        expect(logs[0].status).toBe("success");
+        expect(logs[0].importMethod).toBe("script_api");
+        expect(logs[0].totalFetched).toBe(1);
+        expect(logs[0].newPulls).toBe(1);
+        expect(logs[0].duplicates).toBe(0);
+        expect(logs[0].sourceIp).toBe("1.2.3.4");
+        expect(logs[0].scriptVersion).toBe("1.5.0");
     });
 
     it("should be idempotent when re-importing the same data", async () => {
@@ -210,5 +224,100 @@ describe("HSR Pull Import E2E", () => {
         const allPulls = await testDb.query.pull.findMany();
         const pullCount = allPulls.filter((p) => p.pullId === "P1001").length;
         expect(pullCount).toBe(1); // Should still be 1
+
+        const logs = await testDb.query.importLog.findMany();
+        expect(logs.length).toBe(2);
+        const secondLog = logs.find((l) => l.newPulls === 0)!;
+        expect(secondLog).toBeDefined();
+        expect(secondLog.status).toBe("success");
+        expect(secondLog.totalFetched).toBe(1);
+        expect(secondLog.newPulls).toBe(0);
+        expect(secondLog.duplicates).toBe(1);
+    });
+
+    it("should gracefully handle missing or malformed version metadata without crashing", async () => {
+        const tokenResp = await app.fetch(
+            new Request("http://localhost/pulls/import/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ gameId: "starrail" }),
+            })
+        );
+        const { token } = (await tokenResp.json()) as { token: string };
+
+        const payload = {
+            gameId: "starrail",
+            gameUid: "UID999",
+            scriptVersion: "   ", // whitespace only
+            webAppVersion: null, // null value
+            appVersion: 123, // number value coerced by safeString
+            pulls: [
+                {
+                    pullId: "P2001",
+                    bannerType: "11",
+                    itemId: "C2",
+                    itemName: "Kafka",
+                    itemType: "Character",
+                    rarity: 5,
+                    pulledAt: "2024-02-01 12:00:00",
+                },
+            ],
+        };
+
+        const response = await app.fetch(
+            new Request("http://localhost/pulls/import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify(payload),
+            })
+        );
+
+        expect(response.status).toBe(200);
+
+        const logs = await testDb.query.importLog.findMany({
+            where: (log, { eq }) => eq(log.gameUid, "UID999"),
+        });
+        expect(logs.length).toBe(1);
+        const targetLog = logs[0];
+        expect(targetLog.status).toBe("success");
+        expect(targetLog.scriptVersion).toBe(null);
+        expect(targetLog.webAppVersion).toBe("123");
+        expect(targetLog.fileVersion).toBe(null);
+    });
+
+    it("should record failed import_log on schema validation error", async () => {
+        const tokenResp = await app.fetch(
+            new Request("http://localhost/pulls/import/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ gameId: "starrail" }),
+            })
+        );
+        const { token } = (await tokenResp.json()) as { token: string };
+
+        // Invalid payload missing pulls array
+        const invalidPayload = {
+            gameId: "starrail",
+            gameUid: "UID_INVALID",
+        };
+
+        const response = await app.fetch(
+            new Request("http://localhost/pulls/import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify(invalidPayload),
+            })
+        );
+
+        expect(response.status).toBe(400);
+
+        const logs = await testDb.query.importLog.findMany({
+            where: (log, { eq }) => eq(log.status, "failed"),
+        });
+        expect(logs.length).toBeGreaterThanOrEqual(1);
+        const failedLog = logs[logs.length - 1];
+        expect(failedLog.status).toBe("failed");
+        expect(failedLog.errorCode).toBe("SCHEMA_VALIDATION_ERROR");
+        expect(failedLog.errorMessage).toContain("Invalid import payload");
     });
 });

@@ -36,6 +36,8 @@ const datWarpStoreSchema = z
     .catchall(z.unknown());
 
 const starRailStationDatSchema = z.object({
+    v: z.union([z.string(), z.number()]).optional(),
+    version: z.union([z.string(), z.number()]).optional(),
     profiles: z
         .record(
             z.string(),
@@ -240,7 +242,13 @@ export class StarRailStationParser implements ImportParser {
             });
         }
 
-        return { games };
+        const fileVersion = parsed.data.version
+            ? String(parsed.data.version)
+            : parsed.data.v
+              ? String(parsed.data.v)
+              : undefined;
+
+        return { fileVersion, games };
     }
 
     private parseCsv(buffer: Buffer, context?: ParseContext): ParsedImportResult {
@@ -352,6 +360,7 @@ export class StarRailStationParser implements ImportParser {
         pulls.sort((a, b) => a.pulledAt.getTime() - b.pulledAt.getTime());
 
         return {
+            fileVersion: undefined,
             games: [
                 {
                     gameId: "starrail",

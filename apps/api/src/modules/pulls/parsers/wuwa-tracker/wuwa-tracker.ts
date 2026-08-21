@@ -82,7 +82,10 @@ export class WuWaTrackerJsonParser implements ImportParser {
             };
         });
 
+        const fileVersion = validated.version ? String(validated.version) : undefined;
+
         return {
+            fileVersion,
             games: [
                 {
                     gameId: "wuwa",

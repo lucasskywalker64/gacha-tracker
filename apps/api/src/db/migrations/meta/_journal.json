@@ -64,6 +64,13 @@
             "when": 1787171625652,
             "tag": "0008_multi_account_support",
             "breakpoints": true
+        },
+        {
+            "idx": 9,
+            "version": "6",
+            "when": 1787249250896,
+            "tag": "0009_enhance_import_log",
+            "breakpoints": true
         }
     ]
 }

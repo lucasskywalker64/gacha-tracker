@@ -18,6 +18,7 @@ export interface ParsedGamePulls {
 
 export interface ParsedImportResult {
     games: ParsedGamePulls[];
+    fileVersion?: string;
 }
 
 /** Optional caller-supplied metadata forwarded to the parser (e.g. a UID the file doesn't contain, or multi-profile mappings). */

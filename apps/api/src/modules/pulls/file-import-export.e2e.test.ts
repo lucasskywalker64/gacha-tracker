@@ -98,6 +98,7 @@ describe("Pull File Import/Export E2E", () => {
         await createTestTables(sqlite);
 
         await sqlite.execute(`DELETE FROM pull`);
+        await sqlite.execute(`DELETE FROM import_log`);
         await sqlite.execute(`DELETE FROM user_game`);
         await sqlite.execute(`DELETE FROM game`);
         await sqlite.execute(
@@ -282,6 +283,20 @@ describe("Pull File Import/Export E2E", () => {
         const pullsInDb = await testDb.query.pull.findMany();
         expect(pullsInDb.length).toBe(2);
         expect(pullsInDb.map((p) => p.pullId)).toContain("1002");
+
+        // Verify import_log record
+        const importLogs = await testDb.query.importLog.findMany({
+            where: (l, { eq }) => eq(l.id, postBody.requestId),
+        });
+        expect(importLogs.length).toBe(1);
+        expect(importLogs[0].status).toBe("success");
+        expect(importLogs[0].importMethod).toBe("file_gacha-tracker");
+        expect(importLogs[0].totalFetched).toBe(2);
+        expect(importLogs[0].newPulls).toBe(1);
+        expect(importLogs[0].duplicates).toBe(1);
+        expect(importLogs[0].payloadSizeBytes).toBeGreaterThan(0);
+        expect(importLogs[0].gameUid).toBe("UID_ABC");
+        expect(importLogs[0].initiatedAt).toBeInstanceOf(Date);
     });
 
     it("should return 401 Unauthorized for unauthenticated access on export", async () => {
@@ -330,6 +345,13 @@ describe("Pull File Import/Export E2E", () => {
         const body = await resp.json();
         expect(body.success).toBe(false);
         expect(body.error).toContain("Unsupported import format");
+
+        const unsuppLogs = await testDb.query.importLog.findMany({
+            where: (l, { eq }) => eq(l.importMethod, "file_unknown-format-id"),
+        });
+        expect(unsuppLogs.length).toBe(1);
+        expect(unsuppLogs[0].status).toBe("failed");
+        expect(unsuppLogs[0].errorCode).toBe("UNSUPPORTED_FORMAT");
     });
 
     it("should return 422 for a malformed JSON file during import", async () => {
@@ -358,6 +380,13 @@ describe("Pull File Import/Export E2E", () => {
         const pollResult = await pollStatusUntilFinished(postBody.requestId);
         expect(pollResult.status).toBe("failed");
         expect(pollResult.error).toContain("Invalid JSON structure");
+
+        const errLogs = await testDb.query.importLog.findMany({
+            where: (l, { eq }) => eq(l.id, postBody.requestId),
+        });
+        expect(errLogs.length).toBe(1);
+        expect(errLogs[0].status).toBe("failed");
+        expect(errLogs[0].errorCode).toBe("PARSER_INVALID_JSON");
     });
 
     it("should return 422 for a file exceeding the size limit", async () => {
@@ -734,6 +763,13 @@ describe("Pull File Import/Export E2E", () => {
             const body = await resp.json();
             expect(body.success).toBe(false);
             expect(body.error).toContain("queue is currently full");
+
+            // Verify cooldown was cleaned up and no QUEUE_FULL error was written to import_log
+            expect(redisStore.has(cooldownKey)).toBe(false);
+            const queueFullLogs = await testDb.query.importLog.findMany({
+                where: (l, { eq }) => eq(l.errorCode, "QUEUE_FULL"),
+            });
+            expect(queueFullLogs.length).toBe(0);
         });
 
         it("returns 403 when trying to access status of another user's request", async () => {
