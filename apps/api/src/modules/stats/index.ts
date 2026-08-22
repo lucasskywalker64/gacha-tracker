@@ -51,7 +51,19 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
         }
 
         const allPulls = await db
-            .select()
+            .select({
+                id: pull.id,
+                pullId: pull.pullId,
+                gameUid: pull.gameUid,
+                bannerType: pull.bannerType,
+                bannerId: pull.bannerId,
+                itemId: pull.itemId,
+                itemName: pull.itemName,
+                rarity: pull.rarity,
+                pulledAt: pull.pulledAt,
+                pityAtPull: pull.pityAtPull,
+                wasGuaranteed: pull.wasGuaranteed,
+            })
             .from(pull)
             .where(and(...conditions));
 

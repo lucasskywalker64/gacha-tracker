@@ -18,4 +18,9 @@ export const RedisKeys = {
     importCooldown: (userId: string) => `import_cooldown:${userId}`,
     stats: (userId: string, gameId: string, scope?: string) =>
         scope ? `stats:${userId}:${gameId}:${scope}` : `stats:${userId}:${gameId}`,
+    userGameLatest: (userId: string, gameId: string, gameUid?: string) =>
+        gameUid
+            ? `user_game_latest:${userId}:${gameId}:${gameUid}`
+            : `user_game_latest:${userId}:${gameId}`,
+    gamesList: () => "static:games:active",
 } as const;

@@ -172,9 +172,11 @@ export const userRouter = new Elysia({ prefix: "/user" })
 
             await redis.del(`stats:${userId}:${gameId}`);
             await redis.del(`stats:${userId}:${gameId}:all`);
+            await redis.del(RedisKeys.userGameLatest(userId, gameId));
             for (const ug of userGameRecords) {
                 if (ug.gameUid) {
                     await redis.del(`stats:${userId}:${gameId}:${ug.gameUid}`);
+                    await redis.del(RedisKeys.userGameLatest(userId, gameId, ug.gameUid));
                 }
             }
 

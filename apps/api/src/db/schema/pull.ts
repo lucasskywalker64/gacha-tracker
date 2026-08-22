@@ -84,6 +84,13 @@ export const pull = sqliteTable(
         uniqueIndex("pull_dedup_idx").on(table.userId, table.gameId, table.gameUid, table.pullId),
         index("idx_pull_user_game").on(table.userId, table.gameId),
         index("idx_pull_user_game_uid").on(table.userId, table.gameId, table.gameUid),
+        index("idx_pull_user_game_date").on(table.userId, table.gameId, table.pulledAt),
+        index("idx_pull_user_game_uid_date").on(
+            table.userId,
+            table.gameId,
+            table.gameUid,
+            table.pulledAt
+        ),
         index("idx_pull_game_banner").on(table.gameId, table.bannerType),
         index("idx_pull_pulled_at").on(table.pulledAt),
         index("idx_pull_rarity").on(table.rarity),

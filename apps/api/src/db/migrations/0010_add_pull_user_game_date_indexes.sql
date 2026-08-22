@@ -1,0 +1,2 @@
+CREATE INDEX `idx_pull_user_game_date` ON `pull` (`user_id`,`game_id`,`pulled_at`);--> statement-breakpoint
+CREATE INDEX `idx_pull_user_game_uid_date` ON `pull` (`user_id`,`game_id`,`game_uid`,`pulled_at`);

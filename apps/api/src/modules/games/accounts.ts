@@ -241,6 +241,8 @@ export const accountsRouter = new Elysia()
             await redis.del(RedisKeys.stats(userId, gameId));
             await redis.del(RedisKeys.stats(userId, gameId, "all"));
             await redis.del(RedisKeys.stats(userId, gameId, gameUid));
+            await redis.del(RedisKeys.userGameLatest(userId, gameId, gameUid));
+            await redis.del(RedisKeys.userGameLatest(userId, gameId));
 
             return status(200, { success: true });
         },

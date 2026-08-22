@@ -69,9 +69,19 @@ export async function getUserAuthMethodsCount(userId: string): Promise<{
     hasAnonymousCode: boolean;
     totalActiveCount: number;
 }> {
-    const userRecord = await db.query.user.findFirst({
-        where: eq(schema.user.id, userId),
-    });
+    const [userRecord, secondary, social] = await Promise.all([
+        db.query.user.findFirst({
+            where: eq(schema.user.id, userId),
+        }),
+        db.query.userEmails.findMany({
+            where: eq(schema.userEmails.userId, userId),
+            orderBy: (emails, { asc }) => [asc(emails.createdAt)],
+        }),
+        db.query.account.findMany({
+            where: eq(schema.account.userId, userId),
+        }),
+    ]);
+
     if (!userRecord) {
         return {
             primaryEmail: null,
@@ -81,15 +91,6 @@ export async function getUserAuthMethodsCount(userId: string): Promise<{
             totalActiveCount: 0,
         };
     }
-
-    const secondary = await db.query.userEmails.findMany({
-        where: eq(schema.userEmails.userId, userId),
-        orderBy: (emails, { asc }) => [asc(emails.createdAt)],
-    });
-
-    const social = await db.query.account.findMany({
-        where: eq(schema.account.userId, userId),
-    });
 
     const primaryEmailReal = !userRecord.email.endsWith("@anon.gacha-tracker.app");
 
