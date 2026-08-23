@@ -161,7 +161,6 @@ export interface UserGame {
 }
 
 export interface Pull {
-    id: string;
     userId: string;
     gameId: string;
     gameUid: string;
@@ -227,7 +226,9 @@ export interface PaginatedResponse<T> {
         page: number;
         limit: number;
         hasNextPage: boolean;
-        total: number;
+        total?: number;
+        cursor?: string | null;
+        nextCursor?: string | null;
     };
 }
 

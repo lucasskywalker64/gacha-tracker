@@ -29,7 +29,8 @@ export const load = async ({ params, url }) => {
 					gameId,
 					gameUid: effectiveUid,
 					page: 1,
-					limit: 50
+					limit: 50,
+					includeTotal: true
 				}
 			}),
 			api.stats({ gameId }).get({
