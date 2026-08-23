@@ -27,16 +27,11 @@ export async function runSeed() {
     ];
 
     try {
-        for (const g of supportedGames) {
-            await db.insert(game).values(g).onConflictDoNothing({ target: game.id });
-        }
-
-        for (const flag of defaultFlags) {
-            await db
-                .insert(featureFlag)
-                .values(flag)
-                .onConflictDoNothing({ target: featureFlag.key });
-        }
+        await db.insert(game).values(supportedGames).onConflictDoNothing({ target: game.id });
+        await db
+            .insert(featureFlag)
+            .values(defaultFlags)
+            .onConflictDoNothing({ target: featureFlag.key });
 
         console.log("✅ Seeding completed");
     } catch (error) {

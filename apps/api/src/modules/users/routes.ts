@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db/client";
-import { user, pull, userGame, userSettings, userEmails } from "../../db/schema";
+import { user, pull, userGame, userEmails } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { authPlugin, auth, getUserAuthMethodsCount } from "../auth";
 import { sendOtpEmail } from "../../lib/email";
@@ -14,45 +14,36 @@ export const userRouter = new Elysia({ prefix: "/user" })
 
     .guard({ auth: true }) // Enforce authentication for all sub-routes
 
-    // GET /user/settings - Retrieve preferences (create defaults if non-existent)
+    // GET /user/settings - Retrieve preferences from session (0 DB reads)
     .get("/settings", async ({ user: sessionUser }) => {
-        const userId = sessionUser!.id;
-        const [settings] = await db
-            .insert(userSettings)
-            .values({
-                userId,
-                theme: "system",
-                pityDisplayMode: "count_up",
-            })
-            .onConflictDoUpdate({
-                target: userSettings.userId,
-                set: { userId }, // no-op update to trigger RETURNING
-            })
-            .returning();
-
-        return settings;
+        return {
+            userId: sessionUser!.id,
+            theme: sessionUser!.theme ?? "system",
+            pityDisplayMode: sessionUser!.pityDisplayMode ?? "count_up",
+            updatedAt: sessionUser!.updatedAt ?? new Date(),
+        };
     })
 
-    // PATCH /user/settings - Update specific settings
+    // PATCH /user/settings - Update specific settings on user table
     .patch(
         "/settings",
-        async ({ user: sessionUser, body }) => {
+        async ({ user: sessionUser, session: currentSession, body }) => {
             const userId = sessionUser!.id;
 
             await db
-                .insert(userSettings)
-                .values({
-                    userId,
-                    theme: body.theme ?? "system",
-                    pityDisplayMode: body.pityDisplayMode ?? "count_up",
+                .update(user)
+                .set({
+                    ...(body.theme !== undefined ? { theme: body.theme } : {}),
+                    ...(body.pityDisplayMode !== undefined
+                        ? { pityDisplayMode: body.pityDisplayMode }
+                        : {}),
+                    updatedAt: new Date(),
                 })
-                .onConflictDoUpdate({
-                    target: userSettings.userId,
-                    set: {
-                        ...body,
-                        updatedAt: new Date(),
-                    },
-                });
+                .where(eq(user.id, userId));
+
+            if (currentSession?.token) {
+                await redis.del(currentSession.token);
+            }
 
             return { success: true };
         },
@@ -77,9 +68,10 @@ export const userRouter = new Elysia({ prefix: "/user" })
     .get("/export", async ({ user: sessionUser }) => {
         const userId = sessionUser!.id;
 
-        const pulls = await db.select().from(pull).where(eq(pull.userId, userId));
-
-        const games = await db.select().from(userGame).where(eq(userGame.userId, userId));
+        const [pulls, games] = await Promise.all([
+            db.select().from(pull).where(eq(pull.userId, userId)),
+            db.select().from(userGame).where(eq(userGame.userId, userId)),
+        ]);
 
         return {
             exportedAt: new Date().toISOString(),
@@ -372,9 +364,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
             await redis.del(key);
 
             // Insert into secondary list as unverified if not already present
-            const existingRow = await db.query.userEmails.findFirst({
-                where: and(eq(userEmails.userId, userId), eq(userEmails.email, emailLower)),
-            });
+            const existingRow = secondaries.find((e) => e.email === emailLower);
 
             if (!existingRow) {
                 await db.insert(userEmails).values({
@@ -532,16 +522,6 @@ export const userRouter = new Elysia({ prefix: "/user" })
             const userId = sessionUser!.id;
             const emailLower = email.toLowerCase().trim();
 
-            const userRecord = await db.query.user.findFirst({
-                where: eq(user.id, userId),
-            });
-            if (!userRecord) {
-                return status(404, {
-                    success: false,
-                    error: { code: "USER_NOT_FOUND", message: "User not found" },
-                });
-            }
-
             const existing = await db.query.userEmails.findFirst({
                 where: and(eq(userEmails.userId, userId), eq(userEmails.email, emailLower)),
             });
@@ -556,7 +536,8 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 });
             }
 
-            const isAnonymous = userRecord.email.endsWith("@anon.gacha-tracker.app");
+            const isAnonymous =
+                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
             if (existing.verified && !isAnonymous) {
                 const verifiedKey = RedisKeys.sensitiveActionVerified(
                     userId,
@@ -602,18 +583,8 @@ export const userRouter = new Elysia({ prefix: "/user" })
             const userId = sessionUser!.id;
             const useSecondaryEmail = body?.useSecondaryEmail;
 
-            // Fetch user to verify email
-            const userRecord = await db.query.user.findFirst({
-                where: eq(user.id, userId),
-            });
-            if (!userRecord) {
-                return status(404, {
-                    success: false,
-                    error: { code: "USER_NOT_FOUND", message: "User not found" },
-                });
-            }
-
-            const isAnonymous = userRecord.email.endsWith("@anon.gacha-tracker.app");
+            const isAnonymous =
+                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
             if (isAnonymous) {
                 return status(400, {
                     success: false,
@@ -639,7 +610,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 });
             }
 
-            let emailToSend = userRecord.email;
+            let emailToSend = sessionUser!.email;
 
             if (useSecondaryEmail) {
                 const emailLower = useSecondaryEmail.toLowerCase().trim();
@@ -720,16 +691,6 @@ export const userRouter = new Elysia({ prefix: "/user" })
             const emailToPromote = body?.emailToPromote;
             const code = body?.code;
 
-            const userRecord = await db.query.user.findFirst({
-                where: eq(user.id, userId),
-            });
-            if (!userRecord) {
-                return status(404, {
-                    success: false,
-                    error: { code: "USER_NOT_FOUND", message: "User not found" },
-                });
-            }
-
             const methods = await getUserAuthMethodsCount(userId);
             const verifiedSecondaries = methods.secondaryEmails.filter((e) => e.verified);
 
@@ -744,7 +705,8 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 });
             }
 
-            const isAnonymous = userRecord.email.endsWith("@anon.gacha-tracker.app");
+            const isAnonymous =
+                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
 
             if (!isAnonymous) {
                 if (!code) {
@@ -758,7 +720,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 }
 
                 // Determine which OTP key to check
-                let otpEmail = userRecord.email;
+                let otpEmail = sessionUser!.email;
                 let isSecondaryOtp = false;
 
                 if (emailToPromote) {
@@ -909,17 +871,8 @@ export const userRouter = new Elysia({ prefix: "/user" })
             const userId = sessionUser!.id;
             const resolvedTarget = target ?? "";
 
-            const userRecord = await db.query.user.findFirst({
-                where: eq(user.id, userId),
-            });
-            if (!userRecord) {
-                return status(404, {
-                    success: false,
-                    error: { code: "USER_NOT_FOUND", message: "User not found" },
-                });
-            }
-
-            const isAnonymous = userRecord.email.endsWith("@anon.gacha-tracker.app");
+            const isAnonymous =
+                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
             if (isAnonymous) {
                 return status(400, {
                     success: false,
@@ -957,7 +910,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
             await redis.hset(key, { code, attempts: 0 });
             await redis.expire(key, 300); // 5-minute TTL
 
-            await sendOtpEmail({ email: userRecord.email, code, type: action });
+            await sendOtpEmail({ email: sessionUser!.email, code, type: action });
 
             return { success: true };
         },
@@ -982,17 +935,8 @@ export const userRouter = new Elysia({ prefix: "/user" })
             const userId = sessionUser!.id;
             const resolvedTarget = target ?? "";
 
-            const userRecord = await db.query.user.findFirst({
-                where: eq(user.id, userId),
-            });
-            if (!userRecord) {
-                return status(404, {
-                    success: false,
-                    error: { code: "USER_NOT_FOUND", message: "User not found" },
-                });
-            }
-
-            const isAnonymous = userRecord.email.endsWith("@anon.gacha-tracker.app");
+            const isAnonymous =
+                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
             if (isAnonymous) {
                 return status(400, {
                     success: false,
@@ -1080,18 +1024,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
             const userId = sessionUser!.id;
             const emailLower = email.toLowerCase().trim();
 
-            // Fetch user to verify email
-            const userRecord = await db.query.user.findFirst({
-                where: eq(user.id, userId),
-            });
-            if (!userRecord) {
-                return status(404, {
-                    success: false,
-                    error: { code: "USER_NOT_FOUND", message: "User not found" },
-                });
-            }
-
-            if (emailLower !== userRecord.email.toLowerCase().trim()) {
+            if (emailLower !== sessionUser!.email.toLowerCase().trim()) {
                 return status(400, {
                     success: false,
                     error: {

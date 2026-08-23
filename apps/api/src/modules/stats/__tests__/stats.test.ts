@@ -84,17 +84,35 @@ describe("Stats Query API (Multi-Account)", () => {
     });
 
     it("calculates stats for primary account by default and scopes cache key", async () => {
-        await sqlite.execute(
-            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
-             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1000),
-                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 2000)`
-        );
+        const altFiveStarHistory = JSON.stringify([
+            {
+                pullId: "101",
+                gameUid: "UID_ALT",
+                itemId: "ITEM1",
+                itemName: "Alt Item",
+                pityAtPull: 1,
+                wasGuaranteed: 0,
+                pulledAt: 1704067200000,
+                bannerType: "301",
+            },
+        ]);
+        const mainFiveStarHistory = JSON.stringify([
+            {
+                pullId: "201",
+                gameUid: "UID_MAIN",
+                itemId: "ITEM2",
+                itemName: "Main Item 1",
+                pityAtPull: 1,
+                wasGuaranteed: 0,
+                pulledAt: 1704067200000,
+                bannerType: "301",
+            },
+        ]);
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item 1', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-3', 'test-user-id', 'genshin', 'UID_MAIN', '202', '301', 'ITEM3', 'Main Item 2', 'character', 4, 1704067300000, 2, 0, 1, 0)`
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, stats_four_stars, stats_five_stars, stats_current_pity, stats_five_star_history, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1, 0, 1, '{}', '${altFiveStarHistory}', 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 2, 1, 1, '{"301":2}', '${mainFiveStarHistory}', 2000)`
         );
 
         const resp = await app.fetch(
@@ -116,16 +134,23 @@ describe("Stats Query API (Multi-Account)", () => {
     });
 
     it("calculates stats for specified gameUid", async () => {
-        await sqlite.execute(
-            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
-             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1000),
-                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 2000)`
-        );
+        const altFiveStarHistory = JSON.stringify([
+            {
+                pullId: "101",
+                gameUid: "UID_ALT",
+                itemId: "ITEM1",
+                itemName: "Alt Item",
+                pityAtPull: 1,
+                wasGuaranteed: 0,
+                pulledAt: 1704067200000,
+                bannerType: "301",
+            },
+        ]);
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item 1', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, stats_four_stars, stats_five_stars, stats_current_pity, stats_five_star_history, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1, 0, 1, '{}', '${altFiveStarHistory}', 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1, 0, 1, '{}', '[]', 2000)`
         );
 
         const resp = await app.fetch(
@@ -145,15 +170,9 @@ describe("Stats Query API (Multi-Account)", () => {
 
     it("aggregates stats across all UIDs when gameUid=all", async () => {
         await sqlite.execute(
-            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
-             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1000),
-                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 2000)`
-        );
-
-        await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item 1', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, stats_four_stars, stats_five_stars, stats_current_pity, stats_five_star_history, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1, 0, 1, '{}', '[]', 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1, 0, 1, '{}', '[]', 2000)`
         );
 
         const resp = await app.fetch(
@@ -171,16 +190,8 @@ describe("Stats Query API (Multi-Account)", () => {
 
     it("synchronizes current pity across shared pity pools (e.g. Genshin 301 and 400)", async () => {
         await sqlite.execute(
-            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
-             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1000)`
-        );
-
-        // Pull on 301 (3-star), then pull on 400 (3-star), then pull on 301 (3-star)
-        await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_MAIN', '101', '301', 'ITEM1', 'Item 1', 'weapon', 3, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '102', '400', 'ITEM2', 'Item 2', 'weapon', 3, 1704067300000, 2, 0, 1, 0),
-                    ('p-3', 'test-user-id', 'genshin', 'UID_MAIN', '103', '301', 'ITEM3', 'Item 3', 'weapon', 3, 1704067400000, 3, 0, 1, 0)`
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, stats_four_stars, stats_five_stars, stats_current_pity, stats_five_star_history, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 3, 0, 0, '{"301":3,"400":3}', '[]', 1000)`
         );
 
         const resp = await app.fetch(
@@ -190,25 +201,15 @@ describe("Stats Query API (Multi-Account)", () => {
         );
         expect(resp.status).toBe(200);
         const body = await resp.json();
-        // Both banner 301 and 400 belong to "limited_character" pool, so both should report pity 3
         expect(body.currentPity["301"]).toBe(3);
         expect(body.currentPity["400"]).toBe(3);
     });
 
     it("calculates current pity using primary account pulls when gameUid=all", async () => {
         await sqlite.execute(
-            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
-             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1000),
-                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 2000)`
-        );
-
-        // Alt has 1 pull, Main has 3 pulls
-        await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'weapon', 3, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item 1', 'weapon', 3, 1704067300000, 1, 0, 1, 0),
-                    ('p-3', 'test-user-id', 'genshin', 'UID_MAIN', '202', '301', 'ITEM3', 'Main Item 2', 'weapon', 3, 1704067400000, 2, 0, 1, 0),
-                    ('p-4', 'test-user-id', 'genshin', 'UID_MAIN', '203', '301', 'ITEM4', 'Main Item 3', 'weapon', 3, 1704067500000, 3, 0, 1, 0)`
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, stats_four_stars, stats_five_stars, stats_current_pity, stats_five_star_history, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1, 0, 0, '{"301":1}', '[]', 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 3, 0, 0, '{"301":3}', '[]', 2000)`
         );
 
         const resp = await app.fetch(
@@ -219,7 +220,6 @@ describe("Stats Query API (Multi-Account)", () => {
         expect(resp.status).toBe(200);
         const body = await resp.json();
         expect(body.total).toBe(4);
-        // Current pity reflects the primary account only (3 pulls), not the Alt pull
         expect(body.currentPity["301"]).toBe(3);
     });
 
@@ -287,16 +287,23 @@ describe("Stats Query API (Multi-Account)", () => {
     });
 
     it("falls back to the earliest-created account when gameUid is omitted and no account is marked primary", async () => {
-        await sqlite.execute(
-            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
-             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_EARLY', 'Early', 0, NULL, 1000),
-                    ('acc-2', 'test-user-id', 'genshin', 'UID_LATER', 'Later', 0, NULL, 2000)`
-        );
+        const earlyFiveStarHistory = JSON.stringify([
+            {
+                pullId: "101",
+                gameUid: "UID_EARLY",
+                itemId: "ITEM1",
+                itemName: "Early Item",
+                pityAtPull: 1,
+                wasGuaranteed: 0,
+                pulledAt: 1704067200000,
+                bannerType: "301",
+            },
+        ]);
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-early', 'test-user-id', 'genshin', 'UID_EARLY', '101', '301', 'ITEM1', 'Early Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-later', 'test-user-id', 'genshin', 'UID_LATER', '201', '301', 'ITEM2', 'Later Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, stats_four_stars, stats_five_stars, stats_current_pity, stats_five_star_history, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_EARLY', 'Early', 0, NULL, 1, 0, 1, '{}', '${earlyFiveStarHistory}', 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_LATER', 'Later', 0, NULL, 1, 0, 1, '{}', '[]', 2000)`
         );
 
         const resp = await app.fetch(
@@ -311,5 +318,54 @@ describe("Stats Query API (Multi-Account)", () => {
 
         // Verify cache key was set for UID_EARLY
         expect(redisStore.has("stats:test-user-id:genshin:UID_EARLY")).toBe(true);
+    });
+
+    it("preserves identical pullIds across different gameUids when aggregating with gameUid=all", async () => {
+        const altFiveStarHistory = JSON.stringify([
+            {
+                pullId: "101",
+                gameUid: "UID_ALT",
+                itemId: "ITEM1",
+                itemName: "Alt Item",
+                pityAtPull: 1,
+                wasGuaranteed: 0,
+                pulledAt: 1704067200000,
+                bannerType: "301",
+            },
+        ]);
+        const mainFiveStarHistory = JSON.stringify([
+            {
+                pullId: "101",
+                gameUid: "UID_MAIN",
+                itemId: "ITEM2",
+                itemName: "Main Item",
+                pityAtPull: 2,
+                wasGuaranteed: 0,
+                pulledAt: 1704067300000,
+                bannerType: "301",
+            },
+        ]);
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, stats_four_stars, stats_five_stars, stats_current_pity, stats_five_star_history, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_ALT', 'Alt', 0, NULL, 1, 0, 1, '{}', '${altFiveStarHistory}', 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1, 0, 1, '{}', '${mainFiveStarHistory}', 2000)`
+        );
+
+        const resp = await app.fetch(
+            new Request("http://localhost/stats/genshin?gameUid=all", {
+                headers: { Authorization: "Bearer session_token" },
+            })
+        );
+        expect(resp.status).toBe(200);
+        const body = await resp.json();
+        expect(body.fiveStarHistory.length).toBe(2);
+        expect(body.fiveStarHistory.map((h: { id: string }) => h.id)).toEqual([
+            "UID_MAIN:101",
+            "UID_ALT:101",
+        ]);
+        expect(body.fiveStarHistory.map((h: { pullId: string }) => h.pullId)).toEqual([
+            "101",
+            "101",
+        ]);
     });
 });

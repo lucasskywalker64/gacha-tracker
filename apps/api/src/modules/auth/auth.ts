@@ -168,6 +168,22 @@ export const auth = betterAuth({
         provider: "sqlite",
         schema,
     }),
+    secondaryStorage: {
+        get: async (key) => {
+            const val = await redis.get(key);
+            return val ? val : null;
+        },
+        set: async (key, value, ttl) => {
+            if (ttl) {
+                await redis.set(key, value, "EX", ttl);
+            } else {
+                await redis.set(key, value);
+            }
+        },
+        delete: async (key) => {
+            await redis.del(key);
+        },
+    },
 
     databaseHooks: {
         user: {
@@ -399,6 +415,13 @@ export const auth = betterAuth({
         additionalFields: {
             isAnonymous: { type: "boolean", required: false, input: true },
             codeHash: { type: "string", required: false, input: true },
+            theme: { type: "string", required: false, input: true, defaultValue: "system" },
+            pityDisplayMode: {
+                type: "string",
+                required: false,
+                input: true,
+                defaultValue: "count_up",
+            },
         },
     },
 

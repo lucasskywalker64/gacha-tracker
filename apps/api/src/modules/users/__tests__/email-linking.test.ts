@@ -278,6 +278,8 @@ describe("userRouter — Email Linking & Safety Controls", () => {
     beforeEach(() => {
         redisStore.clear();
         mockUser.email = "user@example.com";
+        mockUser.isAnonymous = false;
+        mockUser.codeHash = null;
         mockSecondaryEmails = [];
         mockAccounts = [];
         dbUpdateCalled = null;

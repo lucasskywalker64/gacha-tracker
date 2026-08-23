@@ -1,4 +1,11 @@
-import { sqliteTable, text, integer, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import {
+    sqliteTable,
+    text,
+    integer,
+    uniqueIndex,
+    index,
+    primaryKey,
+} from "drizzle-orm/sqlite-core";
 import { sql, relations } from "drizzle-orm";
 import { user } from "./user";
 import { game } from "./game";
@@ -23,10 +30,21 @@ export const userGame = sqliteTable(
         lastImport: integer("last_import", { mode: "timestamp_ms" }),
         /**
          * JSON object mapping banner type → most recent successfully imported
-         * pull ID for that banner.  null until the first successful import.
+         * pull ID for that banner. null until the first successful import.
          * e.g. '{"character":"123","weapon":"456"}'
          */
         latestPullIds: text("latest_pull_ids"),
+        statsTotalPulls: integer("stats_total_pulls").notNull().default(0),
+        statsFourStars: integer("stats_four_stars").notNull().default(0),
+        statsFiveStars: integer("stats_five_stars").notNull().default(0),
+        /** JSON mapping banner type to active pity count */
+        statsCurrentPity: text("stats_current_pity", { mode: "json" }).$type<
+            Record<string, number>
+        >(),
+        /** JSON array of recent 5-star pulls */
+        statsFiveStarHistory: text("stats_five_star_history", { mode: "json" }).$type<
+            FiveStarHistoryItem[]
+        >(),
         createdAt: integer("created_at", { mode: "timestamp_ms" })
             .notNull()
             .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
@@ -36,10 +54,20 @@ export const userGame = sqliteTable(
         uniqueIndex("idx_user_game_primary")
             .on(table.userId, table.gameId)
             .where(sql`${table.isPrimary} = 1`),
-        index("idx_user_game_user").on(table.userId),
-        index("idx_user_game_user_game").on(table.userId, table.gameId),
     ]
 );
+
+export interface FiveStarHistoryItem {
+    pullId: string;
+    gameUid: string;
+    itemId: string;
+    itemName: string;
+    pityAtPull: number;
+    wasGuaranteed: number;
+    pulledAt: number;
+    bannerType: string;
+    bannerId?: string | null;
+}
 
 export type UserGame = typeof userGame.$inferSelect;
 export type NewUserGame = typeof userGame.$inferInsert;
@@ -52,7 +80,6 @@ export type NewUserGame = typeof userGame.$inferInsert;
 export const pull = sqliteTable(
     "pull",
     {
-        id: text("id").primaryKey(),
         userId: text("user_id")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),
@@ -80,15 +107,19 @@ export const pull = sqliteTable(
             .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
     },
     (table) => [
-        // Deduplication — the UNIQUE constraint also doubles as an index.
-        uniqueIndex("pull_dedup_idx").on(table.userId, table.gameId, table.gameUid, table.pullId),
-        index("idx_pull_user_game").on(table.userId, table.gameId),
-        index("idx_pull_user_game_uid").on(table.userId, table.gameId, table.gameUid),
+        primaryKey({ columns: [table.userId, table.gameId, table.gameUid, table.pullId] }),
         index("idx_pull_user_game_date").on(table.userId, table.gameId, table.pulledAt),
         index("idx_pull_user_game_uid_date").on(
             table.userId,
             table.gameId,
             table.gameUid,
+            table.pulledAt
+        ),
+        index("idx_pull_filter_sort").on(
+            table.userId,
+            table.gameId,
+            table.gameUid,
+            table.bannerType,
             table.pulledAt
         ),
         index("idx_pull_game_banner").on(table.gameId, table.bannerType),

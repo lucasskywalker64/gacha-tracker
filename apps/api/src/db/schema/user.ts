@@ -1,25 +1,40 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, check } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
-export const user = sqliteTable("user", {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    email: text("email").notNull().unique(),
-    emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
-    image: text("image"),
-    createdAt: integer("created_at", { mode: "timestamp_ms" })
-        .notNull()
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-        .notNull()
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-    codeHash: text("code_hash"),
-    isAnonymous: integer("is_anonymous", { mode: "boolean" }).notNull().default(false),
-    role: text("role").notNull().default("user"),
-    banned: integer("banned", { mode: "boolean" }).notNull().default(false),
-    banReason: text("ban_reason"),
-    banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
-});
+export const user = sqliteTable(
+    "user",
+    {
+        id: text("id").primaryKey(),
+        name: text("name").notNull(),
+        email: text("email").notNull().unique(),
+        emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+        image: text("image"),
+        createdAt: integer("created_at", { mode: "timestamp_ms" })
+            .notNull()
+            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+        updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+            .notNull()
+            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+        codeHash: text("code_hash"),
+        isAnonymous: integer("is_anonymous", { mode: "boolean" }).notNull().default(false),
+        role: text("role").notNull().default("user"),
+        banned: integer("banned", { mode: "boolean" }).notNull().default(false),
+        banReason: text("ban_reason"),
+        banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+        theme: text("theme").notNull().default("system"),
+        pityDisplayMode: text("pity_display_mode").notNull().default("count_up"),
+    },
+    (table) => [
+        check(
+            "user_theme_check",
+            sql`${table.theme} IN ('system', 'quantum-dark', 'amber-dawn', 'wobbly-waves')`
+        ),
+        check(
+            "user_pity_display_mode_check",
+            sql`${table.pityDisplayMode} IN ('count_up', 'count_down')`
+        ),
+    ]
+);
 
 export const session = sqliteTable(
     "session",
@@ -69,7 +84,10 @@ export const account = sqliteTable(
             .notNull()
             .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
     },
-    (table) => [index("account_user_id_idx").on(table.userId)]
+    (table) => [
+        index("account_user_id_idx").on(table.userId),
+        index("account_provider_account_idx").on(table.providerId, table.accountId),
+    ]
 );
 
 export const verification = sqliteTable(

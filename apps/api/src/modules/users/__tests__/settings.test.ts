@@ -16,6 +16,8 @@ const mockUser = {
     emailVerified: true,
     isAnonymous: false,
     codeHash: null as string | null,
+    theme: "quantum-dark",
+    pityDisplayMode: "count_up",
 };
 
 let mockUserEmails: Array<{
@@ -214,7 +216,13 @@ beforeAll(async () => {
             api: {
                 ...originalAuth.auth.api,
                 getSession: mock(async () => ({
-                    user: { id: "test_user_id", name: "User", email: "user@example.com" },
+                    user: {
+                        id: mockUser.id,
+                        name: "User",
+                        email: mockUser.email,
+                        theme: mockUser.theme,
+                        pityDisplayMode: mockUser.pityDisplayMode,
+                    },
                     session: { token: "session_token" },
                 })),
                 revokeUserSessions: mockRevokeSessions,
@@ -249,6 +257,8 @@ describe("userRouter — /settings", () => {
         mockUser.emailVerified = true;
         mockUser.isAnonymous = false;
         mockUser.codeHash = null;
+        mockUser.theme = "quantum-dark";
+        mockUser.pityDisplayMode = "count_up";
         mockUserEmails = [];
         mockAccount = {
             id: "acc_id",

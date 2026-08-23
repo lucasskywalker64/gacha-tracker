@@ -110,8 +110,8 @@ describe("Pull File Import/Export E2E", () => {
 
         // Seed some initial pulls
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('P1', 'test-user-id', 'starrail', 'UID_ABC', '1001', '11', 'ITEM1', 'Seele', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'starrail', 'UID_ABC', '1001', '11', 'ITEM1', 'Seele', 'character', 5, 1704067200000, 1, 0, 1, 0)`
         );
 
         // Dynamic import the router so it uses the mocks
