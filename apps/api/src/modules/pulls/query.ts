@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import { db } from "../../db/client";
-import { pull } from "../../db/schema";
+import { pull, userGame } from "../../db/schema";
 import { eq, and, or, lt, desc, sql } from "drizzle-orm";
 import { authPlugin } from "../auth";
 import { paginationSchema } from "@gacha-tracker/shared";
@@ -48,6 +48,7 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
         const userId = user!.id;
 
         const baseConditions = [eq(pull.userId, userId), eq(pull.gameId, gameId)];
+        let effectiveGameUid = gameUid;
 
         if (gameUid && gameUid !== "all") {
             baseConditions.push(eq(pull.gameUid, gameUid));
@@ -55,6 +56,7 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
             // Default to user's primary or earliest game account if omitted
             const defaultAccount = await resolvePrimaryOrEarliestAccount(userId, gameId);
             if (defaultAccount) {
+                effectiveGameUid = defaultAccount.gameUid;
                 baseConditions.push(eq(pull.gameUid, defaultAccount.gameUid));
             }
         }
@@ -92,13 +94,39 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
             .offset(offset);
 
         if (includeTotal) {
-            const [results, [{ count }]] = await Promise.all([
-                resultsQuery,
-                db
+            let totalPromise: Promise<number>;
+            if (!bannerType) {
+                // When bannerType is not filtered, total pulls is already materialized on user_game
+                if (effectiveGameUid && effectiveGameUid !== "all") {
+                    totalPromise = db
+                        .select({ count: userGame.statsTotalPulls })
+                        .from(userGame)
+                        .where(
+                            and(
+                                eq(userGame.userId, userId),
+                                eq(userGame.gameId, gameId),
+                                eq(userGame.gameUid, effectiveGameUid)
+                            )
+                        )
+                        .then((rows) => rows[0]?.count ?? 0);
+                } else {
+                    totalPromise = db
+                        .select({
+                            count: sql<number>`coalesce(sum(${userGame.statsTotalPulls}), 0)`,
+                        })
+                        .from(userGame)
+                        .where(and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)))
+                        .then((rows) => Number(rows[0]?.count ?? 0));
+                }
+            } else {
+                totalPromise = db
                     .select({ count: sql<number>`count(*)` })
                     .from(pull)
-                    .where(and(...baseConditions)),
-            ]);
+                    .where(and(...baseConditions))
+                    .then((rows) => rows[0]?.count ?? 0);
+            }
+
+            const [results, count] = await Promise.all([resultsQuery, totalPromise]);
 
             const hasNextPage = results.length > limit;
             const items = hasNextPage ? results.slice(0, limit) : results;

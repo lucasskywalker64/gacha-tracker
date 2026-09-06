@@ -1100,32 +1100,24 @@
             "indexes": {
                 "idx_pull_user_game_date": {
                     "name": "idx_pull_user_game_date",
-                    "columns": ["user_id", "game_id", "pulled_at"],
+                    "columns": ["user_id", "game_id", "pulled_at", "pull_id", "game_uid"],
                     "isUnique": false
                 },
                 "idx_pull_user_game_uid_date": {
                     "name": "idx_pull_user_game_uid_date",
-                    "columns": ["user_id", "game_id", "game_uid", "pulled_at"],
+                    "columns": ["user_id", "game_id", "game_uid", "pulled_at", "pull_id"],
                     "isUnique": false
                 },
                 "idx_pull_filter_sort": {
                     "name": "idx_pull_filter_sort",
-                    "columns": ["user_id", "game_id", "game_uid", "banner_type", "pulled_at"],
-                    "isUnique": false
-                },
-                "idx_pull_game_banner": {
-                    "name": "idx_pull_game_banner",
-                    "columns": ["game_id", "banner_type"],
-                    "isUnique": false
-                },
-                "idx_pull_pulled_at": {
-                    "name": "idx_pull_pulled_at",
-                    "columns": ["pulled_at"],
-                    "isUnique": false
-                },
-                "idx_pull_rarity": {
-                    "name": "idx_pull_rarity",
-                    "columns": ["rarity"],
+                    "columns": [
+                        "user_id",
+                        "game_id",
+                        "game_uid",
+                        "banner_type",
+                        "pulled_at",
+                        "pull_id"
+                    ],
                     "isUnique": false
                 }
             },

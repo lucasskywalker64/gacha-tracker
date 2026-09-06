@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db/client";
 import { pull, userGame, user as userTable } from "../../db/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, ne } from "drizzle-orm";
 import { authPlugin } from "../auth";
 import { redis } from "../../lib/redis";
 import { RedisKeys } from "../../lib/redis-keys";
@@ -17,7 +17,16 @@ export const accountsRouter = new Elysia()
             const userId = user!.id;
 
             const accounts = await db
-                .select()
+                .select({
+                    id: userGame.id,
+                    userId: userGame.userId,
+                    gameId: userGame.gameId,
+                    gameUid: userGame.gameUid,
+                    nickname: userGame.nickname,
+                    isPrimary: userGame.isPrimary,
+                    lastImport: userGame.lastImport,
+                    createdAt: userGame.createdAt,
+                })
                 .from(userGame)
                 .where(and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)))
                 .orderBy(desc(userGame.isPrimary), asc(userGame.createdAt));
@@ -81,19 +90,33 @@ export const accountsRouter = new Elysia()
 
             await db.transaction(async (tx) => {
                 if (body.isPrimary === true) {
-                    // Set all other accounts for this user & game to isPrimary = false
-                    await tx
-                        .update(userGame)
-                        .set({ isPrimary: false })
-                        .where(and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)));
+                    if (!existingAccount.isPrimary) {
+                        // Unset previous primary account only if one exists
+                        await tx
+                            .update(userGame)
+                            .set({ isPrimary: false })
+                            .where(
+                                and(
+                                    eq(userGame.userId, userId),
+                                    eq(userGame.gameId, gameId),
+                                    eq(userGame.isPrimary, true),
+                                    ne(userGame.id, existingAccount.id)
+                                )
+                            );
 
-                    await tx
-                        .update(userGame)
-                        .set({
-                            isPrimary: true,
-                            ...(body.nickname !== undefined ? { nickname: body.nickname } : {}),
-                        })
-                        .where(eq(userGame.id, existingAccount.id));
+                        await tx
+                            .update(userGame)
+                            .set({
+                                isPrimary: true,
+                                ...(body.nickname !== undefined ? { nickname: body.nickname } : {}),
+                            })
+                            .where(eq(userGame.id, existingAccount.id));
+                    } else if (body.nickname !== undefined) {
+                        await tx
+                            .update(userGame)
+                            .set({ nickname: body.nickname })
+                            .where(eq(userGame.id, existingAccount.id));
+                    }
                 } else if (body.nickname !== undefined) {
                     await tx
                         .update(userGame)
@@ -213,18 +236,15 @@ export const accountsRouter = new Elysia()
                 // Delete the user_game account record
                 await tx.delete(userGame).where(eq(userGame.id, existingAccount.id));
 
-                // If no primary account remains for this game, promote the earliest remaining account
-                const remainingPrimary = await tx.query.userGame.findFirst({
-                    where: and(
-                        eq(userGame.userId, userId),
-                        eq(userGame.gameId, gameId),
-                        eq(userGame.isPrimary, true)
-                    ),
-                });
-
-                if (!remainingPrimary) {
+                // If the deleted account was primary, promote the earliest remaining account
+                if (existingAccount.isPrimary) {
                     const nextAccount = await tx.query.userGame.findFirst({
-                        where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
+                        where: and(
+                            eq(userGame.userId, userId),
+                            eq(userGame.gameId, gameId),
+                            ne(userGame.id, existingAccount.id)
+                        ),
+                        columns: { id: true },
                         orderBy: asc(userGame.createdAt),
                     });
 

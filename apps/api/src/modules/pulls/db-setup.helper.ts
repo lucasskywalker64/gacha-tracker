@@ -28,12 +28,12 @@ export async function createTestTables(sqlite: Client) {
         `CREATE INDEX IF NOT EXISTS idx_import_log_user ON import_log (user_id, game_id)`
     );
     await sqlite.execute(
-        `CREATE INDEX IF NOT EXISTS idx_pull_user_game_date ON pull (user_id, game_id, pulled_at)`
+        `CREATE INDEX IF NOT EXISTS idx_pull_user_game_date ON pull (user_id, game_id, pulled_at, pull_id, game_uid)`
     );
     await sqlite.execute(
-        `CREATE INDEX IF NOT EXISTS idx_pull_user_game_uid_date ON pull (user_id, game_id, game_uid, pulled_at)`
+        `CREATE INDEX IF NOT EXISTS idx_pull_user_game_uid_date ON pull (user_id, game_id, game_uid, pulled_at, pull_id)`
     );
     await sqlite.execute(
-        `CREATE INDEX IF NOT EXISTS idx_pull_filter_sort ON pull (user_id, game_id, game_uid, banner_type, pulled_at)`
+        `CREATE INDEX IF NOT EXISTS idx_pull_filter_sort ON pull (user_id, game_id, game_uid, banner_type, pulled_at, pull_id)`
     );
 }

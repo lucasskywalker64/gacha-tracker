@@ -1184,7 +1184,7 @@ export async function executePullsImport(
     try {
         const adapter = getAdapter(gameId);
 
-        // 1. Read existing userGame record and determine if incremental active window can be used
+        // 1. Read existing userGame record
         const [existingUserGame] = await db
             .select()
             .from(userGame)
@@ -1196,56 +1196,6 @@ export async function executePullsImport(
                 )
             )
             .limit(1);
-
-        let canUseIncrementalWindow = false;
-        let minCutoffTime: number | null = null;
-        let parsedFiveStarHistory: FiveStarHistoryItem[] = [];
-
-        if (
-            existingUserGame?.statsFiveStarHistory &&
-            existingUserGame.statsFiveStarHistory.length > 0
-        ) {
-            parsedFiveStarHistory = existingUserGame.statsFiveStarHistory;
-            const currentPity = existingUserGame.statsCurrentPity ?? {};
-
-            // Determine latest 5-star timestamp per pool
-            const poolLatestFiveStarTime = new Map<string, number>();
-            for (const h of parsedFiveStarHistory) {
-                const poolKey = adapter.pityPools?.[h.bannerType] || h.bannerType;
-                const current = poolLatestFiveStarTime.get(poolKey) || 0;
-                if (h.pulledAt > current) {
-                    poolLatestFiveStarTime.set(poolKey, h.pulledAt);
-                }
-            }
-
-            // Check that all pools with active pity (> 0) have a known 5-star cutoff
-            let allActivePoolsHaveCutoff = true;
-            for (const [bannerOrPool, pityCount] of Object.entries(currentPity)) {
-                if (pityCount > 0) {
-                    const poolKey = adapter.pityPools?.[bannerOrPool] || bannerOrPool;
-                    if (!poolLatestFiveStarTime.has(poolKey)) {
-                        allActivePoolsHaveCutoff = false;
-                        break;
-                    }
-                }
-            }
-
-            if (allActivePoolsHaveCutoff && poolLatestFiveStarTime.size > 0) {
-                minCutoffTime = Math.min(...Array.from(poolLatestFiveStarTime.values()));
-                if (earliestPullAt && earliestPullAt.getTime() > minCutoffTime) {
-                    canUseIncrementalWindow = true;
-                }
-            }
-        }
-
-        const pullConditions = [
-            eq(pull.userId, userId),
-            eq(pull.gameId, gameId),
-            eq(pull.gameUid, gameUid),
-        ];
-        if (canUseIncrementalWindow && minCutoffTime !== null) {
-            pullConditions.push(sql`${pull.pulledAt} >= ${minCutoffTime}`);
-        }
 
         const existingDbPulls = await db
             .select({
@@ -1262,7 +1212,7 @@ export async function executePullsImport(
                 pityVersion: pull.pityVersion,
             })
             .from(pull)
-            .where(and(...pullConditions))
+            .where(and(eq(pull.userId, userId), eq(pull.gameId, gameId), eq(pull.gameUid, gameUid)))
             .orderBy(asc(pull.pulledAt));
 
         const existingNormalizedPulls: NormalizedPull[] = existingDbPulls.map((p) => ({
@@ -1315,9 +1265,6 @@ export async function executePullsImport(
         const latestIds: Record<string, string> = {};
         const existingByPullId = new Map(existingDbPulls.map((p) => [p.pullId, p]));
         let newPullCount = 0;
-        let newFourStarCount = 0;
-        let newFiveStarCount = 0;
-        const newFiveStars: FiveStarHistoryItem[] = [];
 
         const pityTriggerRarity = adapter?.pityConfig?.pityTriggerRarity ?? 5;
         const pityByPool: Record<string, number> = {};
@@ -1336,22 +1283,6 @@ export async function executePullsImport(
 
                 if (existing === undefined) {
                     newPullCount++;
-                    if (p.rarity === 5) {
-                        newFiveStarCount++;
-                        newFiveStars.push({
-                            pullId: p.pullId,
-                            gameUid,
-                            itemId: p.itemId,
-                            itemName: p.itemName,
-                            pityAtPull: p.pityAtPull,
-                            wasGuaranteed: p.wasGuaranteed,
-                            pulledAt: p.pulledAt.getTime(),
-                            bannerType: p.bannerType,
-                            bannerId: p.bannerId || null,
-                        });
-                    } else if (p.rarity === 4) {
-                        newFourStarCount++;
-                    }
                 }
 
                 if (existing === undefined || pityChanged) {
@@ -1397,41 +1328,28 @@ export async function executePullsImport(
         let totalPulls = 0;
         let fourStars = 0;
         let fiveStars = 0;
-        let fiveStarHistory: typeof newFiveStars = [];
+        const fiveStarHistory: FiveStarHistoryItem[] = [];
 
-        if (canUseIncrementalWindow && existingUserGame) {
-            totalPulls = existingUserGame.statsTotalPulls + newPullCount;
-            fourStars = existingUserGame.statsFourStars + newFourStarCount;
-            fiveStars = existingUserGame.statsFiveStars + newFiveStarCount;
-            const historyMap = new Map(parsedFiveStarHistory.map((h) => [h.pullId, h]));
-            for (const item of newFiveStars) {
-                historyMap.set(item.pullId, item);
+        for (const p of Array.from(combinedPullsMap.values())) {
+            totalPulls++;
+            if (p.rarity === 5) {
+                fiveStars++;
+                fiveStarHistory.push({
+                    pullId: p.pullId,
+                    gameUid,
+                    itemId: p.itemId,
+                    itemName: p.itemName,
+                    pityAtPull: p.pityAtPull,
+                    wasGuaranteed: p.wasGuaranteed,
+                    pulledAt: p.pulledAt.getTime(),
+                    bannerType: p.bannerType,
+                    bannerId: p.bannerId || null,
+                });
+            } else if (p.rarity === 4) {
+                fourStars++;
             }
-            fiveStarHistory = Array.from(historyMap.values()).sort(
-                (a, b) => b.pulledAt - a.pulledAt
-            );
-        } else {
-            for (const p of Array.from(combinedPullsMap.values())) {
-                totalPulls++;
-                if (p.rarity === 5) {
-                    fiveStars++;
-                    fiveStarHistory.push({
-                        pullId: p.pullId,
-                        gameUid,
-                        itemId: p.itemId,
-                        itemName: p.itemName,
-                        pityAtPull: p.pityAtPull,
-                        wasGuaranteed: p.wasGuaranteed,
-                        pulledAt: p.pulledAt.getTime(),
-                        bannerType: p.bannerType,
-                        bannerId: p.bannerId || null,
-                    });
-                } else if (p.rarity === 4) {
-                    fourStars++;
-                }
-            }
-            fiveStarHistory.sort((a, b) => b.pulledAt - a.pulledAt);
         }
+        fiveStarHistory.sort((a, b) => b.pulledAt - a.pulledAt);
         const pityCalcDurationMs = Math.round(performance.now() - tPityStart);
 
         let existingLatestIds: Record<string, string> = {};
@@ -1482,7 +1400,13 @@ export async function executePullsImport(
                 });
         };
 
-        if (pullsToUpsert.length === 0) {
+        if (pullsToUpsert.length === 0 && newPullCount === 0 && existingUserGame) {
+            // No new or modified pulls; only update lastImport timestamp
+            await db
+                .update(userGame)
+                .set({ lastImport: new Date() })
+                .where(eq(userGame.id, existingUserGame.id));
+        } else if (pullsToUpsert.length === 0) {
             // Bypass transaction lock when no pull rows require insertion or updating
             await upsertUserGameRecord(db);
         } else {

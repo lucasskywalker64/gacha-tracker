@@ -275,10 +275,24 @@ describe("Pulls Import Sync & Caching", () => {
             expect(reimportResult.duplicates).toBe(2);
         });
 
-        it("exercises incremental-window re-import with 5-star history and merges totals", async () => {
+        it("exercises re-import with 5-star history and preserves 5-star pity", async () => {
             const { executePullsImport } = await import("../import");
 
+            const priorPulls: NormalizedPull[] = Array.from({ length: 74 }, (_, i) => ({
+                pullId: `prior_${i + 1}`,
+                gameUid: "UID_INCR",
+                bannerType: "301",
+                itemId: "WEAP_3",
+                itemName: "Three Star Weapon",
+                itemType: "weapon",
+                rarity: 3,
+                pulledAt: new Date(1704067200000 + i * 1000),
+                pityAtPull: i + 1,
+                wasGuaranteed: 0,
+            }));
+
             const initialPulls: NormalizedPull[] = [
+                ...priorPulls,
                 {
                     pullId: "5001",
                     gameUid: "UID_INCR",
@@ -287,8 +301,8 @@ describe("Pulls Import Sync & Caching", () => {
                     itemName: "Five Star Char",
                     itemType: "character",
                     rarity: 5,
-                    pulledAt: new Date("2026-01-01T00:00:00Z"),
-                    pityAtPull: 1,
+                    pulledAt: new Date(1704067200000 + 74 * 1000),
+                    pityAtPull: 75,
                     wasGuaranteed: 0,
                 },
                 {
@@ -299,7 +313,7 @@ describe("Pulls Import Sync & Caching", () => {
                     itemName: "Four Star Char",
                     itemType: "character",
                     rarity: 4,
-                    pulledAt: new Date("2026-01-01T00:01:00Z"),
+                    pulledAt: new Date(1704067200000 + 75 * 1000),
                     pityAtPull: 1,
                     wasGuaranteed: 0,
                 },
@@ -311,7 +325,7 @@ describe("Pulls Import Sync & Caching", () => {
                 "UID_INCR",
                 initialPulls
             );
-            expect(firstResult.imported).toBe(2);
+            expect(firstResult.imported).toBe(76);
 
             const newerPulls: NormalizedPull[] = [
                 {
@@ -322,7 +336,7 @@ describe("Pulls Import Sync & Caching", () => {
                     itemName: "Three Star Weapon",
                     itemType: "weapon",
                     rarity: 3,
-                    pulledAt: new Date("2026-01-01T00:02:00Z"),
+                    pulledAt: new Date(1704067200000 + 76 * 1000),
                     pityAtPull: 2,
                     wasGuaranteed: 0,
                 },
@@ -348,12 +362,26 @@ describe("Pulls Import Sync & Caching", () => {
                 );
             expect(userGameRows.length).toBe(1);
             const userGameRecord = userGameRows[0];
-            expect(userGameRecord.statsTotalPulls).toBe(3);
+            expect(userGameRecord.statsTotalPulls).toBe(77);
             expect(userGameRecord.statsFiveStars).toBe(1);
             expect(userGameRecord.statsFourStars).toBe(1);
             expect(userGameRecord.statsCurrentPity?.["301"]).toBe(2);
             expect(userGameRecord.statsFiveStarHistory?.length).toBe(1);
             expect(userGameRecord.statsFiveStarHistory?.[0].pullId).toBe("5001");
+            expect(userGameRecord.statsFiveStarHistory?.[0].pityAtPull).toBe(75);
+
+            // Crucially verify pull 5001 was NOT corrupted in pull table
+            const [pull5001] = await testDb
+                .select()
+                .from(schema.pull)
+                .where(
+                    and(
+                        eq(schema.pull.userId, "opt-user-id"),
+                        eq(schema.pull.gameId, "genshin"),
+                        eq(schema.pull.pullId, "5001")
+                    )
+                );
+            expect(pull5001.pityAtPull).toBe(75);
         });
     });
 

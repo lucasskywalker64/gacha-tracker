@@ -25,12 +25,9 @@ INSERT INTO `__new_pull`("user_id", "game_id", "game_uid", "pull_id", "banner_ty
 DROP TABLE `pull`;--> statement-breakpoint
 ALTER TABLE `__new_pull` RENAME TO `pull`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
-CREATE INDEX `idx_pull_user_game_date` ON `pull` (`user_id`,`game_id`,`pulled_at`);--> statement-breakpoint
-CREATE INDEX `idx_pull_user_game_uid_date` ON `pull` (`user_id`,`game_id`,`game_uid`,`pulled_at`);--> statement-breakpoint
-CREATE INDEX `idx_pull_filter_sort` ON `pull` (`user_id`,`game_id`,`game_uid`,`banner_type`,`pulled_at`);--> statement-breakpoint
-CREATE INDEX `idx_pull_game_banner` ON `pull` (`game_id`,`banner_type`);--> statement-breakpoint
-CREATE INDEX `idx_pull_pulled_at` ON `pull` (`pulled_at`);--> statement-breakpoint
-CREATE INDEX `idx_pull_rarity` ON `pull` (`rarity`);--> statement-breakpoint
+CREATE INDEX `idx_pull_user_game_date` ON `pull` (`user_id`,`game_id`,`pulled_at`,`pull_id`,`game_uid`);--> statement-breakpoint
+CREATE INDEX `idx_pull_user_game_uid_date` ON `pull` (`user_id`,`game_id`,`game_uid`,`pulled_at`,`pull_id`);--> statement-breakpoint
+CREATE INDEX `idx_pull_filter_sort` ON `pull` (`user_id`,`game_id`,`game_uid`,`banner_type`,`pulled_at`,`pull_id`);--> statement-breakpoint
 DROP INDEX `idx_user_game_user`;--> statement-breakpoint
 DROP INDEX `idx_user_game_user_game`;--> statement-breakpoint
 ALTER TABLE `user_game` ADD `stats_total_pulls` integer DEFAULT 0 NOT NULL;--> statement-breakpoint

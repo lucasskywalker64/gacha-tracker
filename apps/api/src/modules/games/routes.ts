@@ -37,7 +37,14 @@ export const gamesRouter = new Elysia()
             // Return user's games joined with the game details
             const result = await db
                 .select({
-                    userGame: userGame,
+                    id: userGame.id,
+                    userId: userGame.userId,
+                    gameId: userGame.gameId,
+                    gameUid: userGame.gameUid,
+                    nickname: userGame.nickname,
+                    isPrimary: userGame.isPrimary,
+                    lastImport: userGame.lastImport,
+                    createdAt: userGame.createdAt,
                     gameDisplayName: game.displayName,
                     gameIconUrl: game.iconUrl,
                 })
@@ -45,11 +52,7 @@ export const gamesRouter = new Elysia()
                 .innerJoin(game, eq(userGame.gameId, game.id))
                 .where(eq(userGame.userId, user!.id));
 
-            return result.map(({ userGame, gameDisplayName, gameIconUrl }) => ({
-                ...userGame,
-                gameDisplayName,
-                gameIconUrl,
-            }));
+            return result;
         },
         { auth: true }
     );

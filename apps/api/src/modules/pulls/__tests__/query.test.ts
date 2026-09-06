@@ -312,4 +312,53 @@ describe("Pulls Query API (Multi-Account)", () => {
         const combinedUids = [body1.data[0].gameUid, body2.data[0].gameUid].sort();
         expect(combinedUids).toEqual(["UID_1", "UID_2"]);
     });
+
+    it("resolves includeTotal from userGame statsTotalPulls when bannerType is omitted", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, created_at)
+             VALUES ('acc-tot-1', 'test-user-id', 'genshin', 'UID_TOTAL_1', 'Account 1', 1, NULL, 42, 1000),
+                    ('acc-tot-2', 'test-user-id', 'genshin', 'UID_TOTAL_2', 'Account 2', 0, NULL, 15, 2000)`
+        );
+        await sqlite.execute(
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_TOTAL_1', 't-101', '301', 'ITEM1', 'Item 1', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_TOTAL_2', 't-201', '301', 'ITEM2', 'Item 2', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+        );
+
+        // 1. Single gameUid: reads 42 directly from user_game without scanning pull table
+        const respSingle = await app.fetch(
+            new Request(
+                "http://localhost/pulls?gameId=genshin&gameUid=UID_TOTAL_1&includeTotal=true",
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(respSingle.status).toBe(200);
+        const bodySingle = await respSingle.json();
+        expect(bodySingle.meta.total).toBe(42);
+
+        // 2. All accounts: reads sum(stats_total_pulls) = 57 from user_game
+        const respAll = await app.fetch(
+            new Request("http://localhost/pulls?gameId=genshin&gameUid=all&includeTotal=true", {
+                headers: { Authorization: "Bearer session_token" },
+            })
+        );
+        expect(respAll.status).toBe(200);
+        const bodyAll = await respAll.json();
+        expect(bodyAll.meta.total).toBe(57);
+
+        // 3. Filtered by bannerType: falls back to counting matching pulls from pull table
+        const respBanner = await app.fetch(
+            new Request(
+                "http://localhost/pulls?gameId=genshin&gameUid=UID_TOTAL_1&bannerType=301&includeTotal=true",
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(respBanner.status).toBe(200);
+        const bodyBanner = await respBanner.json();
+        expect(bodyBanner.meta.total).toBe(1);
+    });
 });

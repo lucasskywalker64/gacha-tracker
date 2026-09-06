@@ -10,8 +10,18 @@ export async function resolvePrimaryOrEarliestAccount(
     userId: string,
     gameId: string
 ): Promise<UserGame | undefined> {
-    return await db.query.userGame.findFirst({
+    return (await db.query.userGame.findFirst({
         where: and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)),
+        columns: {
+            id: true,
+            userId: true,
+            gameId: true,
+            gameUid: true,
+            nickname: true,
+            isPrimary: true,
+            lastImport: true,
+            createdAt: true,
+        },
         orderBy: [desc(userGame.isPrimary), asc(userGame.createdAt)],
-    });
+    })) as UserGame | undefined;
 }
