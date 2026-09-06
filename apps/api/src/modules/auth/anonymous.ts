@@ -337,13 +337,15 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                 await db.insert(session).values(sessionRecord);
 
                 try {
+                    const safeUser = { ...candidate };
+                    delete (safeUser as { codeHash?: string | null }).codeHash;
                     const sessionData = {
                         session: {
                             ...sessionRecord,
                             createdAt: new Date(),
                             updatedAt: new Date(),
                         },
-                        user: candidate,
+                        user: safeUser,
                     };
                     await redis.set(rawToken, JSON.stringify(sessionData), "EX", 7 * 24 * 60 * 60);
                 } catch {

@@ -1186,7 +1186,10 @@ export async function executePullsImport(
 
         // 1. Read existing userGame record
         const [existingUserGame] = await db
-            .select()
+            .select({
+                id: userGame.id,
+                latestPullIds: userGame.latestPullIds,
+            })
             .from(userGame)
             .where(
                 and(
