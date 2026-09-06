@@ -57,6 +57,7 @@ CREATE TABLE `__new_user` (
 	CONSTRAINT "user_theme_check" CHECK("__new_user"."theme" IN ('system', 'quantum-dark', 'amber-dawn', 'wobbly-waves')),
 	CONSTRAINT "user_pity_display_mode_check" CHECK("__new_user"."pity_display_mode" IN ('count_up', 'count_down'))
 );
+--> statement-breakpoint
 INSERT INTO `__new_user`("id", "name", "email", "email_verified", "image", "created_at", "updated_at", "code_hash", "is_anonymous", "role", "banned", "ban_reason", "ban_expires", "theme", "pity_display_mode") SELECT "id", "name", "email", "email_verified", "image", "created_at", "updated_at", "code_hash", "is_anonymous", "role", "banned", "ban_reason", "ban_expires", 'system', 'count_up' FROM `user`;--> statement-breakpoint
 DROP TABLE `user`;--> statement-breakpoint
 ALTER TABLE `__new_user` RENAME TO `user`;--> statement-breakpoint
