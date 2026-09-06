@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, mock } from "bun:test";
 import { Elysia } from "elysia";
 import { drizzle } from "drizzle-orm/libsql";
+import { and, eq } from "drizzle-orm";
 import { createClient } from "@libsql/client";
 import * as schema from "../../../db/schema";
 import { createTestTables } from "../db-setup.helper";
@@ -272,6 +273,87 @@ describe("Pulls Import Sync & Caching", () => {
             );
             expect(reimportResult.imported).toBe(0);
             expect(reimportResult.duplicates).toBe(2);
+        });
+
+        it("exercises incremental-window re-import with 5-star history and merges totals", async () => {
+            const { executePullsImport } = await import("../import");
+
+            const initialPulls: NormalizedPull[] = [
+                {
+                    pullId: "5001",
+                    gameUid: "UID_INCR",
+                    bannerType: "301",
+                    itemId: "CHAR_5",
+                    itemName: "Five Star Char",
+                    itemType: "character",
+                    rarity: 5,
+                    pulledAt: new Date("2026-01-01T00:00:00Z"),
+                    pityAtPull: 1,
+                    wasGuaranteed: 0,
+                },
+                {
+                    pullId: "5002",
+                    gameUid: "UID_INCR",
+                    bannerType: "301",
+                    itemId: "CHAR_4",
+                    itemName: "Four Star Char",
+                    itemType: "character",
+                    rarity: 4,
+                    pulledAt: new Date("2026-01-01T00:01:00Z"),
+                    pityAtPull: 1,
+                    wasGuaranteed: 0,
+                },
+            ];
+
+            const firstResult = await executePullsImport(
+                "opt-user-id",
+                "genshin",
+                "UID_INCR",
+                initialPulls
+            );
+            expect(firstResult.imported).toBe(2);
+
+            const newerPulls: NormalizedPull[] = [
+                {
+                    pullId: "5003",
+                    gameUid: "UID_INCR",
+                    bannerType: "301",
+                    itemId: "WEAP_3",
+                    itemName: "Three Star Weapon",
+                    itemType: "weapon",
+                    rarity: 3,
+                    pulledAt: new Date("2026-01-01T00:02:00Z"),
+                    pityAtPull: 2,
+                    wasGuaranteed: 0,
+                },
+            ];
+
+            const secondResult = await executePullsImport(
+                "opt-user-id",
+                "genshin",
+                "UID_INCR",
+                newerPulls
+            );
+            expect(secondResult.imported).toBe(1);
+
+            const userGameRows = await testDb
+                .select()
+                .from(schema.userGame)
+                .where(
+                    and(
+                        eq(schema.userGame.userId, "opt-user-id"),
+                        eq(schema.userGame.gameId, "genshin"),
+                        eq(schema.userGame.gameUid, "UID_INCR")
+                    )
+                );
+            expect(userGameRows.length).toBe(1);
+            const userGameRecord = userGameRows[0];
+            expect(userGameRecord.statsTotalPulls).toBe(3);
+            expect(userGameRecord.statsFiveStars).toBe(1);
+            expect(userGameRecord.statsFourStars).toBe(1);
+            expect(userGameRecord.statsCurrentPity?.["301"]).toBe(2);
+            expect(userGameRecord.statsFiveStarHistory?.length).toBe(1);
+            expect(userGameRecord.statsFiveStarHistory?.[0].pullId).toBe("5001");
         });
     });
 

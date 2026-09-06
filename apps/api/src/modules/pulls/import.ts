@@ -1518,7 +1518,7 @@ export async function executePullsImport(
         try {
             await redis.set(
                 RedisKeys.userGameLatest(userId, gameId, gameUid),
-                JSON.stringify(latestIds),
+                JSON.stringify(mergedLatestIds),
                 "EX",
                 86400 * 7
             );

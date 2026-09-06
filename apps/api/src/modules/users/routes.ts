@@ -42,7 +42,30 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 .where(eq(user.id, userId));
 
             if (currentSession?.token) {
-                await redis.del(currentSession.token);
+                const cachedRaw = await redis.get(currentSession.token);
+                if (cachedRaw) {
+                    try {
+                        const parsed = JSON.parse(cachedRaw);
+                        if (parsed && typeof parsed === "object" && parsed.user) {
+                            if (body.theme !== undefined) parsed.user.theme = body.theme;
+                            if (body.pityDisplayMode !== undefined)
+                                parsed.user.pityDisplayMode = body.pityDisplayMode;
+                            const ttl = await redis.ttl(currentSession.token);
+                            if (ttl > 0) {
+                                await redis.set(
+                                    currentSession.token,
+                                    JSON.stringify(parsed),
+                                    "EX",
+                                    ttl
+                                );
+                            } else {
+                                await redis.set(currentSession.token, JSON.stringify(parsed));
+                            }
+                        }
+                    } catch {
+                        // ignore Redis parsing error
+                    }
+                }
             }
 
             return { success: true };
@@ -536,8 +559,14 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 });
             }
 
+            const userRecord = await db.query.user.findFirst({
+                where: eq(user.id, userId),
+            });
             const isAnonymous =
-                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
+                userRecord?.isAnonymous ??
+                (userRecord?.email.endsWith("@anon.gacha-tracker.app") ||
+                    sessionUser!.isAnonymous ||
+                    sessionUser!.email.endsWith("@anon.gacha-tracker.app"));
             if (existing.verified && !isAnonymous) {
                 const verifiedKey = RedisKeys.sensitiveActionVerified(
                     userId,
@@ -583,8 +612,15 @@ export const userRouter = new Elysia({ prefix: "/user" })
             const userId = sessionUser!.id;
             const useSecondaryEmail = body?.useSecondaryEmail;
 
+            const userRecord = await db.query.user.findFirst({
+                where: eq(user.id, userId),
+            });
+
             const isAnonymous =
-                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
+                userRecord?.isAnonymous ??
+                (userRecord?.email.endsWith("@anon.gacha-tracker.app") ||
+                    sessionUser!.isAnonymous ||
+                    sessionUser!.email.endsWith("@anon.gacha-tracker.app"));
             if (isAnonymous) {
                 return status(400, {
                     success: false,
@@ -610,7 +646,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 });
             }
 
-            let emailToSend = sessionUser!.email;
+            let emailToSend = userRecord?.email || sessionUser!.email;
 
             if (useSecondaryEmail) {
                 const emailLower = useSecondaryEmail.toLowerCase().trim();
@@ -686,7 +722,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
     // POST /user/unlink-email - De-identify user primary email
     .post(
         "/unlink-email",
-        async ({ user: sessionUser, body, status }) => {
+        async ({ user: sessionUser, session: currentSession, request, body, status }) => {
             const userId = sessionUser!.id;
             const emailToPromote = body?.emailToPromote;
             const code = body?.code;
@@ -705,8 +741,15 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 });
             }
 
+            const userRecord = await db.query.user.findFirst({
+                where: eq(user.id, userId),
+            });
+
             const isAnonymous =
-                sessionUser!.isAnonymous || sessionUser!.email.endsWith("@anon.gacha-tracker.app");
+                userRecord?.isAnonymous ??
+                (userRecord?.email.endsWith("@anon.gacha-tracker.app") ||
+                    sessionUser!.isAnonymous ||
+                    sessionUser!.email.endsWith("@anon.gacha-tracker.app"));
 
             if (!isAnonymous) {
                 if (!code) {
@@ -720,7 +763,7 @@ export const userRouter = new Elysia({ prefix: "/user" })
                 }
 
                 // Determine which OTP key to check
-                let otpEmail = sessionUser!.email;
+                let otpEmail = userRecord?.email || sessionUser!.email;
                 let isSecondaryOtp = false;
 
                 if (emailToPromote) {
@@ -852,6 +895,40 @@ export const userRouter = new Elysia({ prefix: "/user" })
                     })
                     .where(eq(user.id, userId));
             });
+
+            if (currentSession?.token) {
+                const cachedRaw = await redis.get(currentSession.token);
+                if (cachedRaw) {
+                    try {
+                        const parsed = JSON.parse(cachedRaw);
+                        if (parsed?.user) {
+                            parsed.user.email = toPromote;
+                            parsed.user.emailVerified = true;
+                            const ttl = await redis.ttl(currentSession.token);
+                            if (ttl > 0) {
+                                await redis.set(
+                                    currentSession.token,
+                                    JSON.stringify(parsed),
+                                    "EX",
+                                    ttl
+                                );
+                            } else {
+                                await redis.set(currentSession.token, JSON.stringify(parsed));
+                            }
+                        }
+                    } catch {
+                        // best-effort session sync
+                    }
+                }
+            }
+
+            try {
+                const headers = request?.headers ?? new Headers();
+                await auth.api.revokeOtherSessions({ headers });
+            } catch {
+                // best-effort revocation of other sessions
+            }
+
             return { success: true, email: toPromote, promoted: true };
         },
         {

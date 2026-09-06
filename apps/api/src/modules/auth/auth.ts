@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, emailOTP } from "better-auth/plugins";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db/client";
 import { config } from "../../config";
 import * as schema from "../../db/schema";
@@ -334,20 +334,13 @@ export const auth = betterAuth({
                         }
                     }
 
+                    const headers = typedCtx?.request?.headers ?? new Headers();
                     const currentSession = await auth.api.getSession({
-                        headers: typedCtx?.request?.headers ?? new Headers(),
+                        headers,
                     });
 
                     if (currentSession) {
-                        // Delete all of this user's sessions EXCEPT the current active session
-                        await db
-                            .delete(schema.session)
-                            .where(
-                                and(
-                                    eq(schema.session.userId, userId),
-                                    ne(schema.session.id, currentSession.session.id)
-                                )
-                            );
+                        await auth.api.revokeOtherSessions({ headers });
                     } else {
                         // Fallback: revoke all sessions if we cannot identify the current one
                         await auth.api.revokeUserSessions({ body: { userId } });

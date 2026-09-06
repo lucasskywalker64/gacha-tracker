@@ -9,6 +9,7 @@ import { resolvePrimaryOrEarliestAccount } from "../games/account-resolver";
 interface CursorData {
     pulledAt: number;
     pullId: string;
+    gameUid?: string;
 }
 
 function decodeCursor(cursorStr?: string): CursorData | null {
@@ -17,7 +18,11 @@ function decodeCursor(cursorStr?: string): CursorData | null {
         const json = Buffer.from(cursorStr, "base64url").toString("utf-8");
         const parsed = JSON.parse(json);
         if (typeof parsed.pulledAt === "number" && typeof parsed.pullId === "string") {
-            return parsed;
+            return {
+                pulledAt: parsed.pulledAt,
+                pullId: parsed.pullId,
+                gameUid: typeof parsed.gameUid === "string" ? parsed.gameUid : undefined,
+            };
         }
     } catch {
         return null;
@@ -25,9 +30,13 @@ function decodeCursor(cursorStr?: string): CursorData | null {
     return null;
 }
 
-function encodeCursor(pulledAt: Date | number, pullId: string): string {
+function encodeCursor(pulledAt: Date | number, pullId: string, gameUid?: string): string {
     const timestamp = pulledAt instanceof Date ? pulledAt.getTime() : pulledAt;
-    const payload = JSON.stringify({ pulledAt: timestamp, pullId });
+    const payload = JSON.stringify({
+        pulledAt: timestamp,
+        pullId,
+        ...(gameUid ? { gameUid } : {}),
+    });
     return Buffer.from(payload, "utf-8").toString("base64url");
 }
 
@@ -60,11 +69,15 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
 
         if (cursorData) {
             const cursorDate = new Date(cursorData.pulledAt);
+            const tieBreak = cursorData.gameUid
+                ? or(
+                      lt(pull.pullId, cursorData.pullId),
+                      and(eq(pull.pullId, cursorData.pullId), lt(pull.gameUid, cursorData.gameUid))
+                  )
+                : lt(pull.pullId, cursorData.pullId);
+
             queryConditions.push(
-                or(
-                    lt(pull.pulledAt, cursorDate),
-                    and(eq(pull.pulledAt, cursorDate), lt(pull.pullId, cursorData.pullId))
-                )!
+                or(lt(pull.pulledAt, cursorDate), and(eq(pull.pulledAt, cursorDate), tieBreak!))!
             );
         }
 
@@ -74,7 +87,7 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
             .select()
             .from(pull)
             .where(and(...queryConditions))
-            .orderBy(desc(pull.pulledAt), desc(pull.pullId))
+            .orderBy(desc(pull.pulledAt), desc(pull.pullId), desc(pull.gameUid))
             .limit(limit + 1)
             .offset(offset);
 
@@ -91,7 +104,11 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
             const items = hasNextPage ? results.slice(0, limit) : results;
             const nextCursor =
                 hasNextPage && items.length > 0
-                    ? encodeCursor(items[items.length - 1].pulledAt, items[items.length - 1].pullId)
+                    ? encodeCursor(
+                          items[items.length - 1].pulledAt,
+                          items[items.length - 1].pullId,
+                          items[items.length - 1].gameUid
+                      )
                     : null;
 
             return {
@@ -112,7 +129,11 @@ export const queryRouter = new Elysia({ prefix: "/pulls" }).use(authPlugin).get(
         const items = hasNextPage ? results.slice(0, limit) : results;
         const nextCursor =
             hasNextPage && items.length > 0
-                ? encodeCursor(items[items.length - 1].pulledAt, items[items.length - 1].pullId)
+                ? encodeCursor(
+                      items[items.length - 1].pulledAt,
+                      items[items.length - 1].pullId,
+                      items[items.length - 1].gameUid
+                  )
                 : null;
 
         return {

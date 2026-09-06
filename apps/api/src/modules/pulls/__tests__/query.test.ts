@@ -272,4 +272,44 @@ describe("Pulls Query API (Multi-Account)", () => {
         expect(body.data[0].pullId).toBe("102");
         expect(body.meta.cursor).toBeNull();
     });
+
+    it("preserves both rows across pages when gameUid=all and two pulls share pulledAt and pullId", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_1', 'Account 1', 1, NULL, 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_2', 'Account 2', 0, NULL, 2000)`
+        );
+        await sqlite.execute(
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_1', '101', '301', 'ITEM1', 'Item A', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_2', '101', '301', 'ITEM2', 'Item B', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+        );
+
+        const resp1 = await app.fetch(
+            new Request("http://localhost/pulls?gameId=genshin&gameUid=all&limit=1", {
+                headers: { Authorization: "Bearer session_token" },
+            })
+        );
+        expect(resp1.status).toBe(200);
+        const body1 = await resp1.json();
+        expect(body1.data.length).toBe(1);
+        expect(body1.meta.hasNextPage).toBe(true);
+        const nextCursor = body1.meta.nextCursor;
+        expect(nextCursor).toBeTruthy();
+
+        const resp2 = await app.fetch(
+            new Request(
+                `http://localhost/pulls?gameId=genshin&gameUid=all&limit=1&cursor=${nextCursor}`,
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(resp2.status).toBe(200);
+        const body2 = await resp2.json();
+        expect(body2.data.length).toBe(1);
+
+        const combinedUids = [body1.data[0].gameUid, body2.data[0].gameUid].sort();
+        expect(combinedUids).toEqual(["UID_1", "UID_2"]);
+    });
 });
