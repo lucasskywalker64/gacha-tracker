@@ -1,12 +1,12 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db/client";
-import { pull, userGame } from "../../db/schema";
+import { userGame, type FiveStarHistoryItem } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { authPlugin } from "../auth";
 import { redis } from "../../lib/redis";
 import { RedisKeys } from "../../lib/redis-keys";
-import { getAdapter } from "../games/registry";
-import { resolvePrimaryOrEarliestAccount } from "../games/account-resolver";
+
+type StatsHistoryItem = FiveStarHistoryItem & { id: string };
 
 export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
     "/:gameId",
@@ -15,53 +15,82 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
         const gameUid = query?.gameUid;
         const userId = user!.id;
 
-        let cacheKey: string;
-        const conditions = [eq(pull.userId, userId), eq(pull.gameId, gameId)];
-
         if (gameUid && gameUid !== "all") {
-            const owned = await db.query.userGame.findFirst({
-                where: and(
-                    eq(userGame.userId, userId),
-                    eq(userGame.gameId, gameId),
-                    eq(userGame.gameUid, gameUid)
-                ),
-            });
-            if (!owned) {
+            const cacheKey = RedisKeys.stats(userId, gameId, gameUid);
+            try {
+                const cached = await redis.get(cacheKey);
+                if (cached) return JSON.parse(cached);
+            } catch {
+                // Redis failure is non-fatal
+            }
+        } else if (gameUid === "all") {
+            const cacheKey = RedisKeys.stats(userId, gameId, "all");
+            try {
+                const cached = await redis.get(cacheKey);
+                if (cached) return JSON.parse(cached);
+            } catch {
+                // Redis failure is non-fatal
+            }
+        }
+
+        const userGameRows = await db
+            .select()
+            .from(userGame)
+            .where(and(eq(userGame.userId, userId), eq(userGame.gameId, gameId)));
+
+        if (userGameRows.length === 0) {
+            if (gameUid && gameUid !== "all") {
                 return status(404, { error: "Game account not found" });
             }
+            const emptyStats = {
+                total: 0,
+                fiveStars: 0,
+                fourStars: 0,
+                currentPity: {},
+                fiveStarHistory: [],
+            };
+            const cacheKey = RedisKeys.stats(userId, gameId, gameUid ?? "all");
+            try {
+                await redis.set(cacheKey, JSON.stringify(emptyStats), "EX", 300);
+            } catch {
+                // Redis failure is non-fatal
+            }
+            return emptyStats;
+        }
+
+        let targetRows: typeof userGameRows;
+        let cacheKey: string;
+
+        if (gameUid && gameUid !== "all") {
+            const matched = userGameRows.find((r) => r.gameUid === gameUid);
+            if (!matched) {
+                return status(404, { error: "Game account not found" });
+            }
+            targetRows = [matched];
             cacheKey = RedisKeys.stats(userId, gameId, gameUid);
-            conditions.push(eq(pull.gameUid, gameUid));
         } else if (gameUid === "all") {
+            targetRows = userGameRows;
             cacheKey = RedisKeys.stats(userId, gameId, "all");
         } else {
-            // Default to primary or earliest game account if omitted
-            const defaultAccount = await resolvePrimaryOrEarliestAccount(userId, gameId);
-
-            if (defaultAccount) {
-                cacheKey = RedisKeys.stats(userId, gameId, defaultAccount.gameUid);
-                conditions.push(eq(pull.gameUid, defaultAccount.gameUid));
-            } else {
-                cacheKey = RedisKeys.stats(userId, gameId, "all");
+            const primary = userGameRows.find((r) => r.isPrimary) ?? userGameRows[0];
+            targetRows = [primary];
+            cacheKey = RedisKeys.stats(userId, gameId, primary.gameUid);
+            try {
+                const cached = await redis.get(cacheKey);
+                if (cached) return JSON.parse(cached);
+            } catch {
+                // Redis failure is non-fatal
             }
         }
 
-        const cached = await redis.get(cacheKey);
-        if (cached) {
-            return JSON.parse(cached);
-        }
-
-        const allPulls = await db
-            .select()
-            .from(pull)
-            .where(and(...conditions));
-
-        const stats = {
-            total: allPulls.length,
-            fiveStars: 0,
-            fourStars: 0,
-            currentPity: {} as Record<string, number>,
-            fiveStarHistory: [] as {
+        let stats: {
+            total: number;
+            fiveStars: number;
+            fourStars: number;
+            currentPity: Record<string, number>;
+            fiveStarHistory: Array<{
                 id: string;
+                pullId: string;
                 gameUid: string;
                 itemId: string;
                 itemName: string;
@@ -70,91 +99,68 @@ export const statsRouter = new Elysia({ prefix: "/stats" }).use(authPlugin).get(
                 pulledAt: number;
                 bannerType: string;
                 bannerId?: string | null;
-            }[], // Explicitly typed array of recent 5 stars
+            }>;
         };
 
-        for (const pull of allPulls) {
-            if (pull.rarity === 5) {
-                stats.fiveStars++;
-                stats.fiveStarHistory.push({
-                    id: pull.id,
-                    gameUid: pull.gameUid,
-                    itemId: pull.itemId,
-                    itemName: pull.itemName,
-                    pityAtPull: pull.pityAtPull,
-                    wasGuaranteed: pull.wasGuaranteed,
-                    pulledAt: pull.pulledAt.getTime(),
-                    bannerType: pull.bannerType,
-                    bannerId: pull.bannerId,
-                });
-            } else if (pull.rarity === 4) {
-                stats.fourStars++;
-            }
-        }
+        if (targetRows.length === 1) {
+            const row = targetRows[0];
+            const currentPity = row.statsCurrentPity ?? {};
+            const fiveStarHistory = row.statsFiveStarHistory ?? [];
 
-        // Determine which pulls to use for current pity calculation.
-        // When aggregated (gameUid === 'all'), calculate current pity for the primary account
-        // to avoid corrupting pity counters across separate in-game accounts.
-        let pityPulls = allPulls;
-        if (gameUid === "all") {
-            const targetAccount = await resolvePrimaryOrEarliestAccount(userId, gameId);
-            if (targetAccount) {
-                pityPulls = allPulls.filter((p) => p.gameUid === targetAccount.gameUid);
-            }
-        }
+            stats = {
+                total: row.statsTotalPulls,
+                fiveStars: row.statsFiveStars,
+                fourStars: row.statsFourStars,
+                currentPity,
+                fiveStarHistory: fiveStarHistory.map((item) => ({
+                    ...item,
+                    id: `${item.gameUid}:${item.pullId}`,
+                    pullId: item.pullId,
+                })),
+            };
+        } else {
+            let total = 0;
+            let fiveStars = 0;
+            let fourStars = 0;
+            const historyMap = new Map<string, StatsHistoryItem>();
 
-        const comparePullId = (a: string, b: string) =>
-            a.length === b.length ? (a < b ? -1 : a > b ? 1 : 0) : a.length - b.length;
-
-        // Sort pulls chronologically
-        const sortedPityPulls = [...pityPulls].sort((a, b) => {
-            const delta = a.pulledAt.getTime() - b.pulledAt.getTime();
-            if (delta !== 0) return delta;
-            return comparePullId(a.pullId, b.pullId);
-        });
-
-        let adapter;
-        try {
-            adapter = getAdapter(gameId);
-        } catch {
-            console.warn(
-                `[stats] No adapter registered for gameId=${gameId}; using default pity config`
-            );
-        }
-
-        const pityTriggerRarity = adapter?.pityConfig?.pityTriggerRarity ?? 5;
-        const pityByPool: Record<string, number> = {};
-
-        for (const p of sortedPityPulls) {
-            const poolKey = adapter?.pityPools?.[p.bannerType] || p.bannerType;
-            if (p.rarity === pityTriggerRarity) {
-                pityByPool[poolKey] = 0;
-            } else {
-                pityByPool[poolKey] = (pityByPool[poolKey] || 0) + 1;
-            }
-        }
-
-        const currentPityExact: Record<string, number> = {};
-        if (sortedPityPulls.length > 0) {
-            const bannerTypes = adapter?.bannerTypes || Object.keys(pityByPool);
-            for (const bannerType of bannerTypes) {
-                const poolKey = adapter?.pityPools?.[bannerType] || bannerType;
-                currentPityExact[bannerType] = pityByPool[poolKey] || 0;
-            }
-
-            for (const [poolKey, count] of Object.entries(pityByPool)) {
-                if (currentPityExact[poolKey] === undefined) {
-                    currentPityExact[poolKey] = count;
+            for (const row of targetRows) {
+                total += row.statsTotalPulls;
+                fiveStars += row.statsFiveStars;
+                fourStars += row.statsFourStars;
+                if (row.statsFiveStarHistory) {
+                    for (const item of row.statsFiveStarHistory) {
+                        const compositeKey = `${item.gameUid}:${item.pullId}`;
+                        historyMap.set(compositeKey, {
+                            ...item,
+                            id: compositeKey,
+                            pullId: item.pullId,
+                        });
+                    }
                 }
             }
+
+            const primaryRow = targetRows.find((r) => r.isPrimary) ?? targetRows[0];
+            const currentPity = primaryRow.statsCurrentPity ?? {};
+
+            const sortedHistory = Array.from(historyMap.values()).sort(
+                (a, b) => b.pulledAt - a.pulledAt
+            );
+
+            stats = {
+                total,
+                fiveStars,
+                fourStars,
+                currentPity,
+                fiveStarHistory: sortedHistory,
+            };
         }
 
-        stats.currentPity = currentPityExact;
-
-        // Keep only recent 5 stars sorted descending
-        stats.fiveStarHistory.sort((a, b) => b.pulledAt - a.pulledAt);
-
-        await redis.set(cacheKey, JSON.stringify(stats), "EX", 60 * 5); // cache for 5 minutes
+        try {
+            await redis.set(cacheKey, JSON.stringify(stats), "EX", 300);
+        } catch {
+            // Redis failure is non-fatal
+        }
 
         return stats;
     },

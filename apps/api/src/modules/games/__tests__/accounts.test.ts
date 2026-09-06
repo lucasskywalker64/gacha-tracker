@@ -205,9 +205,9 @@ describe("Game Accounts API", () => {
         );
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', '100000001', 'PULL_1', '301', 'ITEM1', 'Venti', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', '100000002', 'PULL_2', '301', 'ITEM2', 'Diluc', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', '100000001', 'PULL_1', '301', 'ITEM1', 'Venti', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', '100000002', 'PULL_2', '301', 'ITEM2', 'Diluc', 'character', 5, 1704067200000, 1, 0, 1, 0)`
         );
 
         // Set sensitive action verified token in Redis

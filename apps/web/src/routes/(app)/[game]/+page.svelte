@@ -158,7 +158,8 @@
 				gameUid: selectedUid,
 				bannerType: activeBanner === 'all' ? undefined : activeBanner,
 				page: 1,
-				limit: 50
+				limit: 50,
+				includeTotal: true
 			}
 		});
 
@@ -166,7 +167,7 @@
 
 		if (res.data) {
 			pulls = res.data.data;
-			totalPulls = res.data.meta.total;
+			totalPulls = res.data.meta.total ?? res.data.data.length;
 			hasMore = res.data.meta.hasNextPage;
 		} else {
 			pulls = [];
@@ -196,7 +197,8 @@
 					gameUid: selectedUid,
 					bannerType: activeBanner === 'all' ? undefined : activeBanner,
 					page: 1,
-					limit: 50
+					limit: 50,
+					includeTotal: true
 				}
 			}),
 			api.stats({ gameId }).get({
@@ -210,7 +212,7 @@
 
 		if (pullsRes.data) {
 			pulls = pullsRes.data.data;
-			totalPulls = pullsRes.data.meta.total;
+			totalPulls = pullsRes.data.meta.total ?? pullsRes.data.data.length;
 			hasMore = pullsRes.data.meta.hasNextPage;
 		} else {
 			pulls = [];
@@ -395,7 +397,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#each pulls as pull, i (pull.id)}
+								{#each pulls as pull, i (`${pull.gameUid}-${pull.pullId}`)}
 									{@const pullAccount = accounts.find((a) => a.gameUid === pull.gameUid)}
 									{@const pullAccountLabel = pullAccount
 										? pullAccount.nickname

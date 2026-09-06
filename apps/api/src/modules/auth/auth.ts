@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, emailOTP } from "better-auth/plugins";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db/client";
 import { config } from "../../config";
 import * as schema from "../../db/schema";
@@ -69,9 +69,19 @@ export async function getUserAuthMethodsCount(userId: string): Promise<{
     hasAnonymousCode: boolean;
     totalActiveCount: number;
 }> {
-    const userRecord = await db.query.user.findFirst({
-        where: eq(schema.user.id, userId),
-    });
+    const [userRecord, secondary, social] = await Promise.all([
+        db.query.user.findFirst({
+            where: eq(schema.user.id, userId),
+        }),
+        db.query.userEmails.findMany({
+            where: eq(schema.userEmails.userId, userId),
+            orderBy: (emails, { asc }) => [asc(emails.createdAt)],
+        }),
+        db.query.account.findMany({
+            where: eq(schema.account.userId, userId),
+        }),
+    ]);
+
     if (!userRecord) {
         return {
             primaryEmail: null,
@@ -81,15 +91,6 @@ export async function getUserAuthMethodsCount(userId: string): Promise<{
             totalActiveCount: 0,
         };
     }
-
-    const secondary = await db.query.userEmails.findMany({
-        where: eq(schema.userEmails.userId, userId),
-        orderBy: (emails, { asc }) => [asc(emails.createdAt)],
-    });
-
-    const social = await db.query.account.findMany({
-        where: eq(schema.account.userId, userId),
-    });
 
     const primaryEmailReal = !userRecord.email.endsWith("@anon.gacha-tracker.app");
 
@@ -167,6 +168,22 @@ export const auth = betterAuth({
         provider: "sqlite",
         schema,
     }),
+    secondaryStorage: {
+        get: async (key) => {
+            const val = await redis.get(key);
+            return val ? val : null;
+        },
+        set: async (key, value, ttl) => {
+            if (ttl) {
+                await redis.set(key, value, "EX", ttl);
+            } else {
+                await redis.set(key, value);
+            }
+        },
+        delete: async (key) => {
+            await redis.del(key);
+        },
+    },
 
     databaseHooks: {
         user: {
@@ -317,20 +334,13 @@ export const auth = betterAuth({
                         }
                     }
 
+                    const headers = typedCtx?.request?.headers ?? new Headers();
                     const currentSession = await auth.api.getSession({
-                        headers: typedCtx?.request?.headers ?? new Headers(),
+                        headers,
                     });
 
                     if (currentSession) {
-                        // Delete all of this user's sessions EXCEPT the current active session
-                        await db
-                            .delete(schema.session)
-                            .where(
-                                and(
-                                    eq(schema.session.userId, userId),
-                                    ne(schema.session.id, currentSession.session.id)
-                                )
-                            );
+                        await auth.api.revokeOtherSessions({ headers });
                     } else {
                         // Fallback: revoke all sessions if we cannot identify the current one
                         await auth.api.revokeUserSessions({ body: { userId } });
@@ -398,6 +408,13 @@ export const auth = betterAuth({
         additionalFields: {
             isAnonymous: { type: "boolean", required: false, input: true },
             codeHash: { type: "string", required: false, input: true },
+            theme: { type: "string", required: false, input: true, defaultValue: "system" },
+            pityDisplayMode: {
+                type: "string",
+                required: false,
+                input: true,
+                defaultValue: "count_up",
+            },
         },
     },
 

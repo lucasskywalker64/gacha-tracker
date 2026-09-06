@@ -321,8 +321,9 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                 const signedToken = await signSessionToken(rawToken);
                 const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-                await db.insert(session).values({
-                    id: crypto.randomUUID(),
+                const sessionId = crypto.randomUUID();
+                const sessionRecord = {
+                    id: sessionId,
                     token: rawToken,
                     userId: candidate.id,
                     expiresAt,
@@ -331,7 +332,25 @@ export const anonymousAuthPlugin = new Elysia({ name: "anonymous-auth" })
                         request.headers.get("x-real-ip") ??
                         undefined,
                     userAgent: request.headers.get("user-agent") ?? undefined,
-                });
+                };
+
+                await db.insert(session).values(sessionRecord);
+
+                try {
+                    const safeUser = { ...candidate };
+                    delete (safeUser as { codeHash?: string | null }).codeHash;
+                    const sessionData = {
+                        session: {
+                            ...sessionRecord,
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        },
+                        user: safeUser,
+                    };
+                    await redis.set(rawToken, JSON.stringify(sessionData), "EX", 7 * 24 * 60 * 60);
+                } catch {
+                    // best-effort session caching
+                }
 
                 const authCtx = await auth.$context;
                 const cookieConfig = authCtx.authCookies.sessionToken;

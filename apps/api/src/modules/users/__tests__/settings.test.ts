@@ -16,6 +16,8 @@ const mockUser = {
     emailVerified: true,
     isAnonymous: false,
     codeHash: null as string | null,
+    theme: "quantum-dark",
+    pityDisplayMode: "count_up",
 };
 
 let mockUserEmails: Array<{
@@ -214,7 +216,13 @@ beforeAll(async () => {
             api: {
                 ...originalAuth.auth.api,
                 getSession: mock(async () => ({
-                    user: { id: "test_user_id", name: "User", email: "user@example.com" },
+                    user: {
+                        id: mockUser.id,
+                        name: "User",
+                        email: mockUser.email,
+                        theme: mockUser.theme,
+                        pityDisplayMode: mockUser.pityDisplayMode,
+                    },
                     session: { token: "session_token" },
                 })),
                 revokeUserSessions: mockRevokeSessions,
@@ -249,6 +257,8 @@ describe("userRouter — /settings", () => {
         mockUser.emailVerified = true;
         mockUser.isAnonymous = false;
         mockUser.codeHash = null;
+        mockUser.theme = "quantum-dark";
+        mockUser.pityDisplayMode = "count_up";
         mockUserEmails = [];
         mockAccount = {
             id: "acc_id",
@@ -268,7 +278,15 @@ describe("userRouter — /settings", () => {
         expect(data.pityDisplayMode).toBe("count_up");
     });
 
-    it("PATCH /user/settings updates the settings successfully", async () => {
+    it("PATCH /user/settings updates the settings successfully and preserves the active session in Redis", async () => {
+        redisStore.set(
+            "session_token",
+            JSON.stringify({
+                session: { token: "session_token" },
+                user: { id: "test_user_id", theme: "quantum-dark", pityDisplayMode: "count_up" },
+            })
+        );
+
         const app = await buildApp();
         const res = await app.handle(
             new Request("http://localhost/user/settings", {
@@ -285,6 +303,12 @@ describe("userRouter — /settings", () => {
         expect(data.success).toBe(true);
         expect(dbUpdateCalledWith?.theme).toBe("wobbly-waves");
         expect(dbUpdateCalledWith?.pityDisplayMode).toBe("count_down");
+
+        const cachedSession = redisStore.get("session_token");
+        expect(cachedSession).toBeDefined();
+        const parsed = JSON.parse(cachedSession!);
+        expect(parsed.user.theme).toBe("wobbly-waves");
+        expect(parsed.user.pityDisplayMode).toBe("count_down");
     });
 
     it("PATCH /user/settings fails with 422 when invalid values are provided", async () => {

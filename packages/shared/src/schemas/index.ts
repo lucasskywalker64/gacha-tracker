@@ -9,8 +9,20 @@ export const paginationSchema = z.object({
     gameId: z.enum(Object.keys(BANNER_NAMES) as [string, ...string[]]),
     gameUid: z.string().optional(),
     bannerType: z.string().optional(),
+    cursor: z.string().optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(50),
+    includeTotal: z
+        .preprocess((val) => {
+            if (typeof val === "string") {
+                const lower = val.trim().toLowerCase();
+                if (lower === "true" || lower === "1") return true;
+                if (lower === "false" || lower === "0") return false;
+            }
+            return val;
+        }, z.boolean())
+        .optional()
+        .default(false),
 });
 
 // ---------------------------------------------------------------------------

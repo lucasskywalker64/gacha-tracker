@@ -74,9 +74,9 @@ describe("Pulls Query API (Multi-Account)", () => {
         );
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
         );
 
         const resp = await app.fetch(
@@ -99,9 +99,9 @@ describe("Pulls Query API (Multi-Account)", () => {
         );
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_EARLY', '101', '301', 'ITEM1', 'Early Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_LATER', '201', '301', 'ITEM2', 'Later Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_EARLY', '101', '301', 'ITEM1', 'Early Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_LATER', '201', '301', 'ITEM2', 'Later Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
         );
 
         const resp = await app.fetch(
@@ -124,9 +124,9 @@ describe("Pulls Query API (Multi-Account)", () => {
         );
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
         );
 
         const resp = await app.fetch(
@@ -149,9 +149,9 @@ describe("Pulls Query API (Multi-Account)", () => {
         );
 
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
-                    ('p-2', 'test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item', 'character', 5, 1704067300000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_ALT', '101', '301', 'ITEM1', 'Alt Item', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_MAIN', '201', '301', 'ITEM2', 'Main Item', 'character', 5, 1704067300000, 1, 0, 1, 0)`
         );
 
         const resp = await app.fetch(
@@ -166,7 +166,7 @@ describe("Pulls Query API (Multi-Account)", () => {
 
     it("returns empty array and 0 total when user has no accounts or pulls for the game", async () => {
         const resp = await app.fetch(
-            new Request("http://localhost/pulls?gameId=genshin", {
+            new Request("http://localhost/pulls?gameId=genshin&includeTotal=true", {
                 headers: { Authorization: "Bearer session_token" },
             })
         );
@@ -183,14 +183,17 @@ describe("Pulls Query API (Multi-Account)", () => {
              VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1000)`
         );
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-1', 'test-user-id', 'genshin', 'UID_MAIN', '101', '301', 'ITEM1', 'Main Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_MAIN', '101', '301', 'ITEM1', 'Main Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
         );
 
         const resp = await app.fetch(
-            new Request("http://localhost/pulls?gameId=genshin&gameUid=NON_EXISTENT_UID", {
-                headers: { Authorization: "Bearer session_token" },
-            })
+            new Request(
+                "http://localhost/pulls?gameId=genshin&gameUid=NON_EXISTENT_UID&includeTotal=true",
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
         );
         expect(resp.status).toBe(200);
         const body = await resp.json();
@@ -205,12 +208,12 @@ describe("Pulls Query API (Multi-Account)", () => {
              VALUES ('acc-other', 'other-user-id', 'genshin', 'UID_MAIN', 'Other Main', 1, NULL, 1000)`
         );
         await sqlite.execute(
-            `INSERT INTO pull (id, user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
-             VALUES ('p-other', 'other-user-id', 'genshin', 'UID_MAIN', 'PULL_OTHER', '301', 'ITEM1', 'Secret 5 Star', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('other-user-id', 'genshin', 'UID_MAIN', 'PULL_OTHER', '301', 'ITEM1', 'Secret 5 Star', 'character', 5, 1704067200000, 1, 0, 1, 0)`
         );
 
         const resp = await app.fetch(
-            new Request("http://localhost/pulls?gameId=genshin&gameUid=all", {
+            new Request("http://localhost/pulls?gameId=genshin&gameUid=all&includeTotal=true", {
                 headers: { Authorization: "Bearer session_token" },
             })
         );
@@ -218,5 +221,144 @@ describe("Pulls Query API (Multi-Account)", () => {
         const body = await resp.json();
         expect(body.data).toEqual([]);
         expect(body.meta.total).toBe(0);
+    });
+
+    it("parses includeTotal='false' as boolean false without returning total", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1000)`
+        );
+        await sqlite.execute(
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_MAIN', '101', '301', 'ITEM1', 'Main Item', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+        );
+
+        const resp = await app.fetch(
+            new Request(
+                "http://localhost/pulls?gameId=genshin&gameUid=UID_MAIN&includeTotal=false",
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(resp.status).toBe(200);
+        const body = await resp.json();
+        expect(body.data.length).toBe(1);
+        expect(body.meta.total).toBeUndefined();
+    });
+
+    it("falls back to offset pagination when cursor is malformed and returns null cursor in meta", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_MAIN', 'Main', 1, NULL, 1000)`
+        );
+        await sqlite.execute(
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_MAIN', '101', '301', 'ITEM1', 'Main Item 1', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_MAIN', '102', '301', 'ITEM2', 'Main Item 2', 'character', 5, 1704067100000, 1, 0, 1, 0)`
+        );
+
+        const resp = await app.fetch(
+            new Request(
+                "http://localhost/pulls?gameId=genshin&gameUid=UID_MAIN&cursor=invalid_garbage&page=2&limit=1",
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(resp.status).toBe(200);
+        const body = await resp.json();
+        expect(body.data.length).toBe(1);
+        expect(body.data[0].pullId).toBe("102");
+        expect(body.meta.cursor).toBeNull();
+    });
+
+    it("preserves both rows across pages when gameUid=all and two pulls share pulledAt and pullId", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, created_at)
+             VALUES ('acc-1', 'test-user-id', 'genshin', 'UID_1', 'Account 1', 1, NULL, 1000),
+                    ('acc-2', 'test-user-id', 'genshin', 'UID_2', 'Account 2', 0, NULL, 2000)`
+        );
+        await sqlite.execute(
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_1', '101', '301', 'ITEM1', 'Item A', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_2', '101', '301', 'ITEM2', 'Item B', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+        );
+
+        const resp1 = await app.fetch(
+            new Request("http://localhost/pulls?gameId=genshin&gameUid=all&limit=1", {
+                headers: { Authorization: "Bearer session_token" },
+            })
+        );
+        expect(resp1.status).toBe(200);
+        const body1 = await resp1.json();
+        expect(body1.data.length).toBe(1);
+        expect(body1.meta.hasNextPage).toBe(true);
+        const nextCursor = body1.meta.nextCursor;
+        expect(nextCursor).toBeTruthy();
+
+        const resp2 = await app.fetch(
+            new Request(
+                `http://localhost/pulls?gameId=genshin&gameUid=all&limit=1&cursor=${nextCursor}`,
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(resp2.status).toBe(200);
+        const body2 = await resp2.json();
+        expect(body2.data.length).toBe(1);
+
+        const combinedUids = [body1.data[0].gameUid, body2.data[0].gameUid].sort();
+        expect(combinedUids).toEqual(["UID_1", "UID_2"]);
+    });
+
+    it("resolves includeTotal from userGame statsTotalPulls when bannerType is omitted", async () => {
+        await sqlite.execute(
+            `INSERT INTO user_game (id, user_id, game_id, game_uid, nickname, is_primary, last_import, stats_total_pulls, created_at)
+             VALUES ('acc-tot-1', 'test-user-id', 'genshin', 'UID_TOTAL_1', 'Account 1', 1, NULL, 42, 1000),
+                    ('acc-tot-2', 'test-user-id', 'genshin', 'UID_TOTAL_2', 'Account 2', 0, NULL, 15, 2000)`
+        );
+        await sqlite.execute(
+            `INSERT INTO pull (user_id, game_id, game_uid, pull_id, banner_type, item_id, item_name, item_type, rarity, pulled_at, pity_at_pull, was_guaranteed, pity_version, created_at)
+             VALUES ('test-user-id', 'genshin', 'UID_TOTAL_1', 't-101', '301', 'ITEM1', 'Item 1', 'character', 5, 1704067200000, 1, 0, 1, 0),
+                    ('test-user-id', 'genshin', 'UID_TOTAL_2', 't-201', '301', 'ITEM2', 'Item 2', 'character', 5, 1704067200000, 1, 0, 1, 0)`
+        );
+
+        // 1. Single gameUid: reads 42 directly from user_game without scanning pull table
+        const respSingle = await app.fetch(
+            new Request(
+                "http://localhost/pulls?gameId=genshin&gameUid=UID_TOTAL_1&includeTotal=true",
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(respSingle.status).toBe(200);
+        const bodySingle = await respSingle.json();
+        expect(bodySingle.meta.total).toBe(42);
+
+        // 2. All accounts: reads sum(stats_total_pulls) = 57 from user_game
+        const respAll = await app.fetch(
+            new Request("http://localhost/pulls?gameId=genshin&gameUid=all&includeTotal=true", {
+                headers: { Authorization: "Bearer session_token" },
+            })
+        );
+        expect(respAll.status).toBe(200);
+        const bodyAll = await respAll.json();
+        expect(bodyAll.meta.total).toBe(57);
+
+        // 3. Filtered by bannerType: falls back to counting matching pulls from pull table
+        const respBanner = await app.fetch(
+            new Request(
+                "http://localhost/pulls?gameId=genshin&gameUid=UID_TOTAL_1&bannerType=301&includeTotal=true",
+                {
+                    headers: { Authorization: "Bearer session_token" },
+                }
+            )
+        );
+        expect(respBanner.status).toBe(200);
+        const bodyBanner = await respBanner.json();
+        expect(bodyBanner.meta.total).toBe(1);
     });
 });
